@@ -1,0 +1,3 @@
+[submodule "Arduino_Core_STM32"]
+	path = Arduino_Core_STM32
+	url = https://github.com/geosmall/Arduino_Core_STM32.git
