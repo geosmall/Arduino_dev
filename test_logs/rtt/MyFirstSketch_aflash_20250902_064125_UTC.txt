@@ -1,0 +1,12 @@
+=== RTT Capture Started: 2025-09-02 10:41:28 UTC ===
+[10:41:28.050] 
+[10:41:28.054] 
+[10:41:28.148] === STM32 Arduino RTT Test ===
+[10:41:28.149] Board: NUCLEO_F411RE
+[10:41:28.151] Core: STM32 Arduino v2.7.1
+[10:41:28.152] RTT: v8.62 (Full Implementation)
+[10:41:28.153] Build: Sep  2 2025 06:41:21
+[10:41:28.155] ================================
+[10:41:28.156] READY F411RE Sep  2 2025
+[10:41:28.157] [01000] RTT Loop Counter: 1
+[10:41:28.159] [02000] RTT Loop Counter: 2

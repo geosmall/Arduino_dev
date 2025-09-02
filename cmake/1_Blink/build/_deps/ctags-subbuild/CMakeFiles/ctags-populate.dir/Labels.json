@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "D:/Arduino/cmake/1_Blink/build/_deps/ctags-subbuild/CMakeFiles/ctags-populate"
+		},
+		{
+			"file" : "D:/Arduino/cmake/1_Blink/build/_deps/ctags-subbuild/CMakeFiles/ctags-populate.rule"
+		},
+		{
+			"file" : "D:/Arduino/cmake/1_Blink/build/_deps/ctags-subbuild/CMakeFiles/ctags-populate-complete.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-build.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-configure.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-download.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-install.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-patch.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-test.rule"
+		},
+		{
+			"file" : "C:/Users/geoma/.Arduino_Core_STM32_dl/f785d07b28d650ae4167b867299f09fc/src/ctags-populate-stamp/ctags-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"ctags-populate"
+		],
+		"name" : "ctags-populate"
+	}
+}
