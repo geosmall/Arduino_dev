@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Arduino CLI build script with caching
-# Usage: ./scripts/build.sh <sketch_directory> [FQBN]
+# Arduino CLI build script with optional environment validation
+# Usage: ./scripts/build.sh <sketch_directory> [FQBN] [--env-check]
 #
 
 set -euo pipefail
@@ -9,16 +9,58 @@ set -euo pipefail
 # Default configuration
 DEFAULT_FQBN="STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE"
 
+# Parse arguments
+SKETCH_DIR=""
+FQBN="$DEFAULT_FQBN"
+ENV_CHECK=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --env-check)
+            ENV_CHECK=true
+            shift
+            ;;
+        -*)
+            echo "Unknown option $1"
+            exit 1
+            ;;
+        *)
+            if [[ -z "$SKETCH_DIR" ]]; then
+                SKETCH_DIR="$1"
+            else
+                FQBN="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
 # Check arguments
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <sketch_directory> [FQBN]"
-    echo "Example: $0 MyFirstSketch"
-    echo "Example: $0 MyFirstSketch STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
+if [[ -z "$SKETCH_DIR" ]]; then
+    echo "Arduino CLI Build Script with Environment Validation"
+    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check]"
+    echo
+    echo "Examples:"
+    echo "  $0 MyFirstSketch"
+    echo "  $0 MyFirstSketch --env-check"
+    echo "  $0 MyFirstSketch STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
+    echo "  $0 MyFirstSketch STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check"
+    echo
+    echo "Default FQBN: $DEFAULT_FQBN"
     exit 1
 fi
 
-SKETCH_DIR="$1"
-FQBN="${2:-$DEFAULT_FQBN}"
+# Optional environment validation
+if [[ "$ENV_CHECK" == true ]]; then
+    echo "=== Environment Validation ==="
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if ! "$SCRIPT_DIR/env_check_quick.sh" true; then
+        echo "Environment validation failed. Run './scripts/env_probe.sh' for detailed diagnostics."
+        exit 1
+    fi
+    echo "✓ Environment validated"
+    echo
+fi
 
 # Validate sketch directory
 if [ ! -d "$SKETCH_DIR" ]; then

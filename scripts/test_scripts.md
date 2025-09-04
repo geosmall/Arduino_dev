@@ -46,11 +46,12 @@ void loop() {
 | Script | Purpose | Phase | Dependencies |
 |--------|---------|-------|-------------|
 | `env_probe.sh` | Environment verification and snapshot | Phase 0 | arduino-cli |
-| `build.sh` | Arduino CLI compile with caching | Phase 2 | arduino-cli |
+| `env_check_quick.sh` | **Fast environment validation (~100ms)** | **Phase 3** | **arduino-cli** |
+| `build.sh` | Arduino CLI compile with optional --env-check | Phase 2-3 | arduino-cli |
 | `jrun.sh` | **J-Run execution with RTT + exit wildcard detection** | **Phase 1-2** | **JRun (primary)** |
 | `flash.sh` | J-Link flash with --quick/full modes (fallback) | Phase 1-2 | JLinkExe |
 | `rtt_cat.sh` | RTT logging with timestamps (legacy) | Phase 2 | JLinkGDBServer, JLinkRTTClient |
-| `aflash.sh` | **One-button build-jrun-test orchestration** | **Phase 2** | **J-Run primary, JLinkExe fallback** |
+| `aflash.sh` | **One-button build-jrun-test with optional --env-check** | **Phase 2-3** | **J-Run primary, JLinkExe fallback** |
 
 ## Prerequisites
 
@@ -100,7 +101,41 @@ cat test_logs/env/latest_probe.txt
 - ✅ Log file created in test_logs/env/
 - ✅ Latest symlink updated
 
-### 2. jrun.sh - J-Run Execution with RTT (PRIMARY)
+### 2. env_check_quick.sh - Fast Environment Validation
+
+**Purpose**: **Lightning-fast environment validation** (~100ms) for integration into build workflows.
+
+**Test Commands**:
+```bash
+# Silent validation (exit code only)
+./scripts/env_check_quick.sh
+echo "Exit code: $?"
+
+# Verbose validation (detailed output)
+./scripts/env_check_quick.sh true
+
+# Test with broken environment (should fail)
+# (temporarily rename arduino-cli to test failure)
+```
+
+**Expected Output (Verbose)**:
+```
+✓ Arduino CLI: 1.3.0
+✓ STM32 Core: 2.7.1
+ℹ ARM GCC: Not in PATH (Arduino CLI manages toolchain)
+✓ FQBN: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
+✓ Environment: All critical components validated
+```
+
+**Success Criteria**:
+- ✅ Silent mode: Exit code 0 for success, 1 for failure
+- ✅ Verbose mode: Detailed component validation status
+- ✅ Performance: Completes in <200ms
+- ✅ Locked version validation (Arduino CLI 1.3.0, STM32 Core 2.7.1)
+- ✅ FQBN validity check
+- ✅ Graceful handling of missing ARM GCC (non-critical)
+
+### 3. jrun.sh - J-Run Execution with RTT (PRIMARY)
 
 **Purpose**: **J-Run-based ELF execution with integrated RTT capture**. This is the **primary test runner** for HIL testing.
 
@@ -175,34 +210,53 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 - ✅ Device resets and runs immediately after flash
 - ✅ Error handling for missing files
 
-### 4. build.sh - Arduino Build
+### 4. build.sh - Arduino Build with Environment Validation
 
-**Purpose**: Compile sketches with build caching, **ELF preservation**, and binary export.
+**Purpose**: Compile sketches with build caching, **ELF preservation**, binary export, and **optional environment validation**.
 
 **Test Commands**:
 ```bash
 # Basic build
 ./scripts/build.sh HIL_RTT_ValidationSuite
 
-# Build with custom FQBN
-./scripts/build.sh HIL_RTT_ValidationSuite STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE
+# Build with environment validation
+./scripts/build.sh HIL_RTT_ValidationSuite --env-check
+
+# Build with custom FQBN and environment check
+./scripts/build.sh HIL_RTT_ValidationSuite STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check
 
 # Test error handling
 ./scripts/build.sh nonexistent_sketch
 ```
 
 **Expected Output**:
+- **Environment validation section** (if --env-check used)
 - Sketch name and FQBN confirmation
 - Compilation progress
 - Binary path and size
 - **ELF file preservation in cache**
 - Build time measurement
 
+**Expected Output (with --env-check)**:
+```
+=== Environment Validation ===
+✓ Arduino CLI: 1.3.0
+✓ STM32 Core: 2.7.1
+ℹ ARM GCC: Not in PATH (Arduino CLI manages toolchain)
+✓ FQBN: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
+✓ Environment: All critical components validated
+✓ Environment validated
+
+Building sketch: HIL_RTT_ValidationSuite
+[...compilation output...]
+```
+
 **Success Criteria**:
 - ✅ Compilation succeeds (13,396+ bytes)
 - ✅ Binary file created in build/ directory
 - ✅ **ELF file preserved with symbols for J-Run**
 - ✅ Build time displayed
+- ✅ **Environment validation completes in <200ms (when enabled)**
 - ✅ Ready message with upload command
 
 ### 5. rtt_cat.sh - RTT Logger (LEGACY)
@@ -236,26 +290,45 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 - ✅ Log file created in test_logs/rtt/
 - ✅ latest_rtt.txt symlink updated
 
-### 6. aflash.sh - One-Button Orchestration (J-RUN PRIMARY)
+### 6. aflash.sh - One-Button Orchestration with Environment Validation (J-RUN PRIMARY)
 
-**Purpose**: **Complete build-jrun-test workflow** in single command. **Automatically uses J-Run when ELF available**, falls back to JLinkExe for legacy support.
+**Purpose**: **Complete build-jrun-test workflow** in single command with **optional pre-flight environment validation**. **Automatically uses J-Run when ELF available**, falls back to JLinkExe for legacy support.
 
 **Test Commands**:
 ```bash
 # Full workflow test
 ./scripts/aflash.sh HIL_RTT_ValidationSuite
 
-# Custom parameters
-./scripts/aflash.sh HIL_RTT_ValidationSuite STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60
+# Full workflow with pre-flight environment validation
+./scripts/aflash.sh HIL_RTT_ValidationSuite --env-check
+
+# Custom parameters with environment check
+./scripts/aflash.sh HIL_RTT_ValidationSuite STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 "*STOP*" --env-check
 
 # Quick test with custom exit wildcard
 ./scripts/aflash.sh HIL_RTT_ValidationSuite "" 60 "*DONE*"
 ```
 
 **Expected Output (J-Run Path)**:
+- **Pre-flight environment check** (if --env-check used)
 - Step 1/3: Build progress and success
 - **Step 2/2: J-Run execution with integrated RTT capture**
 - Summary with J-Run completion status
+
+**Expected Output (with --env-check)**:
+```
+=== Pre-Flight Environment Check ===
+✓ Arduino CLI: 1.3.0
+✓ STM32 Core: 2.7.1
+ℹ ARM GCC: Not in PATH (Arduino CLI manages toolchain)
+✓ FQBN: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
+✓ Environment: All critical components validated
+✓ Environment validated for HIL testing
+
+=== One-Button Build-JRun-Test: HIL_RTT_ValidationSuite ===
+Environment check: ✓ Enabled
+[...workflow continues...]
+```
 
 **Expected Output (Legacy Path)**:
 - Step 1/3: Build progress and success  
@@ -265,6 +338,7 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 
 **Success Criteria**:
 - ✅ **Automatically selects J-Run when ELF available**
+- ✅ **Pre-flight environment validation completes in <200ms (when enabled)**
 - ✅ Build step completes successfully
 - ✅ **J-Run loads ELF and executes with RTT**
 - ✅ Performance suitable for HIL testing (~5s + capture time)
@@ -272,11 +346,43 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 
 ## System Integration Testing
 
+### Environment Validation Integration Test
+
+**Purpose**: Verify environment validation works correctly across all workflows.
+
+```bash
+# Test standalone environment validation
+./scripts/env_check_quick.sh
+./scripts/env_check_quick.sh true
+
+# Test build integration
+./scripts/build.sh HIL_RTT_ValidationSuite --env-check
+
+# Test full HIL workflow integration
+./scripts/aflash.sh HIL_RTT_ValidationSuite --env-check
+
+# Test failure cases (temporarily break environment)
+# Example: rename arduino-cli temporarily to test error handling
+```
+
+**Validation Scenarios**:
+1. **Healthy Environment**: All components validated, workflows succeed
+2. **Missing Arduino CLI**: Should fail fast with clear error message
+3. **Wrong STM32 Core Version**: Should warn but may continue (non-critical)
+4. **Invalid FQBN**: Should fail with actionable error message
+
+**Success Criteria**:
+- ✅ Silent mode works for automation (exit codes)
+- ✅ Verbose mode provides debugging information
+- ✅ Integration adds <200ms overhead to workflows
+- ✅ Fail-fast behavior prevents wasted build time
+- ✅ Clear error messages guide troubleshooting
+
 ### Complete Workflow Test
 ```bash
-# Full end-to-end test
+# Full end-to-end test with environment validation
 ./scripts/env_probe.sh
-./scripts/aflash.sh HIL_RTT_ValidationSuite
+./scripts/aflash.sh HIL_RTT_ValidationSuite --env-check
 
 # Verify all outputs
 ls -la test_logs/env/
@@ -397,23 +503,28 @@ Use this checklist to verify complete script functionality:
 | Script | Basic Run | Error Handling | Performance | Logging |
 |--------|-----------|----------------|-------------|---------|
 | env_probe.sh | ☐ | ☐ | ☐ | ☐ |
+| **env_check_quick.sh** | **☐** | **☐** | **☐** | **N/A** |
 | build.sh | ☐ | ☐ | ☐ | N/A |
+| build.sh (--env-check) | ☐ | ☐ | ☐ | N/A |
 | **jrun.sh (primary)** | **☐** | **☐** | **☐** | **☐** |
 | flash.sh (--quick) | ☐ | ☐ | ☐ | N/A |
 | flash.sh (full) | ☐ | ☐ | ☐ | N/A |
 | rtt_cat.sh (legacy) | ☐ | ☐ | ☐ | ☐ |
 | **aflash.sh (j-run)** | **☐** | **☐** | **☐** | **☐** |
+| **aflash.sh (--env-check)** | **☐** | **☐** | **☐** | **☐** |
 
+**Environment Validation Integration**: ☐
 **Full System Integration**: ☐
 
-All checkboxes should be completed for full Build Workflow Phase 2 verification.
+All checkboxes should be completed for full Build Workflow Phase 2-3 verification.
 
 ## Next Steps
 
 After successful testing:
-1. **Phase 3**: Implement build-ID injection and ready-gate system
+1. **Phase 4**: Implement build-ID injection and ready-gate system (deterministic reset)
 2. **Enhancement**: Add script options and configuration files
 3. **Integration**: Use scripts for SDFS development and other projects
+4. **CI/CD**: Leverage environment validation for automated testing workflows
 
 ---
 *This testing guide ensures robust verification of the Build Workflow implementation for STM32 Arduino development with J-Link and RTT.*

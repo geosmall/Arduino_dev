@@ -62,6 +62,35 @@ make install-core      # Install/update STM32 core
 Default FQBN: `STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE`
 Override with: `make FQBN=<your_fqbn>`
 
+### Build Scripts with Environment Validation
+Enhanced build workflow with optional environment validation:
+
+```bash
+# Standard build
+./scripts/build.sh <sketch_directory> [FQBN]
+
+# Build with environment validation
+./scripts/build.sh <sketch_directory> --env-check
+./scripts/build.sh <sketch_directory> <FQBN> --env-check
+
+# One-button HIL testing
+./scripts/aflash.sh <sketch_directory> [FQBN] [timeout] [exit_wildcard]
+
+# HIL testing with pre-flight environment check
+./scripts/aflash.sh <sketch_directory> --env-check
+./scripts/aflash.sh <sketch_directory> <FQBN> 60 "*STOP*" --env-check
+
+# Fast environment validation
+./scripts/env_check_quick.sh         # Silent (exit code only)
+./scripts/env_check_quick.sh true    # Verbose output
+```
+
+**Environment Validation Features**:
+- **Arduino CLI version**: Validates locked version (1.3.0)
+- **STM32 Core version**: Validates locked version (2.7.1) 
+- **FQBN validity**: Ensures board configuration is valid
+- **Performance**: ~100ms overhead vs ~2s for full env_probe.sh
+
 ### Environment and Testing Scripts
 Build workflow scripts for robust development:
 
@@ -189,13 +218,14 @@ Board-specific configurations are defined through the variant system, allowing t
 - **Exit Wildcard Methodology**: Tests emit "*STOP*" (or custom wildcard) for deterministic completion - no timeout dependency
 - Arduino/ELF note: Make sure your arduino-cli build preserves the ELF with symbols (default behavior in build dir) so J-Run can initialize PC/SP correctly.
 
-Script Plan (Updated for J-Run):
-- scripts/env_probe.sh - Probe installed environment to capture versions, FQBNs, paths, hardware status (fail loudly and exit on errors)
-- scripts/build.sh → arduino-cli compile (cached build dir per sketch, preserves ELF with symbols)
+Script Plan (Updated for Environment Validation):
+- scripts/env_probe.sh - Full environment probe to capture versions, FQBNs, paths, hardware status (comprehensive diagnostics)
+- scripts/env_check_quick.sh - **Fast environment validation** (~100ms) for build workflows
+- scripts/build.sh → arduino-cli compile with optional --env-check flag (cached build dir per sketch, preserves ELF with symbols)
 - scripts/jrun.sh → **J-Run execution: load ELF, run with RTT capture + exit wildcard detection**
 - scripts/flash.sh → JLinkExe batch: loadfile, r, g, qc (for mass operations only)  
 - scripts/rtt_cat.sh → attaches RTT, timestamps lines, writes to test_logs/ (legacy)
-- scripts/aflash.sh → **orchestrates build + J-Run HIL test workflow (primary with exit wildcard), JLinkExe (fallback)**
+- scripts/aflash.sh → **orchestrates build + J-Run HIL test workflow with optional --env-check pre-flight validation (primary with exit wildcard), JLinkExe (fallback)**
 
 Phase 0 — Pin, probe, and snapshot the toolchain ✅ **COMPLETED**
 
@@ -207,7 +237,7 @@ Goal: deterministic environment + quick "can compile" proof.
 
 Exit criteria: arduino-cli compile succeeds for HIL_RTT_ValidationSuite (13,700+ bytes, 2% flash) and records build manifest in test_logs/env/.
 
-Phase 1 — J-Link + RTT "hello" loop ✅ **J-RUN MIGRATION COMPLETE**
+Phase 1 — J-Link + RTT "hello" loop
 
 Goal: fast visibility without serial—use RTT as your default I/O.
 - ✅ J-Link CLI tools v8.62 verified working (ST-Link reflashed to J-Link)
@@ -222,7 +252,7 @@ Goal: fast visibility without serial—use RTT as your default I/O.
 
 Exit criteria: J-Run successfully loads ELF, executes with RTT integration, captures output. ✅ **COMPLETE**
 
-Phase 2 — One-button build-flash-run harness ✅ **J-RUN MIGRATION COMPLETE**
+Phase 2 — One-button build-flash-run harness
 
 Goal: single command compiles and runs tests via J-Run with integrated RTT communication.
 - ✅ **Build Environment Tracking**: All components locked and deterministic  
@@ -243,12 +273,32 @@ Goal: single command compiles and runs tests via J-Run with integrated RTT commu
 Exit criteria: J-Run-based build workflow (compile/run/test) with **exit wildcard detection** for deterministic HIL testing. ✅ **COMPLETE**
 Performance: J-Run execution (~5s build+run, deterministic exit) ideal for automated HIL testing with no timeout dependency.
 
-Phase 3 — Deterministic reset & ready-gate
+Phase 3 — Environment Validation & Pre-flight Checks
 
-Goal: stable test start.
+Goal: Integrate environment validation into build workflows for reliable HIL testing.
 
-- Add a tiny “ready token” macro + optional build-id line.
-  - A tiny ready header on the device
+- ✅ **Quick Environment Validation**: scripts/env_check_quick.sh (~100ms vs 2s full probe)
+  - Arduino CLI version validation (locked: 1.3.0)
+  - STM32 Core version validation (locked: 2.7.1)
+  - FQBN validity check
+  - Optional ARM GCC check (Arduino CLI manages toolchain)
+- ✅ **Build Integration**: scripts/build.sh --env-check flag
+  - Pre-compile environment validation
+  - Fail fast on environment drift
+- ✅ **HIL Integration**: scripts/aflash.sh --env-check flag  
+  - Pre-flight environment check before HIL testing
+  - Comprehensive validation workflow
+- ✅ **Documentation**: Updated CLAUDE.md with usage examples and performance metrics
+
+Exit criteria: Environment validation integrated into build workflows with minimal performance overhead. ✅ **COMPLETE**
+Performance: ~100ms validation overhead enables fail-fast detection of environment issues.
+
+Phase 4 — Deterministic reset & ready-gate ⏳ **NEXT PHASE**
+
+Goal: stable test start with build-ID injection and ready tokens.
+
+- Add a tiny "ready token" macro + optional build-id line.
+  - A tiny ready header on the device  
   - Emits one line like: READY F411RE 1a2b3c7 2025-08-25T09:14:55Z
 - scripts/await_ready.sh waits for token with timeout/backoff; surfaces clean error if absent.
   - Use build-ID injection (deterministic & cheap)
