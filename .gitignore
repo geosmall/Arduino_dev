@@ -1,0 +1,17 @@
+# Test logs and build artifacts
+test_logs/
+
+# Arduino build artifacts
+build/
+*.bin
+*.hex
+*.elf
+
+# IDE and editor files
+.vscode/
+*.swp
+*.tmp
+
+# OS generated files
+.DS_Store
+Thumbs.db

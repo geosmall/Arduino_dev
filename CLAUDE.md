@@ -20,7 +20,8 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
 - `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, SD, SdFat, etc.)
-- `MyFirstSketch/` - Example Arduino sketch with Makefile
+- `HIL_RTT_ValidationSuite/` - HIL test framework with comprehensive validation
+- `MyFirstSketch/` - Legacy example Arduino sketch with Makefile
 
 ## Build Systems and Commands
 
@@ -180,16 +181,21 @@ Board-specific configurations are defined through the variant system, allowing t
 
 ### Build Workflow
 
-**Goal**: Step-by-step plan to build up robust a robust build snd test environment we can rely on for embedded HIL app development.
+**Goal**: Step-by-step plan to build up robust a robust build and test environment we can rely on for embedded HIL app development.
 - Move in small, verifiable phases and keep things token-efficient for working with agentic AI.
+- **Prefer J-Run with RTT communication and exit wildcard detection** as the default runner for deterministic HIL tests
+- Keep JLinkExe in the toolbox for ad-hoc bring-up, mass erase/verify scripts, Pair with JLinkRTTLogger when we need raw logging without J-Run semantics.
+- Only add GDB server when live, bi-directional control is needed
+- **Exit Wildcard Methodology**: Tests emit "*STOP*" (or custom wildcard) for deterministic completion - no timeout dependency
+- Arduino/ELF note: Make sure your arduino-cli build preserves the ELF with symbols (default behavior in build dir) so J-Run can initialize PC/SP correctly.
 
-Script names (to be created as we go):
-
+Script Plan (Updated for J-Run):
 - scripts/env_probe.sh - Probe installed environment to capture versions, FQBNs, paths, hardware status (fail loudly and exit on errors)
-- scripts/build.sh → arduino-cli compile (cached build dir per sketch)
-- scripts/flash.sh → JLinkExe batch: loadfile, r, g, qc
-- scripts/rtt_cat.sh → attaches RTT, timestamps lines, writes to test_logs/
-- scripts/aflash.sh → orchestrates the three
+- scripts/build.sh → arduino-cli compile (cached build dir per sketch, preserves ELF with symbols)
+- scripts/jrun.sh → **J-Run execution: load ELF, run with RTT capture + exit wildcard detection**
+- scripts/flash.sh → JLinkExe batch: loadfile, r, g, qc (for mass operations only)  
+- scripts/rtt_cat.sh → attaches RTT, timestamps lines, writes to test_logs/ (legacy)
+- scripts/aflash.sh → **orchestrates build + J-Run HIL test workflow (primary with exit wildcard), JLinkExe (fallback)**
 
 Phase 0 — Pin, probe, and snapshot the toolchain ✅ **COMPLETED**
 
@@ -199,37 +205,43 @@ Goal: deterministic environment + quick "can compile" proof.
 - ✅ Canonical FQBN established: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 - ✅ Environment snapshots saved to test_logs/env/ with latest symlink
 
-Exit criteria: arduino-cli compile succeeds for MyFirstSketch (13,396 bytes, 2% flash) and records build manifest in test_logs/env/.
+Exit criteria: arduino-cli compile succeeds for HIL_RTT_ValidationSuite (13,700+ bytes, 2% flash) and records build manifest in test_logs/env/.
 
-Phase 1 — J-Link + RTT "hello" loop ✅ **COMPLETED**
+Phase 1 — J-Link + RTT "hello" loop ✅ **J-RUN MIGRATION COMPLETE**
 
 Goal: fast visibility without serial—use RTT as your default I/O.
 - ✅ J-Link CLI tools v8.62 verified working (ST-Link reflashed to J-Link)
 - ✅ J-Link SWD connection to F411RE confirmed via JLinkExe
 - ✅ **Upgraded Arduino_Core_STM32 RTT library**: Full SEGGER RTT v8.62 implementation (6 files)
 - ✅ **J-Link upload capability**: scripts/jlink_upload.sh operational (13,828 bytes upload confirmed)
-- ✅ **RTT test sketch**: MyFirstSketch.ino with Phase 1 "hello" loop + READY token operational
+- ✅ **HIL test suite**: HIL_RTT_ValidationSuite.ino with comprehensive validation + exit wildcard
 - ✅ **RTT connectivity verified**: JLinkRTTClient working with real-time printf output confirmed
+- ✅ **J-Run migration completed**: J-Run v8.62 operational as primary test runner
+- ✅ **ELF symbol verification**: arduino-cli preserves symbols for J-Run PC/SP initialization
+- ✅ **J-Run script created**: scripts/jrun.sh with integrated RTT capture
 
-Exit criteria: JLinkRTTClient sees READY F411RE <date> token + continuous RTT printf output. ✅ **MET**
+Exit criteria: J-Run successfully loads ELF, executes with RTT integration, captures output. ✅ **COMPLETE**
 
-Phase 2 — One-button build-flash-run harness ✅ **FULLY AUTOMATED & OPTIMIZED**
+Phase 2 — One-button build-flash-run harness ✅ **J-RUN MIGRATION COMPLETE**
 
-Goal: single command compiles, flashes (via J-Link), and tails RTT logs.
+Goal: single command compiles and runs tests via J-Run with integrated RTT communication.
 - ✅ **Build Environment Tracking**: All components locked and deterministic  
 - ✅ **RTT Framework Ready**: SEGGER RTT v8.62 integrated, client connectivity confirmed
-- ✅ **Build Script**: scripts/build.sh operational (2s build time, binary export)
-- ✅ **Flash Script**: scripts/flash.sh unified tool with dual modes (AutoConnect, no prompts)
+- ✅ **Build Script**: scripts/build.sh operational (2s build time, ELF+binary export)
+- ✅ **J-Run Script**: scripts/jrun.sh with integrated RTT capture (primary runner)
+- ✅ **Flash Script (JLinkExe)**: scripts/flash.sh preserved for mass operations (fallback)
   - Quick mode: halt → load → reset → go (~1s, development)
   - Full mode: halt → erase → load → verify → reset → go (~9s, production)
 - ✅ **RTT Logger**: scripts/rtt_cat.sh operational (timestamped capture to test_logs/rtt/)
-- ✅ **Orchestration**: scripts/aflash.sh fully automated (~5s complete workflow + RTT duration)
+- ✅ **Orchestration (J-Run)**: scripts/aflash.sh migrated to J-Run primary, JLinkExe fallback
 - ✅ **Testing Documentation**: scripts/test_scripts.md (automation details, performance metrics)
-- ✅ **Zero User Interaction**: All J-Link operations automated via -AutoConnect flags
-- ✅ **Script Consolidation**: Eliminated redundancy (jlink_upload.sh merged into flash.sh)
+- ✅ **Zero User Interaction**: All operations automated via -AutoConnect flags
+- ✅ **J-Run Integration**: ELF-based execution with automatic RTT capture
+- ✅ **Dual-Mode Operation**: J-Run preferred, JLinkExe fallback for legacy/mass operations
+- ✅ **Error Handling**: Graceful RTT timeout handling, successful ELF load detection
 
-Exit criteria: Complete build workflow (compile/upload/verify) confirmed operational with single command execution. ✅ **MET**
-Performance: Build-flash-run cycle ~5s (quick mode), suitable for rapid development and CI/CD.
+Exit criteria: J-Run-based build workflow (compile/run/test) with **exit wildcard detection** for deterministic HIL testing. ✅ **COMPLETE**
+Performance: J-Run execution (~5s build+run, deterministic exit) ideal for automated HIL testing with no timeout dependency.
 
 Phase 3 — Deterministic reset & ready-gate
 
