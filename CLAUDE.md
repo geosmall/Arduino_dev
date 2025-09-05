@@ -20,7 +20,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
 - `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, SD, SdFat, etc.)
-- `HIL_RTT_ValidationSuite/` - HIL test framework with comprehensive validation
+- `HIL_RTT_Test/` - HIL test framework with comprehensive validation
 - `MyFirstSketch/` - Legacy example Arduino sketch with Makefile
 
 ## Build Systems and Commands
@@ -235,7 +235,7 @@ Goal: deterministic environment + quick "can compile" proof.
 - ✅ Canonical FQBN established: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 - ✅ Environment snapshots saved to test_logs/env/ with latest symlink
 
-Exit criteria: arduino-cli compile succeeds for HIL_RTT_ValidationSuite (13,700+ bytes, 2% flash) and records build manifest in test_logs/env/.
+Exit criteria: arduino-cli compile succeeds for HIL_RTT_Test (13,700+ bytes, 2% flash) and records build manifest in test_logs/env/.
 
 Phase 1 — J-Link + RTT "hello" loop
 
@@ -244,7 +244,7 @@ Goal: fast visibility without serial—use RTT as your default I/O.
 - ✅ J-Link SWD connection to F411RE confirmed via JLinkExe
 - ✅ **Upgraded Arduino_Core_STM32 RTT library**: Full SEGGER RTT v8.62 implementation (6 files)
 - ✅ **J-Link upload capability**: scripts/jlink_upload.sh operational (13,828 bytes upload confirmed)
-- ✅ **HIL test suite**: HIL_RTT_ValidationSuite.ino with comprehensive validation + exit wildcard
+- ✅ **HIL test suite**: HIL_RTT_Test.ino with comprehensive validation + exit wildcard
 - ✅ **RTT connectivity verified**: JLinkRTTClient working with real-time printf output confirmed
 - ✅ **J-Run migration completed**: J-Run v8.62 operational as primary test runner
 - ✅ **ELF symbol verification**: arduino-cli preserves symbols for J-Run PC/SP initialization
@@ -361,3 +361,21 @@ Exit criteria: 3 consecutive runs show t_start→READY latency stats and zero fl
 2. **RTT framework operational** - Real-time debugging available for immediate feedback
 3. **Hardware troubleshooting**: Apply RTT framework to debug SD card SPI communication issues
 4. **Proceed with Phase 3** once hardware issues resolved using enhanced RTT debugging
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+## Claude Code Collaboration Notes
+
+**Repository Attribution**: This repository's collaborative development with Claude Code is documented in README.md under the Documentation section. 
+
+**Commit Message Policy**: 
+- **DO NOT** add Claude Code attribution to individual commit messages
+- **DO NOT** include "🤖 Generated with Claude Code" footers in commits
+- **REASON**: Repository-level attribution in README.md is sufficient and avoids polluting commit history
+- **KEEP COMMITS CLEAN**: Focus commit messages on the actual changes made, not the tooling used
+
+The README.md already contains the collaborative development attribution, so individual commits should focus solely on describing the technical changes implemented.

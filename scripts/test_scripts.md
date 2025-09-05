@@ -62,7 +62,7 @@ Before testing, ensure you have:
    - arduino-cli 1.3.0+
    - STM32 core 2.7.1+
    - **J-Link software v8.62+ (JRun primary, JLinkExe fallback)**
-3. **Test Sketch**: HIL_RTT_ValidationSuite/ - HIL test framework with comprehensive validation
+3. **Test Sketch**: HIL_RTT_Test/ - HIL test framework with comprehensive validation
 
 ## Quick Verification
 
@@ -144,7 +144,7 @@ echo "Exit code: $?"
 **Test Commands**:
 ```bash
 # Find ELF file from latest build
-ELF_PATH=$(find /home/geo/.cache/arduino/sketches -name "HIL_RTT_ValidationSuite.ino.elf" | head -1)
+ELF_PATH=$(find /home/geo/.cache/arduino/sketches -name "HIL_RTT_Test.ino.elf" | head -1)
 
 # Basic execution with exit wildcard detection
 ./scripts/jrun.sh "$ELF_PATH"
@@ -185,13 +185,13 @@ ELF_PATH=$(find /home/geo/.cache/arduino/sketches -name "HIL_RTT_ValidationSuite
 **Test Commands**:
 ```bash
 # First compile a binary
-arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE HIL_RTT_ValidationSuite --export-binaries
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE HIL_RTT_Test --export-binaries
 
 # Quick mode (development - fast upload without erase/verify)
-./scripts/flash.sh --quick HIL_RTT_ValidationSuite/build/STMicroelectronics.stm32.Nucleo_64/HIL_RTT_ValidationSuite.ino.bin
+./scripts/flash.sh --quick HIL_RTT_Test/build/STMicroelectronics.stm32.Nucleo_64/HIL_RTT_Test.ino.bin
 
 # Full mode (production - erase + program + verify)
-./scripts/flash.sh HIL_RTT_ValidationSuite/build/STMicroelectronics.stm32.Nucleo_64/HIL_RTT_ValidationSuite.ino.bin
+./scripts/flash.sh HIL_RTT_Test/build/STMicroelectronics.stm32.Nucleo_64/HIL_RTT_Test.ino.bin
 
 # Test error handling
 ./scripts/flash.sh nonexistent.bin
@@ -217,13 +217,13 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 **Test Commands**:
 ```bash
 # Basic build
-./scripts/build.sh HIL_RTT_ValidationSuite
+./scripts/build.sh HIL_RTT_Test
 
 # Build with environment validation
-./scripts/build.sh HIL_RTT_ValidationSuite --env-check
+./scripts/build.sh HIL_RTT_Test --env-check
 
 # Build with custom FQBN and environment check
-./scripts/build.sh HIL_RTT_ValidationSuite STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check
+./scripts/build.sh HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check
 
 # Test error handling
 ./scripts/build.sh nonexistent_sketch
@@ -247,7 +247,7 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 ✓ Environment: All critical components validated
 ✓ Environment validated
 
-Building sketch: HIL_RTT_ValidationSuite
+Building sketch: HIL_RTT_Test
 [...compilation output...]
 ```
 
@@ -297,16 +297,16 @@ Building sketch: HIL_RTT_ValidationSuite
 **Test Commands**:
 ```bash
 # Full workflow test
-./scripts/aflash.sh HIL_RTT_ValidationSuite
+./scripts/aflash.sh HIL_RTT_Test
 
 # Full workflow with pre-flight environment validation
-./scripts/aflash.sh HIL_RTT_ValidationSuite --env-check
+./scripts/aflash.sh HIL_RTT_Test --env-check
 
 # Custom parameters with environment check
-./scripts/aflash.sh HIL_RTT_ValidationSuite STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 "*STOP*" --env-check
+./scripts/aflash.sh HIL_RTT_Test STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 "*STOP*" --env-check
 
 # Quick test with custom exit wildcard
-./scripts/aflash.sh HIL_RTT_ValidationSuite "" 60 "*DONE*"
+./scripts/aflash.sh HIL_RTT_Test "" 60 "*DONE*"
 ```
 
 **Expected Output (J-Run Path)**:
@@ -325,7 +325,7 @@ Building sketch: HIL_RTT_ValidationSuite
 ✓ Environment: All critical components validated
 ✓ Environment validated for HIL testing
 
-=== One-Button Build-JRun-Test: HIL_RTT_ValidationSuite ===
+=== One-Button Build-JRun-Test: HIL_RTT_Test ===
 Environment check: ✓ Enabled
 [...workflow continues...]
 ```
@@ -356,10 +356,10 @@ Environment check: ✓ Enabled
 ./scripts/env_check_quick.sh true
 
 # Test build integration
-./scripts/build.sh HIL_RTT_ValidationSuite --env-check
+./scripts/build.sh HIL_RTT_Test --env-check
 
 # Test full HIL workflow integration
-./scripts/aflash.sh HIL_RTT_ValidationSuite --env-check
+./scripts/aflash.sh HIL_RTT_Test --env-check
 
 # Test failure cases (temporarily break environment)
 # Example: rename arduino-cli temporarily to test error handling
@@ -382,7 +382,7 @@ Environment check: ✓ Enabled
 ```bash
 # Full end-to-end test with environment validation
 ./scripts/env_probe.sh
-./scripts/aflash.sh HIL_RTT_ValidationSuite --env-check
+./scripts/aflash.sh HIL_RTT_Test --env-check
 
 # Verify all outputs
 ls -la test_logs/env/

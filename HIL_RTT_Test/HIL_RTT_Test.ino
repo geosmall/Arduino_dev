@@ -2,7 +2,7 @@
 #include "SEGGER_RTT.h"
 
 /**
- * @file HIL_RTT_ValidationSuite.ino
+ * @file HIL_RTT_Test.ino
  * @brief Hardware-in-the-Loop RTT Validation Test Suite
  * 
  * HIL test framework for STM32 Arduino development using

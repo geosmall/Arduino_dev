@@ -1,0 +1,110 @@
+# STM32 Arduino Core for UAV Flight Controllers
+
+A focused STM32 Arduino development environment optimized for UAV flight controller applications with embedded storage systems.
+
+## Overview
+
+This repository contains a **fork of the STM32 Arduino Core** with simplified variant selection and enhanced storage capabilities. It's specifically designed for developing autonomous drone flight control systems with real-time data logging and sensor data management.
+
+## Target Hardware
+
+- **Primary**: STM32F411 (Nucleo F411RE, BlackPill F411CE)
+- **Secondary**: STM32F405 (common in flight controllers)
+- **Future**: STM32H743 (high-performance flight controllers)
+
+## Key Features
+
+- **Dual Storage Systems**: LittleFS (SPI flash) and SDFS (SD card via SPI)
+- **Real-time Debugging**: SEGGER RTT integration for printf-style debugging
+- **Hardware-in-Loop Testing**: J-Link based HIL test framework
+- **Flight Controller Focus**: Optimized for UAV applications
+
+## Dependencies
+
+### Required Tools
+- **Arduino CLI** v1.3.0 (locked version)
+- **STM32 Core** v2.7.1 (STMicroelectronics:stm32)
+- **J-Link** v8.62+ (for HIL testing and RTT debugging)
+
+### Installation
+```bash
+# Install STM32 core
+arduino-cli core update-index
+arduino-cli core install STMicroelectronics:stm32
+
+# Verify installation
+./scripts/env_check_quick.sh true
+```
+
+## Quick Start
+
+### Build and Upload
+```bash
+# Compile sketch
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch_directory>
+
+# Upload via ST-Link
+arduino-cli upload --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch_directory>
+
+# Upload via J-Link (when ST-Link reflashed)
+./scripts/jlink_upload.sh <path_to_binary.bin>
+```
+
+### HIL Testing (Recommended)
+```bash
+# One-button build and test with environment validation
+./scripts/aflash.sh <sketch_directory> --env-check
+
+# Build with RTT debugging
+./scripts/build.sh <sketch_directory> --env-check
+./scripts/jrun.sh <sketch_directory>
+```
+
+### Using Makefile (HIL_RTT_Test/)
+```bash
+make                # Compile
+make upload         # Compile and upload
+make check          # Verify environment
+```
+
+## Storage Libraries
+
+- **LittleFS**: SPI flash storage for configuration and firmware
+- **SDFS**: SD card filesystem via SPI for data logging and bulk storage  
+- **SD**: Arduino standard SD library (v1.3.0)
+- **SdFat**: Advanced SD library (v2.1.2) with full FAT support
+
+Both LittleFS and SDFS provide identical APIs for seamless storage switching.
+
+## Project Structure
+
+```
+├── Arduino_Core_STM32/    # STM32 Arduino core (fork of stm32duino/Arduino_Core_STM32)
+├── libraries/             # Storage and utility libraries
+│   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
+│   ├── SD/                # Arduino standard SD library
+│   ├── STM32RTC/          # Real-time clock library
+│   └── SDFS/              # Custom SD filesystem (local implementation)
+├── scripts/               # Build and test automation
+├── HIL_RTT_Test/          # Hardware-in-loop test framework
+└── test_logs/             # Test execution logs and artifacts
+```
+
+### Submodule Sources
+- **Arduino_Core_STM32**: [geosmall/Arduino_Core_STM32](https://github.com/geosmall/Arduino_Core_STM32) *(stm32duino fork, simplified variants)*
+- **LittleFS**: [geosmall/LittleFS](https://github.com/geosmall/LittleFS) *(PaulStoffregen fork, minimal branch)*
+- **SD**: [geosmall/SD](https://github.com/geosmall/SD) *(arduino fork)*
+- **STM32RTC**: [stm32duino/STM32RTC](https://github.com/stm32duino/STM32RTC) *(upstream original)*
+
+## Development Workflow
+
+1. **Environment Check**: `./scripts/env_check_quick.sh true`
+2. **Build**: `./scripts/build.sh <sketch> --env-check`
+3. **Test**: `./scripts/aflash.sh <sketch> --env-check`
+4. **Debug**: Use RTT with `JLinkRTTClient` for real-time printf output
+
+## Documentation
+
+See `CLAUDE.md` for detailed build instructions, architecture overview, and development guidelines.
+
+This repository is being collaboratively developed with [Claude Code](https://claude.ai/code) for enhanced STM32 Arduino development workflows.
