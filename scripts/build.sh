@@ -41,10 +41,10 @@ if [[ -z "$SKETCH_DIR" ]]; then
     echo "Usage: $0 <sketch_directory> [FQBN] [--env-check]"
     echo
     echo "Examples:"
-    echo "  $0 MyFirstSketch"
-    echo "  $0 MyFirstSketch --env-check"
-    echo "  $0 MyFirstSketch STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
-    echo "  $0 MyFirstSketch STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check"
+    echo "  $0 HIL_RTT_Test"
+    echo "  $0 HIL_RTT_Test --env-check"
+    echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
+    echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check"
     echo
     echo "Default FQBN: $DEFAULT_FQBN"
     exit 1

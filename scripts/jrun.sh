@@ -19,10 +19,10 @@ if [ $# -lt 1 ]; then
     echo "Usage: $0 <elf_file> [device] [timeout_seconds] [log_prefix] [exit_wildcard]"
     echo
     echo "Examples:"
-    echo "  $0 MyFirstSketch.ino.elf"
-    echo "  $0 MyFirstSketch.ino.elf STM32F411RE"
-    echo "  $0 MyFirstSketch.ino.elf STM32F411RE 60 my_test"
-    echo "  $0 MyFirstSketch.ino.elf STM32F411RE 60 my_test \"*DONE*\""
+    echo "  $0 HIL_RTT_Test.ino.elf"
+    echo "  $0 HIL_RTT_Test.ino.elf STM32F411RE"
+    echo "  $0 HIL_RTT_Test.ino.elf STM32F411RE 60 my_test"
+    echo "  $0 HIL_RTT_Test.ino.elf STM32F411RE 60 my_test \"*DONE*\""
     echo
     echo "Default device: $DEFAULT_DEVICE"
     echo "Default timeout: ${DEFAULT_TIMEOUT}s (fallback for exit wildcard)"

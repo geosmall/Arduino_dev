@@ -393,11 +393,11 @@ cat test_logs/rtt/latest_jrun.txt
 ### Performance Benchmarks
 ```bash
 # Time the complete workflow
-time ./scripts/aflash.sh MyFirstSketch
+time ./scripts/aflash.sh HIL_RTT_Test
 
 # Individual step timing
-time ./scripts/build.sh MyFirstSketch
-time ./scripts/flash.sh MyFirstSketch/build/STMicroelectronics.stm32.Nucleo_64/MyFirstSketch.ino.bin
+time ./scripts/build.sh HIL_RTT_Test
+time ./scripts/flash.sh HIL_RTT_Test/build/STMicroelectronics.stm32.Nucleo_64/HIL_RTT_Test.ino.bin
 ```
 
 **Expected Performance (J-Run with Exit Wildcard)**:

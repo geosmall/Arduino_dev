@@ -26,8 +26,8 @@ if [ $# -ne 1 ]; then
     echo "  default    Full cycle (halt → erase → load → verify → reset → go) ~9s"
     echo
     echo "Examples:"
-    echo "  $0 --quick MyFirstSketch.ino.bin    # Fast development cycle"
-    echo "  $0 MyFirstSketch.ino.bin             # Production flash cycle"
+    echo "  $0 --quick HIL_RTT_Test.ino.bin    # Fast development cycle"
+    echo "  $0 HIL_RTT_Test.ino.bin             # Production flash cycle"
     exit 1
 fi
 

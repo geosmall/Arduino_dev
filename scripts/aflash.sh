@@ -50,11 +50,11 @@ if [[ -z "$SKETCH_DIR" ]]; then
     echo "Usage: $0 <sketch_directory> [FQBN] [timeout_seconds] [exit_wildcard] [--env-check]"
     echo
     echo "Examples:"
-    echo "  $0 MyFirstSketch"
-    echo "  $0 MyFirstSketch --env-check"
-    echo "  $0 MyFirstSketch STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
-    echo "  $0 MyFirstSketch STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 --env-check"
-    echo "  $0 MyFirstSketch \"\" 60 \"*DONE*\" --env-check"
+    echo "  $0 HIL_RTT_Test"
+    echo "  $0 HIL_RTT_Test --env-check"
+    echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
+    echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 --env-check"
+    echo "  $0 HIL_RTT_Test \"\" 60 \"*DONE*\" --env-check"
     echo
     echo "Default FQBN: $DEFAULT_FQBN"
     echo "Default timeout: ${DEFAULT_TIMEOUT}s (fallback for exit wildcard)"

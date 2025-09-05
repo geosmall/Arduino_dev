@@ -20,8 +20,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
 - `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, SD, SdFat, etc.)
-- `HIL_RTT_Test/` - HIL test framework with comprehensive validation
-- `MyFirstSketch/` - Legacy example Arduino sketch with Makefile
+- `HIL_RTT_Test/` - HIL test framework with comprehensive validation and RTT debugging
 
 ## Build Systems and Commands
 
@@ -47,7 +46,7 @@ arduino-cli board list
 ./scripts/jlink_upload.sh <path_to_binary.bin>
 ```
 
-### Using Makefile (MyFirstSketch/)
+### Using Makefile (HIL_RTT_Test/)
 A generic Makefile is provided that works cross-platform:
 
 ```bash
@@ -337,7 +336,7 @@ Exit criteria: 3 consecutive runs show t_start→READY latency stats and zero fl
 **RTT-Based Testing Framework** ✅ **OPERATIONAL**
 - ✅ SEGGER RTT v8.62 library fully integrated into Arduino Core STM32 (`Arduino_Core_STM32/libraries/SEGGER_RTT/`)
 - ✅ Leveraged working example code from ~/Arduino/Segger_RTT_PrintfTest_Lib_V862 (v8.62)
-- ✅ RTT test sketch with READY token operational (MyFirstSketch.ino)
+- ✅ RTT test sketch with READY token operational (HIL_RTT_Test.ino)
 - ✅ **J-Link hardware configuration**: SWD connection confirmed, upload/debug operational 
 - ✅ **RTT connectivity verified**: JLinkRTTClient connects and receives real-time printf output
 
