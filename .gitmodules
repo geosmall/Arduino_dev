@@ -7,3 +7,6 @@
 [submodule "libraries/SD"]
 	path = libraries/SD
 	url = https://github.com/geosmall/SD.git
+[submodule "libraries/STM32RTC"]
+	path = libraries/STM32RTC
+	url = https://github.com/stm32duino/STM32RTC.git
