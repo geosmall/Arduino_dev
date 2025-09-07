@@ -16,7 +16,8 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 
 - **Dual Storage Systems**: LittleFS (SPI flash) and SDFS (SD card via SPI)
 - **Real-time Debugging**: SEGGER RTT integration for printf-style debugging
-- **Hardware-in-Loop Testing**: J-Link based HIL test framework
+- **Hardware-in-Loop Testing**: J-Link based HIL test framework with exit wildcard detection
+- **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
 - **Flight Controller Focus**: Optimized for UAV applications
 
 ## Dependencies
@@ -46,8 +47,8 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 # Upload via ST-Link
 arduino-cli upload --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch_directory>
 
-# Upload via J-Link (when ST-Link reflashed)
-./scripts/jlink_upload.sh <path_to_binary.bin>
+# Upload via J-Link with auto-detection (when ST-Link reflashed)
+./scripts/flash_auto.sh --quick <path_to_binary.bin>
 ```
 
 ### HIL Testing (Recommended)
@@ -99,9 +100,10 @@ Both LittleFS and SDFS provide identical APIs for seamless storage switching.
 ## Development Workflow
 
 1. **Environment Check**: `./scripts/env_check_quick.sh true`
-2. **Build**: `./scripts/build.sh <sketch> --env-check`
-3. **Test**: `./scripts/aflash.sh <sketch> --env-check`
-4. **Debug**: Use RTT with `JLinkRTTClient` for real-time printf output
+2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect STM32)
+3. **Build**: `./scripts/build.sh <sketch> --env-check`
+4. **Test**: `./scripts/aflash.sh <sketch> --env-check` (uses J-Run + exit wildcards)
+5. **Debug**: Use RTT with `JLinkRTTClient` for real-time printf output
 
 ## Documentation
 
