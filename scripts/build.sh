@@ -13,11 +13,16 @@ DEFAULT_FQBN="STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE"
 SKETCH_DIR=""
 FQBN="$DEFAULT_FQBN"
 ENV_CHECK=false
+BUILD_ID=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --env-check)
             ENV_CHECK=true
+            shift
+            ;;
+        --build-id)
+            BUILD_ID=true
             shift
             ;;
         -*)
@@ -38,13 +43,14 @@ done
 # Check arguments
 if [[ -z "$SKETCH_DIR" ]]; then
     echo "Arduino CLI Build Script with Environment Validation"
-    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check]"
+    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check] [--build-id]"
     echo
     echo "Examples:"
     echo "  $0 HIL_RTT_Test"
     echo "  $0 HIL_RTT_Test --env-check"
+    echo "  $0 HIL_RTT_Test --build-id"
+    echo "  $0 HIL_RTT_Test --env-check --build-id"
     echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
-    echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check"
     echo
     echo "Default FQBN: $DEFAULT_FQBN"
     exit 1
@@ -59,6 +65,18 @@ if [[ "$ENV_CHECK" == true ]]; then
         exit 1
     fi
     echo "✓ Environment validated"
+    echo
+fi
+
+# Optional build-ID header generation
+if [[ "$BUILD_ID" == true ]]; then
+    echo "=== Build ID Generation ==="
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if "$SCRIPT_DIR/generate_build_id.sh" "$SKETCH_DIR"; then
+        echo "✓ Build ID header generated"
+    else
+        echo "⚠ Build ID generation failed (continuing with build)"
+    fi
     echo
 fi
 

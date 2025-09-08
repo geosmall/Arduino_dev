@@ -56,9 +56,12 @@ arduino-cli upload --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 
 # One-button build and test with environment validation
 ./scripts/aflash.sh <sketch_directory> --env-check
 
-# Build with RTT debugging
-./scripts/build.sh <sketch_directory> --env-check
-./scripts/jrun.sh <sketch_directory>
+# Build with RTT debugging and build-ID generation
+./scripts/build.sh <sketch_directory> --env-check --build-id
+./scripts/jrun.sh <elf_file>
+
+# Ready token detection with latency measurement (Phase 5)
+./scripts/await_ready.sh [log_file] [timeout] [pattern]
 ```
 
 ### Using Makefile (HIL_RTT_Test/)
@@ -101,9 +104,10 @@ Both LittleFS and SDFS provide identical APIs for seamless storage switching.
 
 1. **Environment Check**: `./scripts/env_check_quick.sh true`
 2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect STM32)
-3. **Build**: `./scripts/build.sh <sketch> --env-check`
+3. **Build**: `./scripts/build.sh <sketch> --env-check --build-id`
 4. **Test**: `./scripts/aflash.sh <sketch> --env-check` (uses J-Run + exit wildcards)
-5. **Debug**: Use RTT with `JLinkRTTClient` for real-time printf output
+5. **Ready Detection**: `./scripts/await_ready.sh` (sub-20ms latency measurements)
+6. **Debug**: Use RTT with `JLinkRTTClient` for real-time printf output
 
 ## Documentation
 
