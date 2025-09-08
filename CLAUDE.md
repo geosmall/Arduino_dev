@@ -329,6 +329,19 @@ Goal: Universal STM32 device detection and programming for HIL CI/CD workflows.
 Exit criteria: Universal device detection working across STM32 families with optimal J-Link programming. ✅ **COMPLETE**
 Performance: Device detection + programming workflow fully automated for HIL CI/CD pipelines.
 
+Phase 5 — Deterministic reset & ready-gate ⏳ NEXT PHASE
+
+Goal: stable test start with build-ID injection and ready tokens.
+
+- Add a tiny "ready token" macro + optional build-id line.
+- A tiny ready header on the device
+- Emits one line like: READY F411RE 1a2b3c7 2025-08-25T09:14:55Z
+- scripts/await_ready.sh waits for token with timeout/backoff; surfaces clean error if absent.
+- Use build-ID injection (deterministic & cheap)
+- Stamp the build with git SHA + UTC time by generating a header build_id.h before compile.
+
+Exit criteria: 3 consecutive runs show t_start→READY latency stats and zero flakes.
+
 ### SDFS Implementation (SPI SD Card Filesystem)
 
 **Goal**: Implement SDFS as an SPI-based SD card filesystem with FatFs backend that provides identical interface to LittleFS for seamless storage switching in flight controller applications.

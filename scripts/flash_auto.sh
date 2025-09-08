@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # J-Link flash script with auto-detection for any STM32
 # Usage: ./scripts/flash_auto.sh [--quick] <path_to_binary.bin>
@@ -7,11 +7,11 @@
 # default: Full cycle with erase/verify (production)
 #
 
-set -euo pipefail
+set -eu
 
 # Parse arguments
 QUICK_MODE=false
-if [[ "${1:-}" == "--quick" ]]; then
+if [ "${1:-}" = "--quick" ]; then
     QUICK_MODE=true
     shift
 fi
@@ -32,7 +32,7 @@ if [ $# -ne 1 ]; then
 fi
 
 BINARY_PATH="$1"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Check if binary exists
 if [ ! -f "$BINARY_PATH" ]; then
@@ -42,9 +42,10 @@ fi
 
 # Auto-detect device
 echo "Step 1: Auto-detecting STM32 device..."
-eval $("$SCRIPT_DIR/detect_device.sh" | grep STM32_DEVICE_ID)
+STM32_DEVICE_ID=""
+eval $("$SCRIPT_DIR/detect_device.sh" | grep STM32_DEVICE_ID || true)
 
-if [ -z "$STM32_DEVICE_ID" ]; then
+if [ -z "${STM32_DEVICE_ID:-}" ]; then
     echo "ERROR: Could not detect STM32 device"
     exit 1
 fi
