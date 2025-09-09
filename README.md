@@ -14,11 +14,13 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 
 ## Key Features
 
+- **Production HIL Testing Framework**: Complete build-to-runtime traceability with J-Link + RTT integration ✅
+- **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability ✅
+- **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming ✅
+- **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved) ✅
 - **Dual Storage Systems**: LittleFS (SPI flash) and SDFS (SD card via SPI)
-- **Real-time Debugging**: SEGGER RTT integration for printf-style debugging
-- **Hardware-in-Loop Testing**: J-Link based HIL test framework with exit wildcard detection
-- **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
-- **Flight Controller Focus**: Optimized for UAV applications
+- **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
+- **Flight Controller Focus**: Optimized for UAV applications with deterministic testing
 
 ## Dependencies
 
@@ -56,12 +58,13 @@ arduino-cli upload --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 
 # One-button build and test with environment validation
 ./scripts/aflash.sh <sketch_directory> --env-check
 
-# Build with RTT debugging and build-ID generation
+# Build with enhanced build-ID traceability (Phase 5 Complete)
 ./scripts/build.sh <sketch_directory> --env-check --build-id
 ./scripts/jrun.sh <elf_file>
 
-# Ready token detection with latency measurement (Phase 5)
+# Enhanced ready token detection with build-ID parsing (5.2ms latency)
 ./scripts/await_ready.sh [log_file] [timeout] [pattern]
+# Output: READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
 ```
 
 ### Using Makefile (HIL_RTT_Test/)
@@ -100,14 +103,20 @@ Both LittleFS and SDFS provide identical APIs for seamless storage switching.
 - **SD**: [geosmall/SD](https://github.com/geosmall/SD) *(arduino fork)*
 - **STM32RTC**: [stm32duino/STM32RTC](https://github.com/stm32duino/STM32RTC) *(upstream original)*
 
-## Development Workflow
+## Production Development Workflow
 
-1. **Environment Check**: `./scripts/env_check_quick.sh true`
-2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect STM32)
-3. **Build**: `./scripts/build.sh <sketch> --env-check --build-id`
-4. **Test**: `./scripts/aflash.sh <sketch> --env-check` (uses J-Run + exit wildcards)
-5. **Ready Detection**: `./scripts/await_ready.sh` (sub-20ms latency measurements)
-6. **Debug**: Use RTT with `JLinkRTTClient` for real-time printf output
+1. **Environment Check**: `./scripts/env_check_quick.sh true` (~100ms validation)
+2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect any STM32 via J-Link)
+3. **Enhanced Build**: `./scripts/build.sh <sketch> --env-check --build-id` (git SHA + UTC timestamp injection)
+4. **HIL Testing**: `./scripts/aflash.sh <sketch> --env-check` (J-Run + exit wildcards, deterministic)
+5. **Traceability Verification**: `./scripts/await_ready.sh` (enhanced parsing, 5.2ms latency achieved)
+6. **Real-time Debug**: SEGGER RTT v8.62 with `JLinkRTTClient` for printf output
+
+### Build Traceability Example
+```
+Git: 901dbd1-dirty (2025-09-09T10:07:44Z)
+READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
+```
 
 ## Documentation
 

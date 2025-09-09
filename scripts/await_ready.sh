@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Default configuration
 DEFAULT_TIMEOUT=30
-DEFAULT_READY_PATTERN="HIL_READY"
+DEFAULT_READY_PATTERN="READY"
 DEFAULT_LOG_FILE="test_logs/rtt/latest_jrun.txt"
 
 # Parse arguments
@@ -30,6 +30,10 @@ if [[ "$LOG_FILE" == "-h" || "$LOG_FILE" == "--help" ]]; then
     echo "Default log file: $DEFAULT_LOG_FILE"
     echo "Default timeout: ${DEFAULT_TIMEOUT}s"
     echo "Default pattern: \"$DEFAULT_READY_PATTERN\""
+    echo
+    echo "Enhanced Build-ID Token Format:"
+    echo "  READY <board> <git_sha> <utc_timestamp>"
+    echo "  Example: READY NUCLEO_F411RE 901dbd1 2025-09-09T09:33:40Z"
     echo
     echo "Returns:"
     echo "  0 - Ready token detected successfully"
@@ -70,9 +74,17 @@ while [ $(echo "$ELAPSED < $TIMEOUT" | bc -l) -eq 1 ]; do
             echo "[$END_TIME_HUMAN] ✓ Ready token detected!"
             echo
             
-            # Extract the ready token line for display
+            # Extract and parse the ready token line
             READY_LINE=$(grep "$READY_PATTERN" "$LOG_FILE" | head -1)
             echo "Ready token: $READY_LINE"
+            
+            # Parse enhanced build-ID token format: READY <board> <git_sha> <utc_timestamp>
+            if [[ "$READY_LINE" =~ READY[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+)[[:space:]]+([^[:space:]]+) ]]; then
+                BOARD="${BASH_REMATCH[1]}"
+                GIT_SHA="${BASH_REMATCH[2]}"
+                UTC_TIME="${BASH_REMATCH[3]}"
+                echo "Build info: Board=$BOARD, Git=$GIT_SHA, Time=$UTC_TIME"
+            fi
             echo "Latency: ${LATENCY_MS}ms (start→ready)"
             echo "Duration: $START_TIME_HUMAN → $END_TIME_HUMAN"
             echo
