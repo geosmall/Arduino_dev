@@ -97,7 +97,7 @@ fi
 echo
 
 # Step 1: Build (pass through env-check flag if enabled)
-echo "Step 1/3: Building..."
+echo "Step 1/2: Building..."
 BUILD_ARGS="$SKETCH_DIR $FQBN"
 if [[ "$ENV_CHECK" == true ]]; then
     BUILD_ARGS="$BUILD_ARGS --env-check"
@@ -108,70 +108,50 @@ if ! ./scripts/build.sh $BUILD_ARGS; then
 fi
 echo
 
-# Find the ELF file (preferred for J-Run) or fall back to binary
+# Find the ELF file (required for J-Run execution)
 ELF_PATH=$(find /home/geo/.cache/arduino/sketches -name "${SKETCH_NAME}.ino.elf" | head -1)
-if [ -n "$ELF_PATH" ]; then
-    echo "✓ Found ELF file: $(basename "$ELF_PATH")"
-    EXEC_METHOD="jrun"
-else
-    # Fallback to binary + JLinkExe flash method
-    BINARY_PATH=$(find "$SKETCH_DIR/build" -name "*.bin" | head -1)
-    if [ -z "$BINARY_PATH" ]; then
-        echo "✗ No ELF or binary file found after build"
-        exit 1
-    fi
-    echo "✓ Found binary file: $(basename "$BINARY_PATH")"
-    EXEC_METHOD="flash"
+if [ -z "$ELF_PATH" ]; then
+    echo "✗ ELF file not found after build"
+    echo ""
+    echo "Expected location: /home/geo/.cache/arduino/sketches/${SKETCH_NAME}.ino.elf"
+    echo ""
+    echo "This indicates a build configuration issue. Possible causes:"
+    echo "  • Arduino CLI not generating ELF files (check --export-binaries flag)"
+    echo "  • Cache permissions issues (check ~/.cache/arduino/sketches/ access)"
+    echo "  • Arduino CLI version mismatch (expected: 1.3.0)"
+    echo ""
+    echo "Troubleshooting steps:"
+    echo "  1. Run: ./scripts/env_probe.sh (full environment diagnostics)"
+    echo "  2. Check: ls -la /home/geo/.cache/arduino/sketches/"
+    echo "  3. Verify: arduino-cli version (should be 1.3.0)"
+    echo ""
+    echo "Modern HIL testing requires ELF files for symbol-aware debugging"
+    echo "and integrated J-Run execution with exit wildcard detection."
+    exit 1
 fi
 
-if [ "$EXEC_METHOD" = "jrun" ]; then
-    # Step 2: J-Run HIL test execution with exit wildcard detection
-    echo "Step 2/2: Executing HIL test with J-Run (exit wildcard detection)..."
-    LOG_PREFIX="${SKETCH_NAME}_aflash"
-    if ! ./scripts/jrun.sh "$ELF_PATH" STM32F411RE "$TIMEOUT" "$LOG_PREFIX" "$EXIT_WILDCARD"; then
-        echo "✗ J-Run HIL test execution failed"
-        exit 1
-    fi
-else
-    # Legacy: Step 2: Flash + Step 3: RTT Capture
-    echo "Step 2/3: Flashing (legacy)..."
-    if ! ./scripts/flash.sh --quick "$BINARY_PATH"; then
-        echo "✗ Flash failed"
-        exit 1
-    fi
-    echo
-    
-    # Brief pause to let device start
-    sleep 2
-    
-    # Step 3: RTT Capture
-    echo "Step 3/3: Capturing RTT output..."
-    LOG_PREFIX="${SKETCH_NAME}_aflash"
-    ./scripts/rtt_cat.sh "$TIMEOUT" "$LOG_PREFIX"
+echo "✓ Found ELF file: $(basename "$ELF_PATH")"
+
+# Step 2: J-Run HIL test execution with exit wildcard detection
+echo "Step 2/2: Executing HIL test with J-Run (exit wildcard detection)..."
+LOG_PREFIX="${SKETCH_NAME}_aflash"
+if ! ./scripts/jrun.sh "$ELF_PATH" STM32F411RE "$TIMEOUT" "$LOG_PREFIX" "$EXIT_WILDCARD"; then
+    echo "✗ J-Run HIL test execution failed"
+    exit 1
 fi
 
 echo
-if [ "$EXEC_METHOD" = "jrun" ]; then
-    echo "=== Build-JRun-HIL-Test Complete ==="
-    echo "✓ Build: $(basename "$ELF_PATH") (ELF with symbols)"
-    echo "✓ J-Run: ELF loaded and executed with exit wildcard detection"
-    
-    # Check if test completed deterministically
-    if grep -q "$EXIT_WILDCARD" test_logs/rtt/latest_jrun.txt 2>/dev/null; then
-        echo "✓ HIL Test: Completed deterministically (exit wildcard detected)"
-        echo "✓ Test Result: SUCCESS - deterministic test execution"
-    else
-        echo "⚠ HIL Test: May be incomplete (exit wildcard not detected)"
-        echo "⚠ Test Result: Check test implementation for exit wildcard emission"
-    fi
-    echo
-    echo "To view J-Run HIL test output: cat test_logs/rtt/latest_jrun.txt"
+echo "=== Build-JRun-HIL-Test Complete ==="
+echo "✓ Build: $(basename "$ELF_PATH") (ELF with symbols)"
+echo "✓ J-Run: ELF loaded and executed with exit wildcard detection"
+
+# Check if test completed deterministically
+if grep -q "$EXIT_WILDCARD" test_logs/rtt/latest_jrun.txt 2>/dev/null; then
+    echo "✓ HIL Test: Completed deterministically (exit wildcard detected)"
+    echo "✓ Test Result: SUCCESS - deterministic test execution"
 else
-    echo "=== Build-Flash-Run Complete (Legacy) ==="
-    echo "✓ Build: $(basename "$BINARY_PATH") ($(stat -c%s "$BINARY_PATH") bytes)"
-    echo "✓ Flash: Device programmed and running"
-    echo "✓ RTT: Log captured (timeout: ${TIMEOUT}s)"
-    echo
-    echo "To view RTT output: cat test_logs/rtt/latest_rtt.txt"
-    echo "To run RTT live: ./scripts/rtt_cat.sh [timeout] [prefix]"
+    echo "⚠ HIL Test: May be incomplete (exit wildcard not detected)"
+    echo "⚠ Test Result: Check test implementation for exit wildcard emission"
 fi
+echo
+echo "To view J-Run HIL test output: cat test_logs/rtt/latest_jrun.txt"

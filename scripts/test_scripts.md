@@ -24,7 +24,7 @@ if (test_complete) {
 | `env_check_quick.sh` | **Fast environment validation (~100ms)** | **Phase 3** | **arduino-cli** |
 | **Build & Test Orchestration** |
 | `build.sh` | Arduino CLI compile with optional --env-check, --build-id | Phase 2-5 | arduino-cli |
-| `aflash.sh` | **One-button build-jrun-test with optional --env-check** | **Phase 2-3** | **J-Run primary, JLinkExe fallback** |
+| `aflash.sh` | **One-button build-jrun-test with optional --env-check** | **Phase 2-3** | **J-Run ELF execution** |
 | **Device Detection & Programming** |
 | `detect_device.sh` | **Universal STM32 device auto-detection** | **Phase 4** | **J-Link** |
 | `jrun.sh` | **J-Run execution with RTT + exit wildcard detection** | **Phase 1-2** | **JRun (primary)** |
