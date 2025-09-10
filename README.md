@@ -1,10 +1,10 @@
-# STM32 Arduino Core for UAV Flight Controllers
+# STM32 Arduino Core Development Environment
 
-A focused STM32 Arduino development environment optimized for UAV flight controller applications with embedded storage systems.
+A focused STM32 Arduino development environment with CI/CD automation capabilities.
 
 ## Overview
 
-This repository contains a **fork of the STM32 Arduino Core** with simplified variant selection and enhanced storage capabilities. It's specifically designed for developing autonomous drone flight control systems with real-time data logging and sensor data management.
+This repository contains a **fork of the STM32 Arduino Core** with simplified variant selection. It's designed for developing autonomous systems such as drone flight control systems with real-time data logging, sensor and configuration data management.
 
 ## Target Hardware
 
