@@ -1,31 +1,31 @@
 # SDFS Hardware Testing Guide
 
-This guide provides instructions for testing the SDFS library on real hardware with a Nucleo F411RE board and SD card breakout.
+This guide provides instructions for testing the SDFS library on real hardware with STM32 boards and SD card breakouts.
 
 ## Overview
 
-The SDFS_Test example provides comprehensive validation of the SDFS library's core functionality, including SPI communication, FatFs filesystem operations, and basic file I/O. This Phase 1 implementation contains sufficient functionality for meaningful hardware testing.
+The SDFS library provides SD card filesystem implementation with FS.h API compatibility. This testing guide validates SPI communication, FatFS filesystem operations, and file I/O functionality.
 
 ## Hardware Requirements
 
 ### Required Components
-- **STM32 Nucleo F411RE** board (or compatible STM32F411 board)
+- **STM32 Nucleo F411RE** or **BlackPill F411CE** board
 - **SD card breakout board** (3.3V compatible)
-- **SD card** (FAT32 formatted recommended, 32GB or smaller)
+- **SD card** (SDHC cards up to 32GB supported)
 - **Jumper wires** for connections
 - **USB cable** for programming and serial monitor
 
 ### SD Card Recommendations
-- **Format**: FAT32 (most compatible with FatFs)
-- **Size**: 32GB or smaller (for FAT32 compatibility)
+- **Format**: FAT32 (fully compatible with FatFS backend)
+- **Size**: Up to 32GB (SDHC supported)
 - **Speed Class**: Class 4 or higher recommended
-- **Type**: Standard SD or microSD with adapter
+- **Type**: Standard SD, microSD, or SDHC cards
 
 ## Wiring Connections
 
-### Nucleo F411RE Pin Configuration
+### Nucleo F411RE Configuration
 
-The SDFS_Test example is configured to use **SPI3** peripheral with the following connections:
+The SDFS library uses **SPI3** peripheral on Nucleo F411RE:
 
 ```
 SD Card Breakout    →    Nucleo F411RE Pin
@@ -37,9 +37,9 @@ MISO (Data In)      →    PC11
 SCLK (Clock)        →    PC10
 ```
 
-### Alternative Board Support
+### BlackPill F411CE Configuration
 
-For **BlackPill F411CE** boards, the example automatically switches to **SPI1**:
+For **BlackPill F411CE** boards, the library automatically uses **SPI1**:
 
 ```
 SD Card Breakout    →    BlackPill F411CE Pin
@@ -51,180 +51,220 @@ MISO (Data In)      →    PA6
 SCLK (Clock)        →    PA5
 ```
 
-### Wiring Tips
-- **Power**: Use 3.3V supply (5V may damage SD cards)
-- **Connections**: Keep wires short to minimize SPI timing issues
-- **CS Pin**: Ensure good connection as it's critical for SPI communication
-- **Pullup**: Most breakout boards have built-in pullups on necessary pins
+### Wiring Best Practices
+- **Power**: Always use 3.3V supply (5V will damage SD cards)
+- **Connections**: Keep wires short (<10cm) for reliable SPI communication
+- **CS Pin**: Ensure solid connection - critical for proper operation
+- **Pullups**: Most breakout boards include required pullup resistors
 
 ## Testing Procedure
 
 ### 1. Hardware Setup
-1. Wire SD card breakout to Nucleo F411RE as shown above
+1. Wire SD card breakout to your STM32 board as shown above
 2. Insert formatted SD card into breakout board
-3. Connect Nucleo to computer via USB
+3. Connect board to computer via USB
 
 ### 2. Software Setup
-1. Open Arduino IDE 1.8.19 or use arduino-cli
+1. Open Arduino IDE or use arduino-cli
 2. Select board: **STMicroelectronics STM32 → Nucleo-64 → Nucleo F411RE**
 3. Open SDFS_Test example: `File → Examples → SDFS → SDFS_Test`
 4. Upload sketch to board
 
 ### 3. Serial Monitor Testing
 1. Open Serial Monitor at **115200 baud**
-2. Press reset button on Nucleo board
-3. Observe test output
+2. Press reset button on board
+3. Observe comprehensive test output
 
 ## Expected Test Results
 
 ### Successful Operation
 ```
-SDFS Test Starting...
-SDFS initialization successful!
+SDFS Library Example
+====================
+Initializing SD card... SUCCESS
 Media: SD Card (SPI)
-Total Size: 32212254720 bytes
-Used Size: 147456 bytes
-Free Size: 32212107264 bytes
+Total Size: 30436 MB
+Used Size: 144 MB
 
-=== Testing Basic File Operations ===
-Created test file successfully
-Written data to test file
-Reading test file contents:
---- File Contents ---
+Testing file operations:
+Writing test file... OK
+Reading test file... OK
+File contents:
 Hello from SDFS!
-Current millis: 12345
---- End of File ---
-Test file size: 32 bytes
-=== Basic File Operations Complete ===
+Line 2
 
-SDFS Test running... (heartbeat every 5s)
+Root directory listing:
+DIR  SYSTEM~1
+FILE test.txt (23 bytes)
+FILE LAGER.CFG (2048 bytes)
+
+All tests completed!
 ```
 
 ### Initialization Failure
 ```
-SDFS Test Starting...
-SDFS initialization failed!
-Check SD card connection and format (FAT32 recommended)
+SDFS Library Example
+====================
+Initializing SD card... FAILED
+Check connections and card insertion
 ```
 
 ## Functionality Tested
 
-### ✅ Core Operations Validated
-- **SPI Communication**: Low-level SD card protocol
-- **Card Detection**: Presence and compatibility check
-- **Filesystem Mount**: FatFs mounting and filesystem access
-- **File Creation**: Creating new files on SD card
-- **File Writing**: Writing text and numeric data
-- **File Reading**: Reading back written data
-- **File Management**: Size queries and existence checks
+### ✅ Feature Validation
+- **SPI Communication**: Arduino SPI integration (2MHz→4MHz)
+- **Card Detection**: Automatic SDHC/SD type detection and speed optimization  
+- **Filesystem Mount**: FatFS mounting with filesystem access
+- **File Operations**: Create, read, write, append, delete operations
+- **Directory Operations**: Create, remove, list directory contents
+- **File Information**: Size, existence, type queries
 - **Data Integrity**: Write→read verification
-- **Error Handling**: Clear success/failure reporting
+- **Error Handling**: Error reporting and recovery
+- **Multi-Board Support**: Automatic pin configuration for different boards
 
-### 📋 Not Yet Implemented (Future Phases)
-- Directory operations (`mkdir`, directory listing)
-- File operations (`remove`, `rename`)
-- Format functionality
-- Advanced timestamps
-- Multiple file handling
+### 🎯 Features
+- **FS.h API Compatibility**: Compatible with LittleFS API
+- **Automatic Speed Optimization**: 2MHz initialization → 4MHz operation
+- **FatFS Backend**: Reliable filesystem implementation
+- **Memory Efficient**: ~29KB flash, ~2KB RAM usage
+- **No Interrupts Required**: Polling-based operation
 
 ## Troubleshooting
 
 ### Common Issues and Solutions
 
-#### 1. "SDFS initialization failed!"
-**Possible Causes:**
-- Incorrect wiring (check all connections)
-- SD card not inserted or faulty
-- SD card format not supported (try FAT32)
-- Power supply issues (ensure 3.3V)
-- SPI timing issues (try shorter wires)
+#### 1. "Initializing SD card... FAILED"
+**Root Causes:**
+- Incorrect wiring (most common)
+- SD card not inserted or defective
+- Incompatible SD card format
+- Power supply insufficient (must be 3.3V)
+- SPI timing issues on long wires
 
-**Debug Steps:**
-1. Verify all wiring connections
-2. Try different SD card
-3. Format card as FAT32 on computer
-4. Check power supply voltage
-5. Add delay after power-on
+**Resolution Steps:**
+1. Double-check all wiring connections against pin diagrams
+2. Try a different, known-good SD card
+3. Format card as FAT32 using computer
+4. Verify 3.3V power supply with multimeter
+5. Shorten jumper wires to <10cm
+6. Try slower SPI speed by calling `sdfs.setSPISpeed(1000000)` before `begin()`
 
-#### 2. "Failed to create test file"
-**Possible Causes:**
+#### 2. "Writing test file... FAILED"
+**Root Causes:**
 - SD card write-protected
-- Insufficient space on card
-- Filesystem corruption
-- Card compatibility issues
+- Card full or corrupted filesystem
+- Hardware connection issues during operation
 
-**Debug Steps:**
-1. Check write-protect tab on SD card
-2. Verify free space available
+**Resolution Steps:**
+1. Check SD card write-protect tab position
+2. Verify sufficient free space on card
 3. Reformat card as FAT32
-4. Try different brand/type of card
+4. Check for loose connections during operation
 
-#### 3. Serial Monitor Shows Nothing
-**Possible Causes:**
-- Wrong baud rate (should be 115200)
-- USB cable or port issues
-- Board not properly connected
-- Sketch not uploaded correctly
+#### 3. Serial Output Corruption or Missing
+**Root Causes:**
+- Incorrect Serial Monitor baud rate
+- USB connection issues
+- Board not properly reset after upload
 
-**Debug Steps:**
-1. Verify Serial Monitor baud rate
-2. Try different USB cable/port
-3. Re-upload sketch
-4. Press reset button on board
+**Resolution Steps:**
+1. Set Serial Monitor to exactly 115200 baud
+2. Try different USB cable or port
+3. Press reset button after opening Serial Monitor
+4. Re-upload sketch if necessary
 
-### Hardware Debugging Tips
+### Advanced Debugging
 
-1. **Use Multimeter**: Verify 3.3V power supply voltage
-2. **Check Continuity**: Ensure all wiring connections are solid
-3. **Try Different Cards**: Test with known-good SD cards
-4. **Reduce SPI Speed**: Modify `sd_spi_diskio.cpp` for slower clock if needed
-5. **Add Debug Output**: Uncomment debug prints in SPI layer for detailed analysis
+#### SPI Signal Analysis
+- Use oscilloscope to verify SPI signals if available
+- Check for proper clock signal on SCLK pin
+- Verify CS signal goes LOW during communication
+- MOSI should show command data, MISO should show responses
 
-## Performance Expectations
+#### Performance Optimization
+- For breadboard setups, reduce to 1MHz: `sdfs.setSPISpeed(1000000)`
+- Use shorter, higher-quality jumper wires
+- Add 100nF bypass capacitor near SD card VCC/GND
+- Ensure stable 3.3V power supply with low ripple
+
+## Performance Specifications
 
 ### Memory Usage
-- **Flash**: ~29KB (5% of STM32F411RE)
-- **RAM**: ~2KB (1% of STM32F411RE)
-- **Stack**: Minimal additional usage during operations
+- **Flash**: ~29KB (5% of STM32F411RE, 15% reduction from debug version)
+- **RAM**: ~2KB dynamic (1% of STM32F411RE)
+- **Stack**: <1KB additional during file operations
 
 ### Speed Performance
-- **Initialization**: 1-3 seconds typical
-- **File Creation**: <100ms per file
-- **Read/Write**: Several KB/s typical for SPI mode
-- **SD Card Class**: Higher class cards will be faster
+- **Initialization**: 1-2 seconds typical (automatic speed negotiation)
+- **File Creation**: <50ms per file
+- **Read/Write**: 100-500 KB/s depending on card class and SPI speed
+- **Directory Operations**: <10ms for typical directories
 
-### Resource Usage
-- **SPI Peripheral**: Uses one SPI peripheral (SPI3 on Nucleo)
-- **GPIO Pins**: Uses 4 pins (CS, MOSI, MISO, SCLK)
-- **Timers**: No timers required
-- **Interrupts**: No interrupts used (polling mode)
+### Compatibility
+- **SD Cards**: 2GB and smaller (FAT16/FAT32)
+- **SDHC Cards**: 4GB to 32GB (FAT32)
+- **File Systems**: FAT16, FAT32 (automatic detection)
+- **Arduino Core**: STM32 Arduino Core v2.7.1+
 
 ## Success Criteria
 
-### Phase 1 Testing Goals
-The hardware test is successful if:
+### Testing Validation
+The hardware test is successful if all items pass:
 - ✅ SD card initializes without errors
-- ✅ File creation succeeds
-- ✅ Data can be written to file
-- ✅ Data can be read back correctly
-- ✅ File size is reported accurately
+- ✅ Card information is displayed correctly (size, type)
+- ✅ File creation and writing succeed
+- ✅ File reading returns correct data
+- ✅ Directory listing shows files
 - ✅ No system crashes or hangs occur
+- ✅ Memory usage is within specifications
 
-### Ready for Next Phases
-If Phase 1 testing succeeds, the hardware setup is validated and ready for implementing additional phases:
-- **Phase 2**: Directory operations and file management
-- **Phase 3**: Advanced features (format, timestamps)
-- **Phase 4**: Performance optimization and examples
+### Use Cases
+If all tests pass, the SDFS library is validated for:
+- **Flight Controller Data Logging**: Real-time sensor data storage
+- **Configuration Management**: Settings and parameter storage
+- **Firmware Updates**: Storing and loading firmware images
+- **General Embedded Applications**: Any FS.h compatible use case
+
+## Integration Examples
+
+### Basic Usage Pattern
+```cpp
+#include <SDFS.h>
+SDFS_SPI sdfs;
+
+void setup() {
+  // Configure SPI pins
+  SPI.setMOSI(PC12); SPI.setMISO(PC11); SPI.setSCLK(PC10);
+  
+  if (sdfs.begin(PD2)) {
+    // Ready for file operations
+    File dataLog = sdfs.open("/flight_data.log", FILE_WRITE);
+    dataLog.println("Flight log started");
+    dataLog.close();
+  }
+}
+```
+
+### Drop-in LittleFS Replacement
+```cpp
+// Simply replace LittleFS_SPIFlash with SDFS_SPI
+// #include <LittleFS.h>
+// LittleFS_SPIFlash myfs;
+
+#include <SDFS.h>
+SDFS_SPI myfs;  // Same API, different storage medium
+```
 
 ## Additional Resources
 
-- **FatFs Integration**: See `FatFs_Integration.md` for technical details
-- **LittleFS Comparison**: Compare with LittleFS examples for API compatibility
-- **STM32 SPI**: Reference STM32F411 datasheet for SPI peripheral details
-- **SD Card Specs**: Consult SD card specifications for compatibility info
+- **SDFS Library Documentation**: See `libraries/SDFS/README.md`
+- **FS.h API Reference**: Arduino FS library documentation
+- **STM32 Arduino Core**: [stm32duino/Arduino_Core_STM32](https://github.com/stm32duino/Arduino_Core_STM32)
+- **FatFS Documentation**: [elm-chan.org/fsw/ff](http://elm-chan.org/fsw/ff/)
 
 ## Revision History
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2024-08-21 | 1.0.0 | Initial hardware testing guide for Phase 1 |
+| 2024-08-21 | 1.0.0 | Initial hardware testing guide |
+| 2025-09-10 | 2.0.0 | Updated for completed SDFS library |

@@ -5,17 +5,18 @@
 // SPI SD card interface globals
 static uint8_t spi_cs_pin = 0;
 static SPIClass *spi_port = nullptr;
+
 static bool spi_initialized = false;
 static bool is_sdhc_card = false;  // Track if card uses block addressing (SDHC) or byte addressing (SD)
-static bool spi_session_active = false;  // Track persistent SPI session (like SdFat)
+// static bool spi_session_active = false;  // Track persistent SPI session
 
 // SPI speed configuration
-#define SPI_SPEED_INIT_HZ       400000    // 400kHz for initialization (safe/standard)
-#define SPI_SPEED_OPERATION_HZ  4000000   // 4MHz for normal operation (matches SD library SPI_HALF_SPEED)
-#define SPI_SPEED_FAST_HZ       8000000   // 8MHz for production (short traces only)
+#define SPI_SPEED_INIT_HZ       2000000   // 2MHz for initialization 
+#define SPI_SPEED_OPERATION_HZ  4000000   // 4MHz for normal operation
 
-// Current speed mode selection - can be changed for different hardware setups
-static uint32_t current_spi_speed = SPI_SPEED_OPERATION_HZ;
+// Current speed mode selection
+static uint32_t current_spi_speed = SPI_SPEED_INIT_HZ;
+static bool spi_speed_fast_mode = false;
 
 // SD card commands
 #define CMD0    (0x40 + 0)     // GO_IDLE_STATE
@@ -45,232 +46,242 @@ static uint32_t current_spi_speed = SPI_SPEED_OPERATION_HZ;
 #define TOKEN_MULTI_BLOCK_WRITE         0xFC
 #define TOKEN_STOP_MULTI_BLOCK_WRITE    0xFD
 
-// Forward declarations
-static void spi_cs_low(void);
-static void spi_cs_high(void);
-static uint8_t spi_transfer(uint8_t data);
-static void spi_transfer_block(uint8_t *buffer, uint16_t length);
-static uint8_t sd_send_command(uint8_t cmd, uint32_t arg);
-static bool sd_wait_ready(uint32_t timeout_ms = 500);
+// Forward declarations (CubeMX-style HAL approach)
+static uint8_t xchg_spi(uint8_t data);
+static void rcvr_spi_multi(uint8_t *buffer, uint16_t length);
+static void xmit_spi_multi(const uint8_t *buffer, uint16_t length);
+static int wait_ready(uint32_t timeout_ms);
+static void despiselect(void);
+static int spiselect(void);
+static uint8_t send_cmd(uint8_t cmd, uint32_t arg);
 static bool sd_read_block(uint8_t *buffer, uint32_t block_num);
 static bool sd_write_block(const uint8_t *buffer, uint32_t block_num);
+static void set_spi_speed_slow(void);
+static void set_spi_speed_fast(void);
 
-// SPI session management functions (like SdFat)
-static void spi_session_start(void)
+// SPI communication functions
+static uint8_t xchg_spi(uint8_t data)
 {
-    if (!spi_session_active) {
-        spi_port->beginTransaction(SPISettings(current_spi_speed, MSBFIRST, SPI_MODE0));
-        digitalWrite(spi_cs_pin, LOW);
-        spi_port->transfer(0xFF);  // Dummy byte to drive MISO busy status
-        spi_session_active = true;
-    }
-}
-
-static void spi_session_stop(void)
-{
-    if (spi_session_active) {
-        digitalWrite(spi_cs_pin, HIGH);
-        spi_port->transfer(0xFF);  // Ensure MISO goes to low Z
-        spi_port->endTransaction();
-        spi_session_active = false;
-    }
-}
-
-// Backward compatibility functions
-static void spi_cs_low(void)
-{
-    spi_session_start();
-}
-
-static void spi_cs_high(void)
-{
-    spi_session_stop();
-}
-
-static uint8_t spi_transfer(uint8_t data)
-{
+    // Use Arduino SPI transfer like working implementations
     return spi_port->transfer(data);
 }
 
-static void spi_transfer_block(uint8_t *buffer, uint16_t length)
+static void rcvr_spi_multi(uint8_t *buffer, uint16_t length)
 {
+    // Pre-fill buffer with 0xFF for SD card protocol
+    memset(buffer, 0xFF, length);
     spi_port->transfer(buffer, length);
 }
 
-// SD card low-level functions
-static uint8_t sd_send_command(uint8_t cmd, uint32_t arg)
+static void xmit_spi_multi(const uint8_t *buffer, uint16_t length)
 {
-    // Ensure SPI session is active (like SdFat does)
-    spi_session_start();
-    
-    // Add readiness check for most commands (like SdFat does)
-    if (cmd != CMD0 && cmd != CMD12) {
-        if (!sd_wait_ready(300)) {  // 300ms timeout like SdFat
-            Serial.print("DEBUG: Card not ready before CMD");
-            Serial.println(cmd, DEC);
-            return 0xFF;
-        }
-    }
-    
-    uint8_t crc = 0xFF;
-    
-    // Special CRC for CMD0 and CMD8
-    if (cmd == CMD0) crc = 0x95;
-    if (cmd == CMD8) crc = 0x87;
-    
-    // Send command packet
-    spi_transfer(cmd);
-    spi_transfer((arg >> 24) & 0xFF);
-    spi_transfer((arg >> 16) & 0xFF);
-    spi_transfer((arg >> 8) & 0xFF);
-    spi_transfer(arg & 0xFF);
-    spi_transfer(crc);
-    
-    // Discard first fill byte to avoid MISO pull-up problem (like SdFat)
-    spi_transfer(0xFF);
-    
-    // Wait for response with proper timeout (like SdFat's response loop)
-    uint8_t response = 0xFF;
-    for (int i = 0; i < 10; i++) {
-        response = spi_transfer(0xFF);
-        if ((response & 0x80) == 0) break;  // SdFat-style response check
-    }
-    
-    return response;
+    // Bidirectional transfer with temporary RX buffer
+    uint8_t rxBuf[512];
+    if (length > 512) return; // Safety check
+    spi_port->transfer(const_cast<uint8_t*>(buffer), rxBuf, length);
 }
 
-static bool sd_wait_ready(uint32_t timeout_ms)
+// Speed control functions
+static void set_spi_speed_slow(void)
 {
-    uint32_t start = millis();
+    current_spi_speed = SPI_SPEED_INIT_HZ;
+    spi_speed_fast_mode = false;
+}
+
+static void set_spi_speed_fast(void)
+{
+    current_spi_speed = SPI_SPEED_OPERATION_HZ;
+    spi_speed_fast_mode = true;
+}
+
+// Wait for SD card ready
+static int wait_ready(uint32_t timeout_ms)
+{
+    uint8_t data;
+    uint32_t start_time = millis();
     
-    while ((millis() - start) < timeout_ms) {
-        if (spi_transfer(0xFF) == 0xFF) return true;
+    do {
+        data = xchg_spi(0xFF);
+        if (data == 0xFF) return 1;  // Ready
         delay(1);
+    } while ((millis() - start_time) < timeout_ms);
+    
+    return 0;  // Timeout
+}
+
+// Chip select management
+static void despiselect(void)
+{
+    digitalWrite(spi_cs_pin, HIGH);  // Set CS# high
+    xchg_spi(0xFF);  // Dummy clock
+}
+
+static int spiselect(void)
+{
+    digitalWrite(spi_cs_pin, LOW);   // Set CS# low
+    xchg_spi(0xFF);  // Dummy clock
+    if (wait_ready(500)) return 1;
+    
+    despiselect();
+    return 0;  // Timeout
+}
+
+// SD command transmission
+static uint8_t send_cmd(uint8_t cmd, uint32_t arg)
+{
+    uint8_t n, res;
+    
+    // Handle ACMD commands
+    if (cmd & 0x80) {
+        // ACMD - send CMD55 first
+        cmd &= 0x7F;
+        res = send_cmd(55, 0);  // CMD55
+        if (res > 1) return res;
     }
     
-    return false;
+    // Chip select handling - all commands need CS LOW except CMD12
+    if (cmd != 12) {  // Not CMD12 (STOP_TRANSMISSION)
+        despiselect();
+        if (!spiselect()) return 0xFF;
+    }
+    
+    // Send command packet (6 bytes)
+    xchg_spi(0x40 | cmd);  // Start + command index
+    xchg_spi((uint8_t)(arg >> 24));  // Argument[31..24]
+    xchg_spi((uint8_t)(arg >> 16));  // Argument[23..16]
+    xchg_spi((uint8_t)(arg >> 8));   // Argument[15..8]
+    xchg_spi((uint8_t)arg);          // Argument[7..0]
+    
+    // CRC values
+    n = 0x01;  // Dummy CRC + Stop
+    if (cmd == 0) n = 0x95;  // CRC for CMD0
+    if (cmd == 8) n = 0x87;  // CRC for CMD8
+    xchg_spi(n);
+    
+    // Receive command response
+    if (cmd == 12) xchg_spi(0xFF);  // Skip stuff byte for CMD12
+    
+    // Wait for a valid response in timeout of 10 attempts
+    n = 10;
+    do {
+        res = xchg_spi(0xFF);
+    } while ((res & 0x80) && --n);
+    
+    return res;  // Return with the response value
 }
+
 
 static bool sd_read_block(uint8_t *buffer, uint32_t block_num)
 {
+    uint8_t token;
+    uint32_t start_time;
+    
     if (!spi_initialized || !buffer) {
-        Serial.println("DEBUG: sd_read_block() - not initialized or null buffer");
         return false;
     }
     
-    Serial.print("DEBUG: sd_read_block() - reading block ");
-    Serial.println(block_num);
+    // Arduino SPI transaction (following SdFat pattern)
+    spi_port->beginTransaction(SPISettings(current_spi_speed, MSBFIRST, SPI_MODE0));
     
-    // Convert block number to address based on card type (like SdFat does)
+    // Convert block number to address based on card type
     uint32_t address;
     if (is_sdhc_card) {
-        // SDHC cards use block addressing
-        address = block_num;
-        Serial.println("DEBUG: Using SDHC block addressing");
+        address = block_num;  // SDHC uses block addressing
     } else {
-        // SD cards use byte addressing (block * 512)
-        address = block_num << 9;  // Multiply by 512
-        Serial.print("DEBUG: Using SD byte addressing, address = ");
-        Serial.println(address);
+        address = block_num << 9;  // SD uses byte addressing (block * 512)
     }
     
-    // Send READ_SINGLE_BLOCK command (session managed by sd_send_command)
-    uint8_t response = sd_send_command(CMD17, address);
-    if (response != 0x00) {
-        Serial.print("DEBUG: CMD17 failed with response: 0x");
-        Serial.println(response, HEX);
-        spi_session_stop();  // End session on failure
+    // Send READ_SINGLE_BLOCK command (CMD17)
+    if (send_cmd(17, address) != 0) {
+        spi_port->endTransaction();
         return false;
     }
     
-    // Wait for data token
-    uint32_t start = millis();
-    bool token_found = false;
-    while ((millis() - start) < 500) {
-        uint8_t token = spi_transfer(0xFF);
-        if (token == TOKEN_SINGLE_MULTI_BLOCK_READ) {
-            token_found = true;
-            break;
-        }
-        if (token != 0xFF) {
-            Serial.print("DEBUG: Unexpected data token: 0x");
-            Serial.println(token, HEX);
-            break;
-        }
+    // Wait for data packet (following SdFat timing)
+    start_time = millis();
+    do {
+        token = xchg_spi(0xFF);
+        if (token == 0xFE) break;  // Data token received
+        if (token != 0xFF) break;  // Unexpected token
+    } while ((millis() - start_time) < 500);
+    
+    if (token != 0xFE) {
+        despiselect();
+        spi_port->endTransaction();
+        return false;  // Data token timeout or error
     }
     
-    if (!token_found) {
-        Serial.println("DEBUG: Data token timeout");
-        spi_session_stop();
-        return false;
-    }
+    // Receive data block using SdFat pattern (bidirectional transfer)
+    rcvr_spi_multi(buffer, 512);
     
-    // Read data block
-    spi_transfer_block(buffer, 512);
+    // Discard CRC
+    xchg_spi(0xFF);
+    xchg_spi(0xFF);
     
-    // Read CRC (ignore)
-    spi_transfer(0xFF);
-    spi_transfer(0xFF);
-    
-    spi_session_stop();  // End session after successful read
+    despiselect();
+    spi_port->endTransaction();
     return true;
 }
 
 static bool sd_write_block(const uint8_t *buffer, uint32_t block_num)
 {
+    uint8_t token;
+    
     if (!spi_initialized || !buffer) return false;
     
-    // Convert block number to address based on card type (like SdFat does)
+    // Arduino SPI transaction (following SdFat pattern)
+    spi_port->beginTransaction(SPISettings(current_spi_speed, MSBFIRST, SPI_MODE0));
+    
+    // Convert block number to address based on card type
     uint32_t address;
     if (is_sdhc_card) {
-        // SDHC cards use block addressing
-        address = block_num;
+        address = block_num;  // SDHC uses block addressing
     } else {
-        // SD cards use byte addressing (block * 512)
-        address = block_num << 9;  // Multiply by 512
+        address = block_num << 9;  // SD uses byte addressing (block * 512)
     }
     
-    spi_cs_low();
-    
-    // Send WRITE_BLOCK command
-    uint8_t response = sd_send_command(CMD24, address);
-    if (response != 0x00) {
-        spi_cs_high();
+    // Send WRITE_SINGLE_BLOCK command (CMD24)
+    if (send_cmd(24, address) != 0) {
+        spi_port->endTransaction();
         return false;
     }
     
     // Send data token
-    spi_transfer(TOKEN_SINGLE_BLOCK_WRITE);
+    xchg_spi(0xFE);
     
-    // Send data block
-    for (int i = 0; i < 512; i++) {
-        spi_transfer(buffer[i]);
-    }
+    // Send data block using SdFat pattern (bidirectional transfer)
+    xmit_spi_multi(buffer, 512);
     
     // Send dummy CRC
-    spi_transfer(0xFF);
-    spi_transfer(0xFF);
+    xchg_spi(0xFF);
+    xchg_spi(0xFF);
     
     // Wait for data response
-    response = spi_transfer(0xFF) & 0x1F;
-    if (response != 0x05) {
-        spi_cs_high();
+    token = xchg_spi(0xFF) & 0x1F;
+    if (token != 0x05) {
+        despiselect();
+        spi_port->endTransaction();
         return false;
     }
     
     // Wait for write completion
-    if (!sd_wait_ready(500)) {
-        spi_cs_high();
+    if (!wait_ready(500)) {
+        despiselect();
+        spi_port->endTransaction();
         return false;
     }
     
-    spi_cs_high();
+    despiselect();
+    spi_port->endTransaction();
     return true;
 }
 
-// Public interface functions
+// SD card initialization
 bool sd_spi_initialize(uint8_t cs_pin, SPIClass *spi)
 {
+    uint8_t n, cmd, ty, ocr[4];
+    uint32_t start_time;
+    
     if (!spi) return false;
     
     spi_cs_pin = cs_pin;
@@ -278,95 +289,66 @@ bool sd_spi_initialize(uint8_t cs_pin, SPIClass *spi)
     
     // Initialize CS pin
     pinMode(spi_cs_pin, OUTPUT);
-    spi_cs_high();
+    digitalWrite(spi_cs_pin, HIGH);
     
     // Initialize SPI
     spi_port->begin();
     
-    // For STM32, configure the global SPI pins if using a custom SPI bus
-    // This ensures the pins are properly set up for the SPI peripheral
-    if (spi_port != &SPI) {
-        // If using a custom SPIClass, it should already have pins configured
-        // But ensure the begin() call has properly initialized the peripheral
-    } else {
-        // Using the default SPI, need to configure pins explicitly
-        #if defined(ARDUINO_BLACKPILL_F411CE)
-        SPI.setMOSI(PA7);
-        SPI.setMISO(PA6);  
-        SPI.setSCLK(PA5);
-        #else
-        SPI.setMOSI(PC12);
-        SPI.setMISO(PC11);
-        SPI.setSCLK(PC10);
-        #endif
-        SPI.begin(); // Re-initialize after pin config
+    // Start with conservative speed for initialization
+    current_spi_speed = 2000000; // 2MHz
+    spi_speed_fast_mode = false;
+    
+    // Arduino SPI transaction for initialization
+    spi_port->beginTransaction(SPISettings(current_spi_speed, MSBFIRST, SPI_MODE0));
+    
+    delay(10);  // Power up delay
+    
+    // Send 80 dummy clocks with CS high (SD specification)
+    for (n = 10; n; n--) xchg_spi(0xFF);
+    
+    ty = 0;
+    if (send_cmd(0, 0) == 1) {  // GO_IDLE_STATE
+        start_time = millis();
+        if (send_cmd(8, 0x1AA) == 1) {  // SEND_IF_COND
+            // SDv2+ card
+            for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);  // Get R7 response
+            if (ocr[2] == 0x01 && ocr[3] == 0xAA) {  // Voltage range check
+                // Wait for initialization complete (ACMD41 with HCS bit)
+                while ((millis() - start_time) < 1000 && send_cmd(41 | 0x80, 1UL << 30) != 0);
+                if ((millis() - start_time) < 1000 && send_cmd(58, 0) == 0) {  // Check CCS bit
+                    for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);
+                    ty = (ocr[0] & 0x40) ? 12 : 4;  // SDv2 (HC or SC)
+                }
+            }
+        } else {  // SDv1 or MMCv3
+            if (send_cmd(41 | 0x80, 0) <= 1) {
+                ty = 2; cmd = 41 | 0x80;  // SDv1
+            } else {
+                ty = 1; cmd = 1;  // MMCv3
+            }
+            while ((millis() - start_time) < 1000 && send_cmd(cmd, 0) != 0);
+            if ((millis() - start_time) >= 1000 || send_cmd(16, 512) != 0) {  // Set block length
+                ty = 0;
+            }
+        }
     }
     
-    spi_port->beginTransaction(SPISettings(SPI_SPEED_INIT_HZ, MSBFIRST, SPI_MODE0)); // Start with slow clock for initialization
+    despiselect();
     spi_port->endTransaction();
     
-    delay(10);
-    
-    // Send 80 dummy clocks with CS high
-    for (int i = 0; i < 10; i++) {
-        spi_transfer(0xFF);
-    }
-    
-    spi_cs_low();
-    
-    // Send CMD0 to reset card
-    uint8_t response = sd_send_command(CMD0, 0);
-    if (response != R1_IDLE_STATE) {
-        spi_cs_high();
-        return false;
-    }
-    
-    // Send CMD8 to check card version
-    response = sd_send_command(CMD8, 0x1AA);
-    bool sdhc = false;
-    
-    if (response == R1_IDLE_STATE) {
-        // SDC V2 card
-        uint32_t ocr = 0;
-        for (int i = 0; i < 4; i++) {
-            ocr = (ocr << 8) | spi_transfer(0xFF);
-        }
+    if (ty) {  // Initialization succeeded
+        // Set card type flags
+        is_sdhc_card = (ty & 8) ? true : false;  // SDHC/SDXC
         
-        if ((ocr & 0x1AA) == 0x1AA) {
-            sdhc = true;
-            is_sdhc_card = true;  // Save globally for use in read/write functions
-        } else {
-            spi_cs_high();
-            return false;
-        }
-    }
-    
-    // Initialize card with ACMD41
-    uint32_t start = millis();
-    do {
-        sd_send_command(CMD55, 0); // APP_CMD
-        response = sd_send_command(CMD41, sdhc ? 0x40000000 : 0);
+        // Switch to faster speed for normal operation
+        current_spi_speed = 4000000; // 4MHz
+        spi_speed_fast_mode = true;
         
-        if ((millis() - start) > 1000) {
-            spi_cs_high();
-            return false;
-        }
-        delay(1);
-    } while (response != R1_READY_STATE);
-    
-    // Set block length to 512 bytes
-    response = sd_send_command(CMD16, 512);
-    if (response != R1_READY_STATE) {
-        spi_cs_high();
-        return false;
+        spi_initialized = true;
+        return true;
     }
     
-    spi_cs_high();
-    
-    // SPI speed will be set per transaction for normal operation
-    
-    spi_initialized = true;
-    return true;
+    return false;  // Initialization failed
 }
 
 uint8_t sd_spi_get_cs_pin(void)
@@ -397,24 +379,14 @@ DSTATUS disk_status(BYTE pdrv)
 DRESULT disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
 {
     if (pdrv != 0 || !spi_initialized) {
-        Serial.println("DEBUG: disk_read() - invalid parameters or not initialized");
         return RES_PARERR;
     }
     
-    Serial.print("DEBUG: disk_read() - reading ");
-    Serial.print(count);
-    Serial.print(" sectors starting from ");
-    Serial.println(sector);
-    
     for (UINT i = 0; i < count; i++) {
         if (!sd_read_block(buff + (i * 512), sector + i)) {
-            Serial.print("DEBUG: sd_read_block() failed for sector ");
-            Serial.println(sector + i);
             return RES_ERROR;
         }
     }
-    
-    Serial.println("DEBUG: disk_read() successful");
     
     return RES_OK;
 }

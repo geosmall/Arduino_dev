@@ -1,0 +1,19 @@
+SDFS Library Example
+====================
+Initializing SD card... SUCCESS
+Media: SD Card (SPI)
+Total Size: 30511 MB
+Used Size:  MB
+
+Testing file operations:
+Writing test file... OK
+Reading test file... OK
+File contents:
+Hello from SDFS!
+Line 2
+millis: 2042506
+
+Root directory listing:
+
+All tests completed!
+*STOP*

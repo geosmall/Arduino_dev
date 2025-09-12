@@ -41,28 +41,28 @@ All other settings remain at their default values for basic functionality.
 
 ```
 ┌─────────────────────────────────────────┐
-│           Arduino Sketch               │
+│            Arduino Sketch               │
 ├─────────────────────────────────────────┤
-│           SDFS Library                  │
-│  ┌─────────────┐  ┌─────────────────┐   │
-│  │    SDFS     │  │   SDFSFile      │   │
-│  │    (FS)     │  │  (FileImpl)     │   │
-│  └─────────────┘  └─────────────────┘   │
+│              SDFS Library               │
+│  ┌──────────────┐  ┌─────────────────┐  │
+│  │     SDFS     │  │    SDFSFile     │  │
+│  │     (FS)     │  │   (FileImpl)    │  │
+│  └──────────────┘  └─────────────────┘  │
 ├─────────────────────────────────────────┤
-│           FatFs Core                    │
-│  ┌─────────────────────────────────────┐ │
-│  │        ff.c / ff.h                  │ │
-│  └─────────────────────────────────────┘ │
+│               FatFs Core                │
+│  ┌───────────────────────────────────┐  │
+│  │           ff.c / ff.h             │  │
+│  └───────────────────────────────────┘  │
 ├─────────────────────────────────────────┤
-│       Disk I/O Abstraction             │
-│  ┌─────────────────────────────────────┐ │
-│  │     sd_spi_diskio.cpp               │ │
-│  └─────────────────────────────────────┘ │
+│           Disk I/O Abstraction          │
+│  ┌───────────────────────────────────┐  │
+│  │         sd_spi_diskio.cpp         │  │
+│  └───────────────────────────────────┘  │
 ├─────────────────────────────────────────┤
-│        Hardware Layer                  │
-│  ┌─────────────────────────────────────┐ │
-│  │     STM32 SPI + SD Card             │ │
-│  └─────────────────────────────────────┘ │
+│            Hardware Layer               │
+│  ┌───────────────────────────────────┐  │
+│  │       STM32 SPI + SD Card         │  │
+│  └───────────────────────────────────┘  │
 └─────────────────────────────────────────┘
 ```
 
@@ -97,7 +97,7 @@ The `sd_spi_diskio.cpp` file implements:
 
 Key features:
 - **Configurable SPI**: CS pin and SPI port selection
-- **Speed Management**: Slow initialization (400kHz), fast operation (8MHz)
+- **Speed Management**: Slow initialization (400kHz), fast operation (4MHz for SDHC)
 - **Standard Compliance**: SD Card specification v2.0 commands
 
 ## API Mapping
@@ -210,6 +210,7 @@ Consider updating FatFs when:
 | Date | FatFs Version | Notes |
 |------|---------------|-------|
 | 2024-08-21 | R0.15 (80286) | Initial implementation from STM32 FatFs v4.0.0 |
+| 2024-09-09 | R0.15 (80286) | Production release with SDHC optimization |
 
 ## Troubleshooting
 
@@ -226,7 +227,7 @@ Consider updating FatFs when:
    - Monitor SPI timing and power supply
 
 3. **Performance Issues**
-   - Adjust SPI clock frequency in `sd_spi_diskio.cpp`
+   - Adjust SPI clock frequency in `sd_spi_diskio.cpp` (current: 400kHz init, 4MHz SDHC operation)
    - Consider cluster size optimization in `f_mkfs()`
    - Profile disk I/O operations
 
