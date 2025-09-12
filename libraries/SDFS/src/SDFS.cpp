@@ -1,5 +1,6 @@
 #include "SDFS.h"
 #include "sd_spi_diskio.h"
+#include <string.h>
 
 // Global clock instance
 SDFS_clock_class SDFSClock;
@@ -161,10 +162,13 @@ File SDFSFile::openNextFile(uint8_t mode)
     FILINFO fno;
     FRESULT fr;
     
+    // Clear the FILINFO structure before use
+    memset(&fno, 0, sizeof(FILINFO));
+    
     do {
         fr = f_readdir(dir, &fno);
         if (fr != FR_OK || fno.fname[0] == 0) return File(); // End of directory or error
-    } while (strcmp(fno.fname, ".") == 0 || strcmp(fno.fname, "..") == 0);
+    } while (fno.fname[0] == '.' && (fno.fname[1] == 0 || (fno.fname[1] == '.' && fno.fname[2] == 0)));
     
     // Build full path
     char pathname[128];
@@ -303,23 +307,14 @@ File SDFS::open(const char *filepath, uint8_t mode)
         if (!file) return File();
         
         BYTE openMode = FA_READ | FA_WRITE | FA_OPEN_ALWAYS;
-        Serial.print("DEBUG: Attempting to open file: ");
-        Serial.println(filepath);
         FRESULT fr = f_open(file, filepath, openMode);
         if (fr == FR_OK) {
-            Serial.println("DEBUG: File open successful");
             if (mode == FILE_WRITE) {
                 // Append mode - seek to end
                 f_lseek(file, f_size(file));
             }
             // else FILE_WRITE_BEGIN - start at beginning (default)
             return File(new SDFSFile(&fatfs, file, filepath));
-        } else {
-            Serial.print("DEBUG: File open failed with error: ");
-            Serial.print((int)fr);
-            Serial.print(" (");
-            Serial.print(fresultToString(fr));
-            Serial.println(")");
         }
         free(file);
     }
@@ -386,29 +381,15 @@ uint64_t SDFS::usedSize()
 
 uint64_t SDFS::totalSize()
 {
-    if (!mounted) {
-        Serial.println("DEBUG: totalSize() called but not mounted");
-        return 0;
-    }
+    if (!mounted) return 0;
     
     FATFS *fs;
     DWORD freeClusters;
     FRESULT fr = f_getfree(drive_path, &freeClusters, &fs);
-    if (fr != FR_OK) {
-        Serial.print("DEBUG: f_getfree() failed with error: ");
-        Serial.print((int)fr);
-        Serial.print(" (");
-        Serial.print(fresultToString(fr));
-        Serial.println(")");
-        return 0;
-    }
+    if (fr != FR_OK) return 0;
     
     DWORD totalClusters = (fs->n_fatent - 2);
-    uint64_t total = (uint64_t)totalClusters * fs->csize * 512;
-    Serial.print("DEBUG: totalSize() calculated: ");
-    Serial.print((unsigned long)total);
-    Serial.println(" bytes");
-    return total;
+    return (uint64_t)totalClusters * fs->csize * 512;
 }
 
 bool SDFS::format()
@@ -441,23 +422,11 @@ const char* SDFS::name()
 
 FRESULT SDFS::mountFilesystem()
 {
-    if (mounted) {
-        Serial.println("DEBUG: Already mounted");
-        return FR_OK;
-    }
+    if (mounted) return FR_OK;
     
-    Serial.print("DEBUG: Attempting to mount filesystem on drive: ");
-    Serial.println(drive_path);
     FRESULT fr = f_mount(&fatfs, drive_path, 1); // 1 = mount immediately
     if (fr == FR_OK) {
         mounted = true;
-        Serial.println("DEBUG: Mount successful");
-    } else {
-        Serial.print("DEBUG: Mount failed with error: ");
-        Serial.print((int)fr);
-        Serial.print(" (");
-        Serial.print(fresultToString(fr));
-        Serial.println(")");
     }
     return fr;
 }
@@ -516,8 +485,6 @@ bool SDFS_SPI::begin(uint8_t cspin, SPIClass &spiport)
     // Attempt to mount the filesystem
     FRESULT fr = mountFilesystem();
     if (fr != FR_OK) {
-        Serial.print("SDFS mount failed: ");
-        Serial.println(fresultToString(fr));
         return false;
     }
     

@@ -174,6 +174,9 @@ cmake --build <build_folder>
 
 ### Primary Development Boards
 - **Nucleo F411RE** (Primary): `STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE`
+  - **HIL Setup**: On-board ST-Link V2.1 reflashed to J-Link firmware
+  - **Serial Monitor**: Available via J-Link connection (connected CDC ACM serial monitor)
+  - **Programming**: J-Run execution via reflashed J-Link interface
 - **BlackPill F411CE** (Secondary): `STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE`
 - **Nucleo H753ZI** (High-Performance): `STMicroelectronics:stm32:Nucleo_144:pnum=NUCLEO_H753ZI`
 
@@ -232,7 +235,7 @@ Board-specific configurations are defined through the variant system, allowing t
 
 ### Build Workflow ✅ **COMPLETED**
 
-**Status**: Production-ready HIL testing framework with complete build-to-runtime traceability  
+**Status**: HIL testing framework with complete build-to-runtime traceability  
 **All 5 phases completed**: Environment validation, J-Run RTT integration, device auto-detection, and enhanced build-ID traceability
 
 **Key Achievements**:
@@ -250,63 +253,41 @@ Board-specific configurations are defined through the variant system, allowing t
 # Output: READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
 ```
 
-## Active Projects
-
-### SDFS Implementation (SPI SD Card Filesystem)
+### SDFS Implementation 🔄 **IN PROGRESS**
 
 **Goal**: Implement SDFS as an SPI-based SD card filesystem with FatFs backend that provides identical interface to LittleFS for seamless storage switching in flight controller applications.
 
-**Current Status**: Software Complete Phase 1, still working Phase 2 - Hardware debug abd verification
+**Status**: SPI SD card filesystem with partial FS.h API compatibility  
+**Current Phase**: Directory enumeration debugging and fixes
 
-**Implementation Phases**:
+**Key Achievements**:
+- ✅ **Basic File I/O**: File read/write operations working correctly
+- ✅ **Arduino SPI Integration**: Optimized SPI communication using Arduino Core patterns
+- ✅ **Automatic Card Detection**: SDHC/SD card type detection with speed optimization (2MHz→4MHz)
+- ✅ **Multi-Board Support**: Nucleo F411RE and BlackPill F411CE configurations
+- ✅ **RTT Debug Framework**: SDFS_Test_RTT example for real-time debugging
+- ❌ **Directory Enumeration**: openNextFile() fails to list existing files (under investigation)
 
-**Phase 1: Foundation** ✅ COMPLETED
-- Core SDFS class infrastructure inheriting from FS.h base class
-- FatFs backend integration with SPI SD card communication
-- Basic file operations (open, close, read, write) matching FS interface
-- Initial test sketch with basic file create/read/write verification
+**Recent Fixes**:
+- Enhanced `openNextFile()` with proper FILINFO structure initialization
+- Improved dot-file filtering logic for directory traversal
+- Created deterministic RTT testing framework for debugging
 
-**Phase 2: Filesystem Operations** ✅ COMPLETED  
-- ✅ File system information methods (totalBytes, usedBytes, exists, remove)
-- ✅ Directory operations (mkdir, rmdir, openNextFile, rewindDirectory) - implemented in interface
-- ✅ Automated test script created for ST-Link workflow with serial capture
-- ✅ Sync protocol implementation for reliable automated testing
-- ✅ SPI speed configuration system (breadboard-friendly 1MHz default)
+**Example**:
+```cpp
+#include <SDFS.h>
+SDFS_SPI sdfs;
 
-**Hardware Testing & Debugging** 🔧 ENHANCED WITH RTT FRAMEWORK
-- ✅ Automated test script with sync protocol working perfectly  
-- ✅ SDFS software architecture validated (compiles, initializes, mounts filesystem)
-- ❌ SD card hardware communication issues identified (CMD17 failures: 0xFF/0x5 responses)
-- 🎯 Root cause: Intermittent SPI communication - needs hardware troubleshooting
-- ✅ **NEW: SEGGER RTT debugging framework started** - Superior testing approach
-
-**RTT-Based Testing Framework** ✅ **OPERATIONAL**
-- ✅ SEGGER RTT v8.62 library fully integrated into Arduino Core STM32 (`Arduino_Core_STM32/libraries/SEGGER_RTT/`)
-- ✅ Leveraged working example code from ~/Arduino/Segger_RTT_PrintfTest_Lib_V862 (v8.62)
-- ✅ RTT test sketch with READY token operational (HIL_RTT_Test.ino)
-- ✅ **J-Link hardware configuration**: SWD connection confirmed, upload/debug operational 
-- ✅ **RTT connectivity verified**: JLinkRTTClient connects and receives real-time printf output
-
-**Phase 3: Advanced Features** ⏳ PENDING (Ready for development)
-- Advanced file operations (seek, position, size, isDirectory)
-- Arduino Stream/Print interface inheritance for I/O compatibility
-- Enhanced error handling and status reporting throughout library
-
-**Phase 4: Optimization & Integration** ⏳ PENDING  
-- SPI communication optimization and buffering strategies
-- Flight controller integration examples with real-world logging scenarios
-- Comprehensive testing (stress tests, power cycle tests, LittleFS compatibility)
-
-**Current Status**:
-- **Software**: Fully functional with operational RTT debugging capability
-- **Hardware**: J-Link SWD configured and operational, SD card SPI hardware pending troubleshooting
-- **Test Framework**: RTT framework operational, ready for SDFS hardware debugging
-
-**Next Actions**:
-1. **J-Link debugger configured** - SWD connection operational, RTT framework ready
-2. **RTT framework operational** - Real-time debugging available for immediate feedback
-3. **Hardware troubleshooting**: Apply RTT framework to debug SD card SPI communication issues
-4. **Proceed with Phase 3** once hardware issues resolved using enhanced RTT debugging
+void setup() {
+  SPI.setMOSI(PC12); SPI.setMISO(PC11); SPI.setSCLK(PC10);
+  
+  if (sdfs.begin(PD2)) {  // CS pin
+    File file = sdfs.open("/data.txt", FILE_WRITE_BEGIN);
+    file.println("Flight controller data logging ready");
+    file.close();
+  }
+}
+```
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.

@@ -1,141 +1,128 @@
+/*
+ * SDFS Library Example
+ * 
+ * Demonstrates basic usage of SDFS (SD card File System) with SPI interface.
+ * Compatible with STM32 Arduino Core and follows FS.h interface.
+ * 
+ * Hardware connections:
+ * - MOSI: PC12 (or PA7 for BlackPill)  
+ * - MISO: PC11 (or PA6 for BlackPill)
+ * - SCLK: PC10 (or PA5 for BlackPill)  
+ * - CS:   PD2  (or PA4 for BlackPill)
+ */
+
 #include <SDFS.h>
 
-void Local_Error_Handler()
-{
-    asm("BKPT #0\n"); // break into the debugger
-}
-
-// SPI bus configuration - explicit pin definitions for different boards
+// Pin definitions based on board type
 #if defined(ARDUINO_BLACKPILL_F411CE)
-//              MOSI  MISO  SCLK
-SPIClass SPIbus(PA7,  PA6,  PA5);   // SPI1 peripheral
 #define CS_PIN PA4
+#define SPI_MOSI PA7
+#define SPI_MISO PA6
+#define SPI_SCLK PA5
 #else
-//              MOSI  MISO  SCLK  
-SPIClass SPIbus(PC12, PC11, PC10);  // SPI3 peripheral (default for Nucleo-64)
 #define CS_PIN PD2
+#define SPI_MOSI PC12
+#define SPI_MISO PC11
+#define SPI_SCLK PC10
 #endif
 
 // Create SDFS instance
 SDFS_SPI sdfs;
 
 void setup() {
-  bool res;
-  
   Serial.begin(115200);
   while (!Serial) {
     delay(10);
   }
   
-  // Send ready signal and wait for sync
-  Serial.println("READY_FOR_SYNC");
-  Serial.flush();
+  Serial.println("SDFS Library Example");
+  Serial.println("====================");
   
-  // Wait for sync character ('S') from test script
-  while (Serial.available() == 0 || Serial.read() != 'S') {
-    delay(10);
-  }
+  // Configure SPI pins
+  SPI.setMOSI(SPI_MOSI);
+  SPI.setMISO(SPI_MISO);
+  SPI.setSCLK(SPI_SCLK);
   
-  Serial.println("SDFS Test Starting...");
-  
-  // Ensure the CS pin is pulled HIGH
-  pinMode(CS_PIN, OUTPUT); 
-  digitalWrite(CS_PIN, HIGH);
-  
-  delay(10); // Wait a bit to make sure SD card is ready
-  
-  // Configure SPI speed for breadboard-friendly operation (1MHz instead of 8MHz)
-  Serial.println("Setting SPI speed to 1MHz for breadboard compatibility...");
-  sdfs.setSPISpeed(1000000); // 1MHz - breadboard safe
-  
-  Serial.print("SPI Speed: ");
-  Serial.print(sdfs.getSPISpeed());
-  Serial.println(" Hz");
-  
-  // Initialize SDFS with explicit CS pin and SPI bus
-  res = sdfs.begin(CS_PIN, SPIbus);
-  if (res) {
-    Serial.println("SDFS initialization successful!");
+  // Initialize SDFS
+  Serial.print("Initializing SD card...");
+  if (sdfs.begin(CS_PIN)) {
+    Serial.println(" SUCCESS");
+    
+    // Display card information
     Serial.print("Media: ");
     Serial.println(sdfs.getMediaName());
-    
-    // Debug: Check if filesystem is mounted
-    Serial.print("Media Present: ");
-    Serial.println(sdfs.mediaPresent() ? "YES" : "NO");
-    
     Serial.print("Total Size: ");
-    uint64_t total = sdfs.totalSize();
-    Serial.print(total);
-    Serial.println(" bytes");
-    Serial.print("Used Size: ");
-    uint64_t used = sdfs.usedSize();
-    Serial.print(used);
-    Serial.println(" bytes");
-    Serial.print("Free Size: ");
-    Serial.print(total - used);
-    Serial.println(" bytes");
+    Serial.print(sdfs.totalSize() / (1024 * 1024));
+    Serial.println(" MB");
+    Serial.print("Used Size: ");  
+    Serial.print(sdfs.usedSize() / (1024 * 1024));
+    Serial.println(" MB");
     
-    // Debug size calculation issues
-    if (total == 0) {
-      Serial.println("DEBUG: totalSize() returned 0 - filesystem mount issue");
-    }
-    if (used == 0 && total > 0) {
-      Serial.println("DEBUG: usedSize() returned 0 - may be normal for empty card");
-    }
-    
-    // Test basic file operations
+    // Test file operations
     testFileOperations();
+    
   } else {
-    Serial.println("SDFS initialization failed!");
-    Serial.println("Check SD card connection and format (FAT32 recommended)");
-    Local_Error_Handler();
+    Serial.println(" FAILED");
+    Serial.println("Check connections and card insertion");
   }
 }
 
 void loop() {
+  // Example complete - signal completion for HIL testing
+  Serial.println("*STOP*");
   delay(5000);
-  Serial.println("SDFS Test running... (heartbeat every 5s)");
 }
 
 void testFileOperations() {
-  Serial.println("\n=== Testing Basic File Operations ===");
+  Serial.println("\nTesting file operations:");
   
-  // Test file creation and writing
+  // Test 1: Write a file
+  Serial.print("Writing test file...");
   File testFile = sdfs.open("/test.txt", FILE_WRITE_BEGIN);
   if (testFile) {
-    Serial.println("Created test file successfully");
     testFile.println("Hello from SDFS!");
-    testFile.print("Current millis: ");
-    testFile.println(millis());
+    testFile.println("Line 2");
     testFile.close();
-    Serial.println("Written data to test file");
+    Serial.println(" OK");
   } else {
-    Serial.println("Failed to create test file");
+    Serial.println(" FAILED");
     return;
   }
   
-  // Test file reading
+  // Test 2: Read the file back
+  Serial.print("Reading test file...");
   testFile = sdfs.open("/test.txt", FILE_READ);
   if (testFile) {
-    Serial.println("Reading test file contents:");
-    Serial.println("--- File Contents ---");
+    Serial.println(" OK");
+    Serial.println("File contents:");
     while (testFile.available()) {
       Serial.write(testFile.read());
     }
-    Serial.println("--- End of File ---");
     testFile.close();
   } else {
-    Serial.println("Failed to read test file");
+    Serial.println(" FAILED");
   }
   
-  // Test file size
-  if (sdfs.exists("/test.txt")) {
-    testFile = sdfs.open("/test.txt", FILE_READ);
-    Serial.print("Test file size: ");
-    Serial.print(testFile.size());
-    Serial.println(" bytes");
-    testFile.close();
+  // Test 3: List root directory
+  Serial.println("\nRoot directory listing:");
+  File root = sdfs.open("/");
+  if (root) {
+    while (true) {
+      File entry = root.openNextFile();
+      if (!entry) break;
+      
+      Serial.print(entry.isDirectory() ? "DIR  " : "FILE ");
+      Serial.print(entry.name());
+      if (!entry.isDirectory()) {
+        Serial.print(" (");
+        Serial.print(entry.size());
+        Serial.print(" bytes)");
+      }
+      Serial.println();
+      entry.close();
+    }
+    root.close();
   }
   
-  Serial.println("=== Basic File Operations Complete ===\n");
+  Serial.println("\nAll tests completed!");
 }
