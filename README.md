@@ -14,10 +14,10 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 
 ## Key Features
 
-- **Production HIL Testing Framework**: Complete build-to-runtime traceability with J-Link + RTT integration ✅
-- **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability ✅
-- **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming ✅
-- **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved) ✅
+- **Production HIL Testing Framework**: Complete build-to-runtime traceability with J-Link + RTT integration
+- **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability
+- **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
+- **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved)
 - **Dual Storage Systems**: LittleFS (SPI flash) and SDFS (SD card via SPI)
 - **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
 - **Flight Controller Focus**: Optimized for UAV applications with deterministic testing
@@ -77,11 +77,9 @@ make check          # Verify environment
 ## Storage Libraries
 
 - **LittleFS**: SPI flash storage for configuration and firmware
-- **SDFS**: SD card filesystem via SPI for data logging and bulk storage  
-- **SD**: Arduino standard SD library (v1.3.0)
+- **SDFS**: SD card filesystem via SPI (development in progress)
+- **SD**: Arduino standard SD library (v1.3.0) 
 - **SdFat**: Advanced SD library (v2.1.2) with full FAT support
-
-Both LittleFS and SDFS provide identical APIs for seamless storage switching.
 
 ## Project Structure
 
@@ -91,7 +89,7 @@ Both LittleFS and SDFS provide identical APIs for seamless storage switching.
 │   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
 │   ├── SD/                # Arduino standard SD library
 │   ├── STM32RTC/          # Real-time clock library
-│   └── SDFS/              # Custom SD filesystem (local implementation)
+│   └── SDFS/              # SD filesystem (in development)
 ├── scripts/               # Build and test automation
 ├── HIL_RTT_Test/          # Hardware-in-loop test framework
 └── test_logs/             # Test execution logs and artifacts
