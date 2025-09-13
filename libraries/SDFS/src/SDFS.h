@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <FS.h>
+#include "SDFSConfig.h"
 #include "fatfs/ff.h"
 
 // Configuration - can be overridden at compile time

@@ -1,6 +1,8 @@
 #include "sd_spi_diskio.h"
+#include "SDFSConfig.h"
 #include "fatfs/ff.h"
 #include "fatfs/diskio.h"
+
 
 // SPI SD card interface globals
 static uint8_t spi_cs_pin = 0;
@@ -8,14 +10,16 @@ static SPIClass *spi_port = nullptr;
 
 static bool spi_initialized = false;
 static bool is_sdhc_card = false;  // Track if card uses block addressing (SDHC) or byte addressing (SD)
+static uint32_t card_sector_count = 0;  // Dynamic card capacity in sectors
+static uint16_t actual_sector_size = SDFS_SECTOR_SIZE;  // Runtime detected sector size
 // static bool spi_session_active = false;  // Track persistent SPI session
 
-// SPI speed configuration
-#define SPI_SPEED_INIT_HZ       2000000   // 2MHz for initialization 
-#define SPI_SPEED_OPERATION_HZ  4000000   // 4MHz for normal operation
+// SPI speed configuration (now configurable via SDFSConfig.h)
+// #define SPI_SPEED_INIT_HZ       2000000   // 2MHz for initialization
+// #define SPI_SPEED_OPERATION_HZ  4000000   // 4MHz for normal operation
 
 // Current speed mode selection
-static uint32_t current_spi_speed = SPI_SPEED_INIT_HZ;
+static uint32_t current_spi_speed = SDFS_SPI_INIT_SPEED_HZ;
 static bool spi_speed_fast_mode = false;
 
 // SD card commands
@@ -76,21 +80,21 @@ static void rcvr_spi_multi(uint8_t *buffer, uint16_t length)
 static void xmit_spi_multi(const uint8_t *buffer, uint16_t length)
 {
     // Bidirectional transfer with temporary RX buffer
-    uint8_t rxBuf[512];
-    if (length > 512) return; // Safety check
+    uint8_t rxBuf[4096];  // Max possible sector size
+    if (length > 4096) return; // Safety check
     spi_port->transfer(const_cast<uint8_t*>(buffer), rxBuf, length);
 }
 
 // Speed control functions
 static void set_spi_speed_slow(void)
 {
-    current_spi_speed = SPI_SPEED_INIT_HZ;
+    current_spi_speed = SDFS_SPI_INIT_SPEED_HZ;
     spi_speed_fast_mode = false;
 }
 
 static void set_spi_speed_fast(void)
 {
-    current_spi_speed = SPI_SPEED_OPERATION_HZ;
+    current_spi_speed = SDFS_SPI_MAX_SPEED_HZ;
     spi_speed_fast_mode = true;
 }
 
@@ -120,7 +124,7 @@ static int spiselect(void)
 {
     digitalWrite(spi_cs_pin, LOW);   // Set CS# low
     xchg_spi(0xFF);  // Dummy clock
-    if (wait_ready(500)) return 1;
+    if (wait_ready(SDFS_CMD_TIMEOUT_MS)) return 1;
     
     despiselect();
     return 0;  // Timeout
@@ -175,7 +179,8 @@ static bool sd_read_block(uint8_t *buffer, uint32_t block_num)
 {
     uint8_t token;
     uint32_t start_time;
-    
+
+
     if (!spi_initialized || !buffer) {
         return false;
     }
@@ -203,7 +208,7 @@ static bool sd_read_block(uint8_t *buffer, uint32_t block_num)
         token = xchg_spi(0xFF);
         if (token == 0xFE) break;  // Data token received
         if (token != 0xFF) break;  // Unexpected token
-    } while ((millis() - start_time) < 500);
+    } while ((millis() - start_time) < SDFS_DATA_TIMEOUT_MS);
     
     if (token != 0xFE) {
         despiselect();
@@ -212,7 +217,7 @@ static bool sd_read_block(uint8_t *buffer, uint32_t block_num)
     }
     
     // Receive data block using SdFat pattern (bidirectional transfer)
-    rcvr_spi_multi(buffer, 512);
+    rcvr_spi_multi(buffer, actual_sector_size);
     
     // Discard CRC
     xchg_spi(0xFF);
@@ -250,7 +255,7 @@ static bool sd_write_block(const uint8_t *buffer, uint32_t block_num)
     xchg_spi(0xFE);
     
     // Send data block using SdFat pattern (bidirectional transfer)
-    xmit_spi_multi(buffer, 512);
+    xmit_spi_multi(buffer, actual_sector_size);
     
     // Send dummy CRC
     xchg_spi(0xFF);
@@ -265,7 +270,7 @@ static bool sd_write_block(const uint8_t *buffer, uint32_t block_num)
     }
     
     // Wait for write completion
-    if (!wait_ready(500)) {
+    if (!wait_ready(SDFS_DATA_TIMEOUT_MS)) {
         despiselect();
         spi_port->endTransaction();
         return false;
@@ -273,6 +278,64 @@ static bool sd_write_block(const uint8_t *buffer, uint32_t block_num)
     
     despiselect();
     spi_port->endTransaction();
+    return true;
+}
+
+// Read CSD register to determine card capacity
+static bool sd_read_csd(void)
+{
+    uint8_t csd[16];
+    uint32_t start_time;
+    uint8_t token;
+
+    spi_port->beginTransaction(SPISettings(current_spi_speed, MSBFIRST, SPI_MODE0));
+
+    if (send_cmd(9, 0) != 0) {  // CMD9: SEND_CSD
+        spi_port->endTransaction();
+        return false;
+    }
+
+    // Wait for data token
+    start_time = millis();
+    do {
+        token = xchg_spi(0xFF);
+        if (token == 0xFE) break;  // Data token received
+    } while ((millis() - start_time) < SDFS_BUSY_TIMEOUT_MS);
+
+    if (token != 0xFE) {
+        spi_port->endTransaction();
+        return false;
+    }
+
+    // Read CSD register (16 bytes)
+    rcvr_spi_multi(csd, 16);
+
+    // Discard CRC
+    xchg_spi(0xFF);
+    xchg_spi(0xFF);
+
+    despiselect();
+    spi_port->endTransaction();
+
+    // Parse CSD to get capacity
+    if (is_sdhc_card) {
+        // CSD Version 2.0 (SDHC/SDXC)
+        uint32_t c_size = ((uint32_t)(csd[7] & 0x3F) << 16) |
+                          ((uint32_t)csd[8] << 8) |
+                          csd[9];
+        card_sector_count = (c_size + 1) * 1024;
+    } else {
+        // CSD Version 1.0 (SD)
+        uint32_t c_size = ((uint32_t)(csd[6] & 0x03) << 10) |
+                          ((uint32_t)csd[7] << 2) |
+                          ((csd[8] & 0xC0) >> 6);
+        uint8_t c_size_mult = ((csd[9] & 0x03) << 1) | ((csd[10] & 0x80) >> 7);
+        uint8_t read_bl_len = csd[5] & 0x0F;
+
+        card_sector_count = (c_size + 1) * (1 << (c_size_mult + 2)) * (1 << read_bl_len) / actual_sector_size;
+    }
+
+
     return true;
 }
 
@@ -295,7 +358,7 @@ bool sd_spi_initialize(uint8_t cs_pin, SPIClass *spi)
     spi_port->begin();
     
     // Start with conservative speed for initialization
-    current_spi_speed = 2000000; // 2MHz
+    current_spi_speed = SDFS_SPI_INIT_SPEED_HZ;
     spi_speed_fast_mode = false;
     
     // Arduino SPI transaction for initialization
@@ -314,8 +377,8 @@ bool sd_spi_initialize(uint8_t cs_pin, SPIClass *spi)
             for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);  // Get R7 response
             if (ocr[2] == 0x01 && ocr[3] == 0xAA) {  // Voltage range check
                 // Wait for initialization complete (ACMD41 with HCS bit)
-                while ((millis() - start_time) < 1000 && send_cmd(41 | 0x80, 1UL << 30) != 0);
-                if ((millis() - start_time) < 1000 && send_cmd(58, 0) == 0) {  // Check CCS bit
+                while ((millis() - start_time) < SDFS_INIT_TIMEOUT_MS && send_cmd(41 | 0x80, 1UL << 30) != 0);
+                if ((millis() - start_time) < SDFS_INIT_TIMEOUT_MS && send_cmd(58, 0) == 0) {  // Check CCS bit
                     for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);
                     ty = (ocr[0] & 0x40) ? 12 : 4;  // SDv2 (HC or SC)
                 }
@@ -326,8 +389,8 @@ bool sd_spi_initialize(uint8_t cs_pin, SPIClass *spi)
             } else {
                 ty = 1; cmd = 1;  // MMCv3
             }
-            while ((millis() - start_time) < 1000 && send_cmd(cmd, 0) != 0);
-            if ((millis() - start_time) >= 1000 || send_cmd(16, 512) != 0) {  // Set block length
+            while ((millis() - start_time) < SDFS_INIT_TIMEOUT_MS && send_cmd(cmd, 0) != 0);
+            if ((millis() - start_time) >= SDFS_INIT_TIMEOUT_MS || send_cmd(16, actual_sector_size) != 0) {  // Set block length
                 ty = 0;
             }
         }
@@ -341,13 +404,18 @@ bool sd_spi_initialize(uint8_t cs_pin, SPIClass *spi)
         is_sdhc_card = (ty & 8) ? true : false;  // SDHC/SDXC
         
         // Switch to faster speed for normal operation
-        current_spi_speed = 4000000; // 4MHz
+        current_spi_speed = SDFS_SPI_MAX_SPEED_HZ;
         spi_speed_fast_mode = true;
-        
+
+        // Read card capacity from CSD register
+        if (!sd_read_csd()) {
+            card_sector_count = 0x10000; // Default fallback capacity if CSD read fails
+        }
+
         spi_initialized = true;
         return true;
     }
-    
+
     return false;  // Initialization failed
 }
 
@@ -381,13 +449,14 @@ DRESULT disk_read(BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
     if (pdrv != 0 || !spi_initialized) {
         return RES_PARERR;
     }
-    
+
+
     for (UINT i = 0; i < count; i++) {
-        if (!sd_read_block(buff + (i * 512), sector + i)) {
+        if (!sd_read_block(buff + (i * actual_sector_size), sector + i)) {
             return RES_ERROR;
         }
     }
-    
+
     return RES_OK;
 }
 
@@ -396,7 +465,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
     if (pdrv != 0 || !spi_initialized) return RES_PARERR;
     
     for (UINT i = 0; i < count; i++) {
-        if (!sd_write_block(buff + (i * 512), sector + i)) {
+        if (!sd_write_block(buff + (i * actual_sector_size), sector + i)) {
             return RES_ERROR;
         }
     }
@@ -413,11 +482,12 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void* buff)
             return RES_OK;
             
         case GET_SECTOR_COUNT:
-            *(DWORD*)buff = 0x10000; // Default to 32MB for now
+            // Use dynamically determined card capacity
+            *(DWORD*)buff = card_sector_count;
             return RES_OK;
             
         case GET_SECTOR_SIZE:
-            *(WORD*)buff = 512;
+            *(WORD*)buff = actual_sector_size;
             return RES_OK;
             
         case GET_BLOCK_SIZE:
@@ -447,4 +517,20 @@ void sd_spi_set_speed(uint32_t speed_hz)
 uint32_t sd_spi_get_speed(void)
 {
     return current_spi_speed;
+}
+
+// Runtime sector size functions
+uint16_t sd_spi_get_sector_size(void)
+{
+    return actual_sector_size;
+}
+
+bool sd_spi_set_sector_size(uint16_t size)
+{
+    // Validate sector size (must be power of 2, between 512 and 4096)
+    if (size < 512 || size > 4096 || (size & (size - 1)) != 0) {
+        return false;
+    }
+    actual_sector_size = size;
+    return true;
 }

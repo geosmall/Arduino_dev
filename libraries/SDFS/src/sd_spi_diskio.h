@@ -20,10 +20,10 @@ SPIClass* sd_spi_get_port(void);
 void sd_spi_set_speed(uint32_t speed_hz);
 uint32_t sd_spi_get_speed(void);
 
-// Predefined speed constants
-#define SD_SPI_SPEED_SLOW    400000    // 400kHz - very safe for long wires
-#define SD_SPI_SPEED_NORMAL  1000000   // 1MHz - breadboard safe
-#define SD_SPI_SPEED_FAST    8000000   // 8MHz - production/short traces only
+// Runtime sector size detection
+// Returns actual sector size in bytes (typically 512, but configurable)
+uint16_t sd_spi_get_sector_size(void);
+bool sd_spi_set_sector_size(uint16_t size);
 
 #ifdef __cplusplus
 }

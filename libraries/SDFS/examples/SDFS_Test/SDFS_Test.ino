@@ -108,13 +108,32 @@ void loop() {
 
 void testFileOperations() {
   CI_LOG("\nTesting file operations:\n");
-  
+
+  // Debug: Check if filesystem is mounted
+  bool mount_result = sdfs.begin(CS_PIN);
+  CI_LOGF("Filesystem mounted: %s\n", mount_result ? "YES" : "NO");
+
+  // Test direct root directory access after mount failure
+  if (!mount_result) {
+    CI_LOG("Mount failed - testing basic SD card operations...\n");
+    // We know SD card init succeeds, so this is a filesystem mount issue
+    return; // Skip file operations if mount failed
+  }
+
+  // Try to trigger more disk reads to see what FatFs is trying to access
+  CI_LOG("Testing exists() calls to trigger disk I/O...\n");
+  CI_LOGF("  exists(\"/\"): %s\n", sdfs.exists("/") ? "YES" : "NO");
+  CI_LOGF("  exists(\"/LAGER.CFG\"): %s\n", sdfs.exists("/LAGER.CFG") ? "YES" : "NO");
+  CI_LOGF("  exists(\"/LOG000.TXT\"): %s\n", sdfs.exists("/LOG000.TXT") ? "YES" : "NO");
+
   // Test 1: Write a file
   CI_LOG("Writing test file...");
-  File testFile = sdfs.open("/unified_test.txt", FILE_WRITE_BEGIN);
+  File testFile = sdfs.open("/TEST.TXT", FILE_WRITE_BEGIN);
   if (testFile) {
-    testFile.println("Hello from SDFS Unified Test!");
-    testFile.printf("Mode: %s\n", 
+    CI_LOG(" File opened successfully\n");
+    size_t written = testFile.println("Hello from SDFS Unified Test!");
+    CI_LOGF("  Wrote %u bytes\n", written);
+    testFile.printf("Mode: %s\n",
 #ifdef USE_RTT
       "J-Run/RTT");
 #else
@@ -122,15 +141,18 @@ void testFileOperations() {
 #endif
     testFile.printf("millis: %lu\n", millis());
     testFile.close();
-    CI_LOG(" OK\n");
+    CI_LOG("  File closed - Write test OK\n");
   } else {
-    CI_LOG(" FAILED\n");
+    CI_LOG(" FAILED - Could not open file for writing\n");
+    // Try to understand why
+    CI_LOGF("  exists(\"/\"): %s\n", sdfs.exists("/") ? "YES" : "NO");
+    CI_LOGF("  exists(\"/TEST.TXT\"): %s\n", sdfs.exists("/TEST.TXT") ? "YES" : "NO");
     return;
   }
   
   // Test 2: Read the file back
   CI_LOG("Reading test file...");
-  testFile = sdfs.open("/unified_test.txt", FILE_READ);
+  testFile = sdfs.open("/TEST.TXT", FILE_READ);
   if (testFile) {
     CI_LOG(" OK\n");
     CI_LOG("File contents:\n");

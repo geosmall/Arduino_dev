@@ -1,6 +1,8 @@
 #include "SDFS.h"
+#include "SDFSConfig.h"
 #include "sd_spi_diskio.h"
 #include <string.h>
+
 
 // Global clock instance
 SDFS_clock_class SDFSClock;
@@ -280,10 +282,23 @@ File SDFS::open(const char *filepath, uint8_t mode)
     if (!mounted) return File();
     
     if (mode == FILE_READ) {
+        // Special case for root directory - FatFs f_stat("/", ...) may not work
+        if (strcmp(filepath, "/") == 0) {
+            DIR *dir = (DIR *)malloc(sizeof(DIR));
+            if (!dir) return File();
+            if (f_opendir(dir, filepath) == FR_OK) {
+                return File(new SDFSFile(&fatfs, dir, filepath));
+            }
+            free(dir);
+            return File();
+        }
+
         FILINFO fno;
         FRESULT fr = f_stat(filepath, &fno);
-        if (fr != FR_OK) return File();
-        
+        if (fr != FR_OK) {
+            return File();
+        }
+
         if (fno.fattrib & AM_DIR) {
             // Directory
             DIR *dir = (DIR *)malloc(sizeof(DIR));
@@ -326,7 +341,12 @@ bool SDFS::exists(const char *filepath)
 {
     if (!filepath || strlen(filepath) == 0) return false;
     if (!mounted) return false;
-    
+
+    // Special case for root directory
+    if (strcmp(filepath, "/") == 0) {
+        return mounted;  // If we're mounted, root directory exists
+    }
+
     FILINFO fno;
     FRESULT fr = f_stat(filepath, &fno);
     return (fr == FR_OK);
@@ -474,14 +494,14 @@ bool SDFS_SPI::begin(uint8_t cspin, SPIClass &spiport)
 {
     pin = cspin;
     port = &spiport;
-    
+
     // Initialize custom SPI disk I/O
     if (!initializeSDCard()) {
         return false;
     }
-    
+
     configured = true;
-    
+
     // Attempt to mount the filesystem
     FRESULT fr = mountFilesystem();
     if (fr != FR_OK) {
