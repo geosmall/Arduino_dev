@@ -1,8 +1,11 @@
 /*
- * SDFS Library Example
+ * SDFS Test Example
  * 
- * Demonstrates basic usage of SDFS (SD card File System) with SPI interface.
- * Compatible with STM32 Arduino Core and follows FS.h interface.
+ * Single sketch supporting both Arduino IDE (Serial) and J-Run/RTT modes.
+ * Controlled via USE_RTT compile flag for deterministic HIL testing.
+ * 
+ * Arduino IDE mode: Serial output with manual monitoring
+ * J-Run/RTT mode:   RTT output with deterministic exit tokens
  * 
  * Hardware connections:
  * - MOSI: PC12 (or PA7 for BlackPill)  
@@ -12,6 +15,7 @@
  */
 
 #include <SDFS.h>
+#include "../../../../ci_log.h"
 
 // Pin definitions based on board type
 #if defined(ARDUINO_BLACKPILL_F411CE)
@@ -30,13 +34,31 @@
 SDFS_SPI sdfs;
 
 void setup() {
+#ifndef USE_RTT
+  // Arduino IDE mode: Initialize Serial and wait
   Serial.begin(115200);
   while (!Serial) {
     delay(10);
   }
+#else
+  // RTT mode: Initialize RTT
+  SEGGER_RTT_Init();
+#endif
   
-  Serial.println("SDFS Library Example");
-  Serial.println("====================");
+  // Test header
+  CI_LOG("SDFS Test Example\n");
+  CI_LOG("=========================\n");
+  
+#ifdef USE_RTT
+  // J-Run mode: Enhanced header with build traceability
+  CI_LOG("Mode: J-Run/RTT (deterministic)\n");
+  CI_LOG("Target: NUCLEO_F411RE\n");
+  CI_BUILD_INFO();
+  CI_READY_TOKEN();
+#else
+  // Arduino IDE mode: Manual monitoring
+  CI_LOG("Mode: Arduino IDE (manual)\n");
+#endif
   
   // Configure SPI pins
   SPI.setMOSI(SPI_MOSI);
@@ -44,85 +66,103 @@ void setup() {
   SPI.setSCLK(SPI_SCLK);
   
   // Initialize SDFS
-  Serial.print("Initializing SD card...");
+  CI_LOG("Initializing SD card...");
   if (sdfs.begin(CS_PIN)) {
-    Serial.println(" SUCCESS");
+    CI_LOG(" SUCCESS\n");
     
     // Display card information
-    Serial.print("Media: ");
-    Serial.println(sdfs.getMediaName());
-    Serial.print("Total Size: ");
-    Serial.print(sdfs.totalSize() / (1024 * 1024));
-    Serial.println(" MB");
-    Serial.print("Used Size: ");  
-    Serial.print(sdfs.usedSize() / (1024 * 1024));
-    Serial.println(" MB");
+    CI_LOGF("Media: %s\n", sdfs.getMediaName());
+    CI_LOGF("Total Size: %lu MB\n", sdfs.totalSize() / (1024 * 1024));
+    CI_LOGF("Used Size: %lu MB\n", sdfs.usedSize() / (1024 * 1024));
     
     // Test file operations
     testFileOperations();
     
   } else {
-    Serial.println(" FAILED");
-    Serial.println("Check connections and card insertion");
+    CI_LOG(" FAILED\n");
+    CI_LOG("Check connections and card insertion\n");
   }
+  
+  // Test completion
+  CI_LOG("\nAll tests completed!\n");
+  
+#ifdef USE_RTT
+  // J-Run mode: Deterministic exit token
+  CI_LOG("*STOP*\n");
+#else
+  // Arduino IDE mode: Continuous signaling
+  CI_LOG("Test complete - looping with *STOP* signals\n");
+#endif
 }
 
 void loop() {
-  // Example complete - signal completion for HIL testing
-  Serial.println("*STOP*");
+#ifdef USE_RTT
+  // J-Run mode: Single execution with halt
+  delay(1000);
+#else
+  // Arduino IDE mode: Periodic signaling for HIL compatibility
+  CI_LOG("*STOP*\n");
   delay(5000);
+#endif
 }
 
 void testFileOperations() {
-  Serial.println("\nTesting file operations:");
+  CI_LOG("\nTesting file operations:\n");
   
   // Test 1: Write a file
-  Serial.print("Writing test file...");
-  File testFile = sdfs.open("/test.txt", FILE_WRITE_BEGIN);
+  CI_LOG("Writing test file...");
+  File testFile = sdfs.open("/unified_test.txt", FILE_WRITE_BEGIN);
   if (testFile) {
-    testFile.println("Hello from SDFS!");
-    testFile.println("Line 2");
+    testFile.println("Hello from SDFS Unified Test!");
+    testFile.printf("Mode: %s\n", 
+#ifdef USE_RTT
+      "J-Run/RTT");
+#else
+      "Arduino IDE");
+#endif
+    testFile.printf("millis: %lu\n", millis());
     testFile.close();
-    Serial.println(" OK");
+    CI_LOG(" OK\n");
   } else {
-    Serial.println(" FAILED");
+    CI_LOG(" FAILED\n");
     return;
   }
   
   // Test 2: Read the file back
-  Serial.print("Reading test file...");
-  testFile = sdfs.open("/test.txt", FILE_READ);
+  CI_LOG("Reading test file...");
+  testFile = sdfs.open("/unified_test.txt", FILE_READ);
   if (testFile) {
-    Serial.println(" OK");
-    Serial.println("File contents:");
+    CI_LOG(" OK\n");
+    CI_LOG("File contents:\n");
     while (testFile.available()) {
-      Serial.write(testFile.read());
+      char c = testFile.read();
+      CI_LOGF("%c", c);
     }
     testFile.close();
   } else {
-    Serial.println(" FAILED");
+    CI_LOG(" FAILED\n");
   }
   
   // Test 3: List root directory
-  Serial.println("\nRoot directory listing:");
+  CI_LOG("\nRoot directory listing:\n");
   File root = sdfs.open("/");
   if (root) {
+    int fileCount = 0;
     while (true) {
       File entry = root.openNextFile();
       if (!entry) break;
       
-      Serial.print(entry.isDirectory() ? "DIR  " : "FILE ");
-      Serial.print(entry.name());
+      fileCount++;
+      CI_LOGF("%s %s", entry.isDirectory() ? "DIR " : "FILE", entry.name());
       if (!entry.isDirectory()) {
-        Serial.print(" (");
-        Serial.print(entry.size());
-        Serial.print(" bytes)");
+        CI_LOGF(" (%lu bytes)", entry.size());
       }
-      Serial.println();
+      CI_LOG("\n");
       entry.close();
     }
+    CI_LOGF("Total files found: %d\n", fileCount);
     root.close();
+  } else {
+    CI_LOG("FAILED to open root directory!\n");
   }
-  
-  Serial.println("\nAll tests completed!");
 }

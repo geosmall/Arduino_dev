@@ -14,6 +14,7 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 
 ## Key Features
 
+- **Unified Development Framework**: Single codebase supporting Arduino IDE and CI/HIL workflows with `ci_log.h` abstraction
 - **Production HIL Testing Framework**: Complete build-to-runtime traceability with J-Link + RTT integration
 - **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability
 - **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
@@ -58,9 +59,10 @@ arduino-cli upload --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 
 # One-button build and test with environment validation
 ./scripts/aflash.sh <sketch_directory> --env-check
 
-# Build with enhanced build-ID traceability (Phase 5 Complete)
-./scripts/build.sh <sketch_directory> --env-check --build-id
-./scripts/jrun.sh <elf_file>
+# Unified development workflow (Arduino IDE + CI/HIL support)
+./scripts/build.sh <sketch_directory>                    # Arduino IDE (Serial)
+./scripts/build.sh <sketch_directory> --use-rtt          # CI/HIL (RTT)
+./scripts/aflash.sh <sketch_directory> --use-rtt --build-id --env-check  # Complete workflow
 
 # Enhanced ready token detection with build-ID parsing (5.2ms latency)
 ./scripts/await_ready.sh [log_file] [timeout] [pattern]
@@ -103,10 +105,15 @@ make check          # Verify environment
 
 ## Production Development Workflow
 
+### Arduino IDE Development
+1. **Build for Serial**: `./scripts/build.sh libraries/SDFS/examples/SDFS_Test`
+2. **Upload via Arduino IDE**: Standard Arduino workflow with Serial monitoring
+
+### CI/HIL Testing  
 1. **Environment Check**: `./scripts/env_check_quick.sh true` (~100ms validation)
 2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect any STM32 via J-Link)
-3. **Enhanced Build**: `./scripts/build.sh <sketch> --env-check --build-id` (git SHA + UTC timestamp injection)
-4. **HIL Testing**: `./scripts/aflash.sh <sketch> --env-check` (J-Run + exit wildcards, deterministic)
+3. **Unified Build**: `./scripts/build.sh <sketch> --use-rtt --build-id --env-check` (RTT mode with traceability)
+4. **HIL Testing**: `./scripts/aflash.sh <sketch> --use-rtt --build-id --env-check` (complete workflow)
 5. **Traceability Verification**: `./scripts/await_ready.sh` (enhanced parsing, 5.2ms latency achieved)
 6. **Real-time Debug**: SEGGER RTT v8.62 with `JLinkRTTClient` for printf output
 
@@ -115,6 +122,26 @@ make check          # Verify environment
 Git: 901dbd1-dirty (2025-09-09T10:07:44Z)
 READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
 ```
+
+## Unified Development Framework
+
+Single sketches work seamlessly in both Arduino IDE and CI/HIL environments:
+
+```cpp
+#include "../../../../ci_log.h"  // Single logging abstraction
+
+void setup() {
+  CI_LOG("Test starting\n");
+  CI_BUILD_INFO();    // RTT: shows build details, Serial: no-op
+  CI_READY_TOKEN();   // RTT: shows ready token, Serial: no-op
+}
+```
+
+**Key Benefits:**
+- No duplicate test sketches
+- Automatic Serial ↔ RTT switching via `USE_RTT` compile flag
+- Build traceability integration for CI/CD workflows
+- Deterministic exit tokens for automated testing
 
 ## Documentation
 

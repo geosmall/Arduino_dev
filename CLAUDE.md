@@ -76,12 +76,16 @@ Enhanced build workflow with environment validation and STM32 device auto-detect
 ./scripts/build.sh <sketch_directory> --build-id
 ./scripts/build.sh <sketch_directory> --env-check --build-id
 
+# Unified development workflow with RTT support
+./scripts/build.sh <sketch_directory> --use-rtt              # CI/HIL mode (RTT output)
+./scripts/build.sh <sketch_directory>                        # Arduino IDE mode (Serial output)
+
 # One-button HIL testing with build traceability
 ./scripts/aflash.sh <sketch_directory> [FQBN] [timeout] [exit_wildcard]
 
-# HIL testing with pre-flight environment check
-./scripts/aflash.sh <sketch_directory> --env-check
-./scripts/aflash.sh <sketch_directory> <FQBN> 60 "*STOP*" --env-check
+# HIL testing with pre-flight environment check and RTT
+./scripts/aflash.sh <sketch_directory> --env-check --use-rtt
+./scripts/aflash.sh <sketch_directory> <FQBN> 60 "*STOP*" --env-check --use-rtt
 
 # Fast environment validation
 ./scripts/env_check_quick.sh         # Silent (exit code only)
@@ -253,6 +257,42 @@ Board-specific configurations are defined through the variant system, allowing t
 # Output: READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
 ```
 
+### Unified Development Framework ✅ **COMPLETED**
+
+**Status**: Single-sketch development approach supporting both Arduino IDE and CI/HIL workflows  
+**Goal**: Eliminate duplicate sketches and provide seamless switching between development and testing environments
+
+**Key Achievements**:
+- ✅ **Enhanced Logging Shim**: `ci_log.h` with Serial/RTT abstraction and automatic build traceability
+- ✅ **Single Codebase**: One sketch works in both Arduino IDE and J-Run/RTT modes  
+- ✅ **Build System Integration**: `--use-rtt` and `--build-id` flag support in build/aflash scripts
+- ✅ **Deterministic CI**: RTT output with exit tokens for automated testing
+- ✅ **Manual Development**: Serial output compatible with Arduino IDE monitoring
+- ✅ **Clean Architecture**: Single-source-of-truth design eliminates duplicate test files
+
+**Usage Examples**:
+```bash
+# Arduino IDE development (Serial monitor)
+./scripts/build.sh libraries/SDFS/examples/SDFS_Test
+
+# CI/HIL testing (J-Run/RTT)  
+./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt
+
+# Full workflow with environment validation and build traceability
+./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt --build-id --env-check
+```
+
+**Integration Pattern**:
+```cpp
+#include "../../../../ci_log.h"  // Relative path from sketch to project root
+
+void setup() {
+  CI_LOG("Test starting\n");
+  CI_BUILD_INFO();    // RTT: shows build details, Serial: no-op
+  CI_READY_TOKEN();   // RTT: shows ready token, Serial: no-op
+}
+```
+
 ### SDFS Implementation 🔄 **IN PROGRESS**
 
 **Goal**: Implement SDFS as an SPI-based SD card filesystem with FatFs backend that provides identical interface to LittleFS for seamless storage switching in flight controller applications.
@@ -265,7 +305,7 @@ Board-specific configurations are defined through the variant system, allowing t
 - ✅ **Arduino SPI Integration**: Optimized SPI communication using Arduino Core patterns
 - ✅ **Automatic Card Detection**: SDHC/SD card type detection with speed optimization (2MHz→4MHz)
 - ✅ **Multi-Board Support**: Nucleo F411RE and BlackPill F411CE configurations
-- ✅ **RTT Debug Framework**: SDFS_Test_RTT example for real-time debugging
+- ✅ **Unified Test Framework**: SDFS_Test example supporting both Arduino IDE and CI/HIL workflows
 - ❌ **Directory Enumeration**: openNextFile() fails to list existing files (under investigation)
 
 **Recent Fixes**:

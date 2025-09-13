@@ -23,8 +23,8 @@ if (test_complete) {
 | `env_probe.sh` | Comprehensive environment diagnostics | Phase 0 | arduino-cli |
 | `env_check_quick.sh` | **Fast environment validation (~100ms)** | **Phase 3** | **arduino-cli** |
 | **Build & Test Orchestration** |
-| `build.sh` | Arduino CLI compile with optional --env-check, --build-id | Phase 2-5 | arduino-cli |
-| `aflash.sh` | **One-button build-jrun-test with optional --env-check** | **Phase 2-3** | **J-Run ELF execution** |
+| `build.sh` | Arduino CLI compile with optional --env-check, --build-id, --use-rtt | Phase 2-5 | arduino-cli |
+| `aflash.sh` | **One-button build-jrun-test with optional --env-check, --build-id, --use-rtt** | **Phase 2-3** | **J-Run ELF execution** |
 | **Device Detection & Programming** |
 | `detect_device.sh` | **Universal STM32 device auto-detection** | **Phase 4** | **J-Link** |
 | `jrun.sh` | **J-Run execution with RTT + exit wildcard detection** | **Phase 1-2** | **JRun (primary)** |
@@ -110,15 +110,17 @@ J-Link flash tool with dual modes (fixed F411RE device).
 **Success**: Quick mode <2s, full mode ~9s, no prompts
 
 ### 7. build.sh - Arduino Build
-Compile sketches with build caching, ELF preservation, optional environment validation and build-ID generation.
+Compile sketches with build caching, ELF preservation, optional environment validation, build-ID generation, and unified RTT support.
 
 ```bash
 ./scripts/build.sh HIL_RTT_Test
 ./scripts/build.sh HIL_RTT_Test --env-check
 ./scripts/build.sh HIL_RTT_Test --env-check --build-id
+./scripts/build.sh HIL_RTT_Test --use-rtt --build-id --env-check  # Unified framework
+./scripts/build.sh libraries/SDFS/examples/SDFS_Test --use-rtt    # SDFS with RTT
 ./scripts/build.sh HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check
 ```
-**Success**: Compilation succeeds, binary + ELF created, build time displayed, optional build_id.h generated
+**Success**: Compilation succeeds, binary + ELF created, build time displayed, optional build_id.h generated, RTT mode enabled
 
 ### 8. rtt_cat.sh - RTT Logger (⚠️ DEPRECATED)
 Legacy RTT capture with timestamps. Use jrun.sh instead.
@@ -152,16 +154,30 @@ Enhanced ready token detection with build-ID parsing and sub-20ms latency measur
 - Latency: Sub-20ms (5.2ms achieved), duration measured
 
 ### 11. aflash.sh - One-Button Workflow (MAIN)
-Complete build-jrun-test workflow with optional environment validation. Auto-selects J-Run.
+Complete build-jrun-test workflow with optional environment validation, build-ID traceability, and unified RTT framework support.
 
 ```bash
 ./scripts/aflash.sh HIL_RTT_Test
 ./scripts/aflash.sh HIL_RTT_Test --env-check
+./scripts/aflash.sh HIL_RTT_Test --use-rtt --build-id --env-check     # Complete unified workflow
+./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt      # SDFS unified test
 ./scripts/aflash.sh HIL_RTT_Test STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 "*STOP*" --env-check
 ```
-**Success**: Build completes, J-Run executes with RTT, exit wildcard detected
+**Success**: Build completes, J-Run executes with RTT, exit wildcard detected, build traceability included
 
 ## Integration Testing
+
+### Unified Development Framework Test
+Test the single-codebase approach supporting both Arduino IDE and CI/HIL workflows:
+
+```bash
+# Arduino IDE mode (Serial output)
+./scripts/build.sh libraries/SDFS/examples/SDFS_Test
+
+# CI/HIL mode (RTT output with build traceability)
+./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt --build-id --env-check
+```
+**Success**: Same sketch works in both modes, appropriate output format, deterministic completion
 
 ### Complete Workflow Test
 ```bash
@@ -261,21 +277,6 @@ Git: 901dbd1-dirty (2025-09-09T10:07:44Z)
 READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
 ```
 
-## Build Workflow Project Status
-
-**✅ ALL PHASES COMPLETED**: Production-ready HIL testing framework with complete build-to-runtime traceability
-
-1. ✅ **Phase 0**: Environment pinning & toolchain lock **COMPLETED**
-2. ✅ **Phase 1**: J-Link + RTT foundation **COMPLETED**  
-3. ✅ **Phase 2**: One-button build-flash-run harness **COMPLETED**
-4. ✅ **Phase 3**: Environment validation & pre-flight checks **COMPLETED**
-5. ✅ **Phase 4**: Universal device auto-detection **COMPLETED**
-6. ✅ **Phase 5**: Enhanced build-ID integration & ready tokens **COMPLETED**
-
-**Next Development Focus**:
-- **SDFS Implementation**: SPI SD card filesystem with hardware debugging
-- **Extended Device Support**: Test with additional STM32 families (F405/407, H7xx, G4xx)  
-- **CI/CD Integration**: Leverage build traceability for automated testing pipelines
 
 ---
 *This testing guide ensures robust verification of the Build Workflow implementation for STM32 Arduino development with J-Link and RTT.*

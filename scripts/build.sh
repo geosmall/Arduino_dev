@@ -14,6 +14,7 @@ SKETCH_DIR=""
 FQBN="$DEFAULT_FQBN"
 ENV_CHECK=false
 BUILD_ID=false
+USE_RTT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -23,6 +24,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --build-id)
             BUILD_ID=true
+            shift
+            ;;
+        --use-rtt)
+            USE_RTT=true
             shift
             ;;
         -*)
@@ -43,13 +48,14 @@ done
 # Check arguments
 if [[ -z "$SKETCH_DIR" ]]; then
     echo "Arduino CLI Build Script with Environment Validation"
-    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check] [--build-id]"
+    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check] [--build-id] [--use-rtt]"
     echo
     echo "Examples:"
     echo "  $0 HIL_RTT_Test"
     echo "  $0 HIL_RTT_Test --env-check"
     echo "  $0 HIL_RTT_Test --build-id"
-    echo "  $0 HIL_RTT_Test --env-check --build-id"
+    echo "  $0 HIL_RTT_Test --use-rtt"
+    echo "  $0 HIL_RTT_Test --env-check --build-id --use-rtt"
     echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
     echo
     echo "Default FQBN: $DEFAULT_FQBN"
@@ -102,11 +108,20 @@ echo "Directory: $SKETCH_DIR"
 echo "Starting arduino-cli compile..."
 START_TIME=$(date +%s)
 
-arduino-cli compile \
-    --fqbn "$FQBN" \
-    --export-binaries \
-    --build-properties "compiler.cpp.extra_flags=-DBUILD_TIMESTAMP=$(date +%s)" \
-    "$SKETCH_DIR"
+# Prepare build command with individual --build-property flags
+BUILD_CMD="arduino-cli compile --fqbn \"$FQBN\" --export-binaries"
+BUILD_CMD="$BUILD_CMD --build-property \"compiler.cpp.extra_flags=-DBUILD_TIMESTAMP=$(date +%s)\""
+
+if [[ "$USE_RTT" == true ]]; then
+    BUILD_CMD="$BUILD_CMD --build-property \"compiler.cpp.extra_flags=-DBUILD_TIMESTAMP=$(date +%s) -DUSE_RTT\""
+    echo "Mode: J-Run/RTT (USE_RTT enabled)"
+else
+    echo "Mode: Arduino IDE (Serial output)"
+fi
+
+BUILD_CMD="$BUILD_CMD \"$SKETCH_DIR\""
+
+eval $BUILD_CMD
 
 END_TIME=$(date +%s)
 BUILD_TIME=$((END_TIME - START_TIME))

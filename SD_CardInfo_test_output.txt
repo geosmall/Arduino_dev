@@ -1,0 +1,18 @@
+
+Initializing SD card...Wiring is correct and a card is present.
+
+Card type:         SDHC
+Clusters:          1952704
+Blocks x Cluster:  32
+Total Blocks:      62486528
+
+Volume type is:    FAT32
+Volume size (KB):  31243264
+Volume size (MB):  30511
+Volume size (GB):  29.80
+
+Files found on the card (name, date and size in bytes): 
+2025-08-23 14:18        121 LAGER.CFG
+2025-08-23 14:18       9127 LOG000.TXT
+2024-01-01 12:00         43 TEST.TXT
+

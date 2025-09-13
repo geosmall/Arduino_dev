@@ -18,11 +18,21 @@ FQBN="$DEFAULT_FQBN"
 TIMEOUT="$DEFAULT_TIMEOUT"
 EXIT_WILDCARD="$DEFAULT_EXIT_WILDCARD"
 ENV_CHECK=false
+USE_RTT=false
+BUILD_ID=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --env-check)
             ENV_CHECK=true
+            shift
+            ;;
+        --use-rtt)
+            USE_RTT=true
+            shift
+            ;;
+        --build-id)
+            BUILD_ID=true
             shift
             ;;
         -*)
@@ -47,14 +57,15 @@ done
 # Check arguments
 if [[ -z "$SKETCH_DIR" ]]; then
     echo "One-Button Build-JRun-Test Harness with Environment Validation"
-    echo "Usage: $0 <sketch_directory> [FQBN] [timeout_seconds] [exit_wildcard] [--env-check]"
+    echo "Usage: $0 <sketch_directory> [FQBN] [timeout_seconds] [exit_wildcard] [--env-check] [--use-rtt] [--build-id]"
     echo
     echo "Examples:"
     echo "  $0 HIL_RTT_Test"
     echo "  $0 HIL_RTT_Test --env-check"
+    echo "  $0 HIL_RTT_Test --use-rtt --build-id"
     echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE"
     echo "  $0 HIL_RTT_Test STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 --env-check"
-    echo "  $0 HIL_RTT_Test \"\" 60 \"*DONE*\" --env-check"
+    echo "  $0 HIL_RTT_Test \"\" 60 \"*DONE*\" --env-check --use-rtt --build-id"
     echo
     echo "Default FQBN: $DEFAULT_FQBN"
     echo "Default timeout: ${DEFAULT_TIMEOUT}s (fallback for exit wildcard)"
@@ -62,6 +73,8 @@ if [[ -z "$SKETCH_DIR" ]]; then
     echo
     echo "Options:"
     echo "  --env-check    Validate build environment before starting"
+    echo "  --use-rtt      Enable RTT mode (USE_RTT compile flag)"
+    echo "  --build-id     Generate build traceability header"
     echo
     echo "Note: Tests should emit exit wildcard for deterministic completion"
     exit 1
@@ -96,11 +109,17 @@ if [[ "$ENV_CHECK" == true ]]; then
 fi
 echo
 
-# Step 1: Build (pass through env-check flag if enabled)
+# Step 1: Build (pass through env-check, use-rtt, and build-id flags if enabled)
 echo "Step 1/2: Building..."
 BUILD_ARGS="$SKETCH_DIR $FQBN"
 if [[ "$ENV_CHECK" == true ]]; then
     BUILD_ARGS="$BUILD_ARGS --env-check"
+fi
+if [[ "$USE_RTT" == true ]]; then
+    BUILD_ARGS="$BUILD_ARGS --use-rtt"
+fi
+if [[ "$BUILD_ID" == true ]]; then
+    BUILD_ARGS="$BUILD_ARGS --build-id"
 fi
 if ! ./scripts/build.sh $BUILD_ARGS; then
     echo "✗ Build failed"
