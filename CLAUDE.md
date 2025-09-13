@@ -225,6 +225,7 @@ Both LittleFS and SDFS provide identical APIs for seamless switching between sto
 - `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
 - `SD` - Arduino standard SD card library (v1.3.0) - basic SD card access
 - `SdFat` - Advanced SD card library (v2.1.2) with FAT16/FAT32/exFAT support, Teensy-optimized
+- `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
 
 ### Hardware Abstraction
 
@@ -339,6 +340,51 @@ void setup() {
 // Unified storage API - same interface as LittleFS
 File config = sdfs.open("/config.json", FILE_READ);  // Seamless switching```
 ```
+
+## Active Projects
+
+### AUnit Testing Framework Integration 🚧 **IN PROGRESS**
+
+**Goal**: Integrate AUnit v1.7.1 unit testing framework into existing HIL CI/CD workflow to provide comprehensive library-level and component-level testing capabilities.
+
+**Status**: Planning phase - strategy defined, implementation pending
+**Target**: Gradual integration starting with storage library unit tests
+
+**Integration Strategy**:
+
+**Phase 1: Foundation Integration** (Immediate)
+- Create AUnit wrapper that integrates with existing `ci_log.h` RTT/Serial abstraction
+- Modify AUnit test runner to emit exit wildcards (`*STOP*`) for deterministic HIL completion
+- Leverage existing `aflash.sh` workflow for automated AUnit test execution
+- Maintains existing J-Run/RTT infrastructure and build traceability
+
+**Phase 2: Library-Level Unit Tests** (Next)
+- Target: SDFS library unit tests in `libraries/SDFS/tests/SDFS_AUnit_Test/`
+- Focus: File I/O operations, directory handling, configuration system validation
+- Approach: Run alongside existing example tests, not replacing HIL integration tests
+- Value: Catch storage system regressions early in development cycle
+
+**Phase 3: Component-Level Testing** (Future)
+- Target: Arduino Core components and STM32 HAL integration
+- Focus: GPIO functionality, timer accuracy, peripheral initialization
+- Approach: Hardware-agnostic tests suitable for both RTT and Serial execution
+
+**Pilot Test Targets**:
+1. **SDFS Library Unit Tests** - Recently completed library with well-defined API surface
+2. **LittleFS Integration Validation** - Cross-validation of API compatibility with SDFS
+3. **Core GPIO/Timer Functions** - Foundation embedded functionality testing
+
+**Key Design Principles**:
+- **Preserve HIL Investment**: Build on existing J-Run/RTT framework rather than replacing
+- **Single-Source-of-Truth**: Maintain unified development approach via RTT/Serial switching
+- **Deterministic Testing**: AUnit tests integrate with exit wildcard methodology
+- **CI/CD Compatible**: Automated execution through existing script infrastructure
+
+**Implementation Roadmap**:
+- Week 1: Create AUnit HIL integration shim with `ci_log.h` compatibility
+- Week 2: Implement SDFS unit test suite with comprehensive coverage
+- Week 3: Add CI/CD automation for AUnit test execution via `aflash.sh`
+- Week 4: Extend to LittleFS compatibility validation and cross-testing
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
