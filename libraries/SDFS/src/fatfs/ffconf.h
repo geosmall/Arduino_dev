@@ -114,7 +114,7 @@
 
 
 #define FF_USE_LFN		0
-#define FF_MAX_LFN		255
+#define FF_MAX_LFN		SDFS_NAME_MAX
 /* The FF_USE_LFN switches the support for LFN (long file name).
 /
 /   0: Disable LFN. FF_MAX_LFN has no effect.
@@ -263,7 +263,8 @@
 */
 
 
-#define FF_FS_LOCK		2
+#include "../SDFSConfig.h"
+#define FF_FS_LOCK		SDFS_MAX_OPEN_FILES
 /* The option FF_FS_LOCK switches file lock function to control duplicated file open
 /  and illegal operation to open objects. This option must be 0 when FF_FS_READONLY
 /  is 1.

@@ -86,8 +86,8 @@ SDFS v1.0+ uses a configuration-driven design following SdFat library patterns. 
 
 **Buffer and Memory Settings**
 ```cpp
-#ifndef SDFS_MAX_PATH_LENGTH
-#define SDFS_MAX_PATH_LENGTH 256           // Maximum file path length
+#ifndef SDFS_NAME_MAX
+#define SDFS_NAME_MAX 255           // Maximum filename/path length (LittleFS compatible)
 #endif
 
 #ifndef SDFS_SECTOR_SIZE
@@ -139,7 +139,7 @@ SDFS v1.0+ uses a configuration-driven design following SdFat library patterns. 
 ```cpp
 // SDFSConfig.h for STM32F411 with specific hardware requirements
 #define SDFS_SPI_MAX_SPEED_HZ     4000000  // F411 safe maximum
-#define SDFS_MAX_PATH_LENGTH      128      // Memory-constrained path length
+#define SDFS_NAME_MAX      128      // Memory-constrained filename length
 #define SDFS_DEFAULT_CS_PIN       PD2     // Nucleo F411RE CS pin
 ```
 
@@ -258,11 +258,11 @@ Key features:
 
 | SDFS Method | FatFs Function | Configuration Impact |
 |-------------|----------------|---------------------|
-| `open()` | `f_open()` | Path length limited by `SDFS_MAX_PATH_LENGTH` |
+| `open()` | `f_open()` | Path length limited by `SDFS_NAME_MAX` |
 | `read()` | `f_read()` | Transfer size uses runtime `actual_sector_size` |
 | `write()` | `f_write()` | Transfer size uses runtime `actual_sector_size` |
 | `seek()` | `f_lseek()` | Timeout controlled by `SDFS_CMD_TIMEOUT_MS` |
-| `mkdir()` | `f_mkdir()` | Path validation uses `SDFS_MAX_PATH_LENGTH` |
+| `mkdir()` | `f_mkdir()` | Path validation uses `SDFS_NAME_MAX` |
 | `remove()` | `f_unlink()` | Operation timeout configurable |
 | `rename()` | `f_rename()` | Path validation for both old and new names |
 | `exists()` | `f_stat()` | Special root directory handling |
@@ -274,7 +274,7 @@ Key features:
 - **FIL structures**: Dynamically allocated for file operations
 - **DIR structures**: Dynamically allocated for directory operations
 - **Reference Counting**: Handled by Arduino FS.h FileImpl base class
-- **Memory Limits**: Configurable via `SDFS_MAX_PATH_LENGTH`
+- **Memory Limits**: Configurable via `SDFS_NAME_MAX` (LittleFS compatible naming)
 
 ## Configuration Best Practices
 
@@ -284,7 +284,7 @@ Key features:
 ```cpp
 // Optimized for 100MHz Cortex-M4
 #define SDFS_SPI_MAX_SPEED_HZ     4000000  // Safe for F411 at 100MHz
-#define SDFS_MAX_PATH_LENGTH      256      // Adequate RAM available
+#define SDFS_NAME_MAX      255      // Standard length (LittleFS compatible)
 #define SDFS_CMD_TIMEOUT_MS       500      // Balanced performance/reliability
 ```
 

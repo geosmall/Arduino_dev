@@ -52,47 +52,28 @@
 // Buffer and Path Settings
 //==============================================================================
 
-// Maximum file path length
-#ifndef SDFS_MAX_PATH_LENGTH
-#define SDFS_MAX_PATH_LENGTH 256
-#endif
-
 // SD card sector size (typically 512 bytes, but can be runtime detected)
 #ifndef SDFS_SECTOR_SIZE
 #define SDFS_SECTOR_SIZE 512
 #endif
 
-// Number of retries for failed operations
-#ifndef SDFS_MAX_RETRIES
-#define SDFS_MAX_RETRIES 3
-#endif
-
 //==============================================================================
-// Debug and Logging Settings
+// Compatibility Settings (LittleFS-aligned naming)
 //==============================================================================
 
-// Enable debug logging (0=disabled, 1=basic, 2=verbose)
-#ifndef SDFS_DEBUG_LEVEL
-#define SDFS_DEBUG_LEVEL 0
+// Maximum filename/path length (matches LittleFS naming and default)
+#ifndef SDFS_NAME_MAX
+#define SDFS_NAME_MAX 255
 #endif
 
-// Enable RTT debugging support
-#ifndef SDFS_USE_RTT
-#define SDFS_USE_RTT 0
+// Maximum open files simultaneously (matches LittleFS pattern)
+#ifndef SDFS_MAX_OPEN_FILES
+#define SDFS_MAX_OPEN_FILES 2
 #endif
 
-//==============================================================================
-// Platform-Specific Settings
-//==============================================================================
-
-// Default CS pin (can be overridden at begin())
-#ifndef SDFS_DEFAULT_CS_PIN
-#define SDFS_DEFAULT_CS_PIN 10
-#endif
-
-// SPI mode for SD card communication (Mode 0 is standard)
-#ifndef SDFS_SPI_MODE
-#define SDFS_SPI_MODE SPI_MODE0
+// Maximum file size for cross-compatibility (matches LittleFS limit)
+#ifndef SDFS_FILE_MAX
+#define SDFS_FILE_MAX 2147483647
 #endif
 
 #endif // SDFS_CONFIG_H

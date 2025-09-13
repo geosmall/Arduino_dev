@@ -19,7 +19,7 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 - **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability
 - **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
 - **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved)
-- **Dual Storage Systems**: LittleFS (SPI flash) and SDFS v1.0.0 (SD card filesystem with configuration system)
+- **Dual Storage Systems**: LittleFS (SPI flash) and SDFS v1.0.0 (SD card filesystem with compatible configuration)
 - **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
 - **Flight Controller Focus**: Optimized for UAV applications with deterministic testing
 
@@ -79,7 +79,7 @@ make check          # Verify environment
 ## Storage Libraries
 
 - **LittleFS**: SPI flash storage for configuration and firmware
-- **SDFS v1.0.0**: SD card filesystem via SPI with configurable architecture
+- **SDFS v1.0.0**: SD card filesystem via SPI with LittleFS-compatible configuration
 - **SD**: Arduino standard SD library (v1.3.0)
 - **SdFat**: Advanced SD library (v2.1.2) with full FAT support
 

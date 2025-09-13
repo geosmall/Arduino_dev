@@ -87,7 +87,8 @@ SDFS uses a comprehensive configuration system via `SDFSConfig.h` that allows cu
 #define SDFS_CMD_TIMEOUT_MS       1000     // Extended command timeout
 
 // Buffer Configuration
-#define SDFS_MAX_PATH_LENGTH      512      // Longer path support
+#define SDFS_NAME_MAX             512      // Longer filename/path support
+#define SDFS_MAX_OPEN_FILES       4        // More simultaneous open files
 
 #endif
 ```
@@ -103,10 +104,10 @@ SDFS uses a comprehensive configuration system via `SDFSConfig.h` that allows cu
 | `SDFS_CMD_TIMEOUT_MS` | 500 | Command response timeout |
 | `SDFS_DATA_TIMEOUT_MS` | 300 | Data block timeout |
 | `SDFS_BUSY_TIMEOUT_MS` | 100 | Busy wait timeout |
-| `SDFS_MAX_PATH_LENGTH` | 256 | Maximum file path length |
+| `SDFS_NAME_MAX` | 255 | Maximum filename/path length (matches LittleFS) |
+| `SDFS_MAX_OPEN_FILES` | 2 | Maximum simultaneous open files (matches LittleFS) |
+| `SDFS_FILE_MAX` | 2147483647 | Maximum file size for compatibility (matches LittleFS) |
 | `SDFS_SECTOR_SIZE` | 512 | Default sector size (runtime detected) |
-| `SDFS_MAX_RETRIES` | 3 | Operation retry count |
-| `SDFS_DEBUG_LEVEL` | 0 | Debug output level (0=off, 1=basic, 2=verbose) |
 
 ## Pin Configurations
 
@@ -282,11 +283,7 @@ SDFS follows established embedded library design patterns:
 
 ### Debug Configuration
 
-Enable debugging in SDFSConfig.h:
-```cpp
-#define SDFS_DEBUG_LEVEL 2        // Verbose debugging
-#define SDFS_USE_RTT 1           // Use RTT for debug output
-```
+SDFS v1.0.0 uses clean production code without debug options. For debugging, use the unified development framework with `ci_log.h` and RTT integration at the sketch level.
 
 ## Version History
 

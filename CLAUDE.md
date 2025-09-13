@@ -303,7 +303,7 @@ void setup() {
 **Key Achievements**:
 - ✅ **Complete File I/O**: All file operations working (create, read, write, delete, seek, truncate)
 - ✅ **Directory Operations**: Full directory enumeration, creation, and traversal
-- ✅ **Configuration System**: SDFSConfig.h with configurable timeouts, speeds, buffer sizes
+- ✅ **Configuration System**: SDFSConfig.h with LittleFS-compatible naming and configurable limits
 - ✅ **Runtime Detection**: Dynamic sector size detection (512-4096 bytes) and card capacity reading
 - ✅ **Clean Architecture**: Eliminated all magic numbers, comprehensive error handling, established patterns
 - ✅ **HIL Integration**: Full integration with build/test framework and deterministic testing
@@ -317,8 +317,10 @@ void setup() {
 **Production Example**:
 ```cpp
 // Optional custom configuration in libraries/SDFS/src/SDFSConfig.h:
-// #define SDFS_SPI_MAX_SPEED_HZ     8000000  // High-performance
-// #define SDFS_CMD_TIMEOUT_MS       200      // Fast timeouts
+// #define SDFS_SPI_MAX_SPEED_HZ     8000000  // High-performance operation
+// #define SDFS_CMD_TIMEOUT_MS       200      // Fast command timeouts
+// #define SDFS_NAME_MAX             512      // Longer filenames/paths
+// #define SDFS_MAX_OPEN_FILES       4        // More simultaneous files
 
 #include <SDFS.h>
 SDFS_SPI sdfs;
