@@ -20,6 +20,7 @@ EXIT_WILDCARD="$DEFAULT_EXIT_WILDCARD"
 ENV_CHECK=false
 USE_RTT=false
 BUILD_ID=false
+CLEAN_CACHE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -33,6 +34,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --build-id)
             BUILD_ID=true
+            shift
+            ;;
+        --clean-cache)
+            CLEAN_CACHE=true
             shift
             ;;
         -*)
@@ -120,6 +125,9 @@ if [[ "$USE_RTT" == true ]]; then
 fi
 if [[ "$BUILD_ID" == true ]]; then
     BUILD_ARGS="$BUILD_ARGS --build-id"
+fi
+if [[ "$CLEAN_CACHE" == true ]]; then
+    BUILD_ARGS="$BUILD_ARGS --clean-cache"
 fi
 if ! ./scripts/build.sh $BUILD_ARGS; then
     echo "✗ Build failed"

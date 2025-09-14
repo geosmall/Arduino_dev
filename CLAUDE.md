@@ -87,6 +87,10 @@ Enhanced build workflow with environment validation and STM32 device auto-detect
 ./scripts/aflash.sh <sketch_directory> --env-check --use-rtt
 ./scripts/aflash.sh <sketch_directory> <FQBN> 60 "*STOP*" --env-check --use-rtt
 
+# Cache management for deterministic builds
+./scripts/build.sh <sketch_directory> --clean-cache --use-rtt --build-id
+./scripts/aflash.sh <sketch_directory> --clean-cache --env-check --use-rtt
+
 # Fast environment validation
 ./scripts/env_check_quick.sh         # Silent (exit code only)
 ./scripts/env_check_quick.sh true    # Verbose output
@@ -102,9 +106,15 @@ Enhanced build workflow with environment validation and STM32 device auto-detect
 
 **Environment Validation Features**:
 - **Arduino CLI version**: Validates locked version (1.3.0)
-- **STM32 Core version**: Validates locked version (2.7.1) 
+- **STM32 Core version**: Validates locked version (2.7.1)
 - **FQBN validity**: Ensures board configuration is valid
 - **Performance**: ~100ms overhead vs ~2s for full env_probe.sh
+
+**Cache Management Features**:
+- **Selective Clearing**: `--clean-cache` flag for deterministic builds when needed
+- **Performance Preserved**: Fast incremental builds when cache clearing not used
+- **CI/CD Ready**: Ensures fresh compilation for automated testing workflows
+- **Issue Resolution**: Eliminates stale file paths and compilation artifacts from cache
 
 **Device Auto-Detection Features**:
 - **Universal STM32 detection**: Works with any STM32 without prior knowledge

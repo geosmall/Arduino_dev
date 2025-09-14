@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Arduino CLI build script with optional environment validation
-# Usage: ./scripts/build.sh <sketch_directory> [FQBN] [--env-check]
+# Usage: ./scripts/build.sh <sketch_directory> [FQBN] [--env-check] [--build-id] [--use-rtt] [--clean-cache]
 #
 
 set -euo pipefail
@@ -15,6 +15,7 @@ FQBN="$DEFAULT_FQBN"
 ENV_CHECK=false
 BUILD_ID=false
 USE_RTT=false
+CLEAN_CACHE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -28,6 +29,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --use-rtt)
             USE_RTT=true
+            shift
+            ;;
+        --clean-cache)
+            CLEAN_CACHE=true
             shift
             ;;
         -*)
@@ -48,7 +53,7 @@ done
 # Check arguments
 if [[ -z "$SKETCH_DIR" ]]; then
     echo "Arduino CLI Build Script with Environment Validation"
-    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check] [--build-id] [--use-rtt]"
+    echo "Usage: $0 <sketch_directory> [FQBN] [--env-check] [--build-id] [--use-rtt] [--clean-cache]"
     echo
     echo "Examples:"
     echo "  $0 HIL_RTT_Test"
@@ -103,6 +108,13 @@ SKETCH_NAME=$(basename "$INO_FILE" .ino)
 echo "Building sketch: $SKETCH_NAME"
 echo "FQBN: $FQBN"
 echo "Directory: $SKETCH_DIR"
+
+# Clean cache if requested
+if [[ "$CLEAN_CACHE" == true ]]; then
+    echo "Cleaning Arduino CLI cache..."
+    rm -rf ~/.cache/arduino/sketches/* 2>/dev/null || true
+    echo "✓ Cache cleaned"
+fi
 
 # Build with export binaries for J-Link upload
 echo "Starting arduino-cli compile..."

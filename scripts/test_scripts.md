@@ -23,8 +23,8 @@ if (test_complete) {
 | `env_probe.sh` | Comprehensive environment diagnostics | Phase 0 | arduino-cli |
 | `env_check_quick.sh` | **Fast environment validation (~100ms)** | **Phase 3** | **arduino-cli** |
 | **Build & Test Orchestration** |
-| `build.sh` | Arduino CLI compile with optional --env-check, --build-id, --use-rtt | Phase 2-5 | arduino-cli |
-| `aflash.sh` | **One-button build-jrun-test with optional --env-check, --build-id, --use-rtt** | **Phase 2-3** | **J-Run ELF execution** |
+| `build.sh` | Arduino CLI compile with optional --env-check, --build-id, --use-rtt, --clean-cache | Phase 2-5 | arduino-cli |
+| `aflash.sh` | **One-button build-jrun-test with optional --env-check, --build-id, --use-rtt, --clean-cache** | **Phase 2-3** | **J-Run ELF execution** |
 | **Device Detection & Programming** |
 | `detect_device.sh` | **Universal STM32 device auto-detection** | **Phase 4** | **J-Link** |
 | `jrun.sh` | **J-Run execution with RTT + exit wildcard detection** | **Phase 1-2** | **JRun (primary)** |
@@ -110,17 +110,18 @@ J-Link flash tool with dual modes (fixed F411RE device).
 **Success**: Quick mode <2s, full mode ~9s, no prompts
 
 ### 7. build.sh - Arduino Build
-Compile sketches with build caching, ELF preservation, optional environment validation, build-ID generation, and unified RTT support.
+Compile sketches with build caching, ELF preservation, optional environment validation, build-ID generation, unified RTT support, and cache management.
 
 ```bash
 ./scripts/build.sh HIL_RTT_Test
 ./scripts/build.sh HIL_RTT_Test --env-check
 ./scripts/build.sh HIL_RTT_Test --env-check --build-id
 ./scripts/build.sh HIL_RTT_Test --use-rtt --build-id --env-check  # Unified framework
+./scripts/build.sh HIL_RTT_Test --clean-cache --use-rtt --build-id  # Cache management
 ./scripts/build.sh libraries/LittleFS/examples/ListFiles --use-rtt    # LittleFS with RTT
 ./scripts/build.sh HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check
 ```
-**Success**: Compilation succeeds, binary + ELF created, build time displayed, optional build_id.h generated, RTT mode enabled
+**Success**: Compilation succeeds, binary + ELF created, build time displayed, optional build_id.h generated, RTT mode enabled, cache cleared when requested
 
 ### 8. rtt_cat.sh - RTT Logger (⚠️ DEPRECATED)
 Legacy RTT capture with timestamps. Use jrun.sh instead.
@@ -154,18 +155,34 @@ Enhanced ready token detection with build-ID parsing and sub-20ms latency measur
 - Latency: Sub-20ms (5.2ms achieved), duration measured
 
 ### 11. aflash.sh - One-Button Workflow (MAIN)
-Complete build-jrun-test workflow with optional environment validation, build-ID traceability, and unified RTT framework support.
+Complete build-jrun-test workflow with optional environment validation, build-ID traceability, unified RTT framework support, and cache management.
 
 ```bash
 ./scripts/aflash.sh HIL_RTT_Test
 ./scripts/aflash.sh HIL_RTT_Test --env-check
 ./scripts/aflash.sh HIL_RTT_Test --use-rtt --build-id --env-check     # Complete unified workflow
+./scripts/aflash.sh HIL_RTT_Test --clean-cache --use-rtt --build-id   # With cache management
 ./scripts/aflash.sh libraries/LittleFS/examples/ListFiles --use-rtt      # LittleFS unified test
 ./scripts/aflash.sh HIL_RTT_Test STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 "*STOP*" --env-check
 ```
-**Success**: Build completes, J-Run executes with RTT, exit wildcard detected, build traceability included
+**Success**: Build completes, J-Run executes with RTT, exit wildcard detected, build traceability included, cache cleared when requested
 
 ## Integration Testing
+
+### Cache Management Testing
+Test Arduino CLI cache management for deterministic builds:
+
+```bash
+# Normal incremental build (fast)
+./scripts/build.sh HIL_RTT_Test --use-rtt --build-id
+
+# Clean cache build (deterministic, after file moves)
+./scripts/build.sh HIL_RTT_Test --clean-cache --use-rtt --build-id
+
+# Full HIL workflow with cache management
+./scripts/aflash.sh tests/AUnit_Pilot_Test --clean-cache --use-rtt --build-id
+```
+**Success**: Cache cleared when requested, fresh compilation, correct file paths in output, deterministic builds
 
 ### Unified Development Framework Test
 Test the single-codebase approach supporting both Arduino IDE and CI/HIL workflows:
