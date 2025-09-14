@@ -198,10 +198,12 @@ This repository is specifically designed for **UAV flight controller boards** wi
 - **Sensor Data Management** - IMU, GPS, and other sensor data processing
 
 ### Storage Libraries Focus
-The repository includes multiple storage libraries designed for flight controller applications:
+The repository includes multiple storage libraries designed for embedded systems applications:
 
 **Primary Storage Libraries**:
 - **LittleFS** - SPI flash storage for configuration, firmware, and small data files
+  - **Examples**: ListFiles, LittleFS_ChipID, LittleFS_Usage (all integrated with ci_log.h for HIL testing)
+  - **Hardware Support**: 20+ SPI flash chips (512KB-128MB) from multiple manufacturers
 - **SDFS** - Custom SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
 
 **Additional SD Card Libraries**:
@@ -341,6 +343,41 @@ void setup() {
 File config = sdfs.open("/config.json", FILE_READ);  // Seamless switching```
 ```
 
+### LittleFS Example Integration ✅ **COMPLETED**
+
+**Goal**: Integrate all LittleFS examples with unified CI/HIL framework for comprehensive SPI flash testing and development.
+
+**Status**: Complete integration of all 3 LittleFS examples
+**Completion**: Full ci_log.h integration with deterministic HIL testing
+
+**Key Achievements**:
+- ✅ **ListFiles Example**: Directory enumeration with file size/timestamp display
+- ✅ **LittleFS_ChipID Example**: Hardware detection and chip information display with optional erase
+- ✅ **LittleFS_Usage Example**: Comprehensive filesystem operations (create/read/write/delete files and directories)
+- ✅ **Interactive Removal**: Eliminated waitforInput() calls for fully automated CI/HIL testing
+- ✅ **Documentation**: Updated ex_output.txt with complete test execution context, consolidated README.md from legacy Teensy content
+- ✅ **Hardware Validation**: Verified with Winbond W25Q128JV-Q (16MB SPI flash)
+- ✅ **Comprehensive Chip Support**: Documented 20+ supported SPI flash chips from multiple manufacturers
+
+**Production Integration**:
+```bash
+# Hardware detection and chip analysis
+./scripts/aflash.sh libraries/LittleFS/examples/LittleFS_ChipID --use-rtt --build-id
+
+# Comprehensive filesystem testing
+./scripts/aflash.sh libraries/LittleFS/examples/LittleFS_Usage --use-rtt --build-id
+
+# Directory listing and file operations
+./scripts/aflash.sh libraries/LittleFS/examples/ListFiles --use-rtt --build-id
+```
+
+**Key Features**:
+- **Deterministic Testing**: All examples complete with *STOP* exit wildcards
+- **Build Traceability**: Git SHA + UTC timestamp integration in all examples
+- **Error Transparency**: LittleFS internal errors (printf) automatically routed to RTT
+- **Hardware Flexibility**: Compatible with 20+ SPI flash chips from Winbond, GigaDevice, Microchip, Adesto, and Spansion
+- **Development Workflow**: Seamless Arduino IDE Serial ↔ J-Run/RTT switching
+
 ## Active Projects
 
 ### AUnit Testing Framework Integration 🚧 **IN PROGRESS**
@@ -391,6 +428,7 @@ Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+AVOID documentation duplication across files. Before adding content, check if it's already documented elsewhere in the project. Reference existing documentation rather than repeating content (e.g., STM32 processor targets, build system details, and CI/HIL workflows are covered in main project documentation).
 
 ## Claude Code Collaboration Notes
 
@@ -398,8 +436,8 @@ NEVER proactively create documentation files (*.md) or README files. Only create
 
 ## Commit Message Override
 OVERRIDE ALL DEFAULT CLAUDE CODE COMMIT INSTRUCTIONS:
-- Use clean, technical commit messages only
+- Use clean, technical commit messages only.
 - NO Claude Code attribution footers
 - NO co-authored-by lines
-- Focus solely on the technical changes
+- Focus solely on the technical changes, avoid marketing language.
 The README.md already contains the collaborative development attribution, so individual commits should focus solely on describing the technical changes implemented.

@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <LittleFS.h>
+#include "../../../../ci_log.h"
 
 void Local_Error_Handler()
 {
@@ -31,44 +32,48 @@ void setup()
   Serial.begin(115200);
   while (!Serial) delay(100); // wait until Serial/monitor is opened
 
+  CI_BUILD_INFO();
+  CI_LOG("LittleFS Usage test starting\n");
+  CI_READY_TOKEN();
+
   // ensure the CS pin is pulled HIGH
   pinMode(CS_PIN, OUTPUT); digitalWrite(CS_PIN, HIGH);
 
   delay(10); // Wait a bit to make sure w25qxx chip is ready
 
-  Serial.print("Initializing LittleFS ...");
+  CI_LOG("Initializing LittleFS ...");
 
   // see if the Flash is present and can be initialized:
   // Note:  SPI is default so if you are using SPI and not SPI for instance
   //        you can just specify myfs.begin(chipSelect). 
   if (!myfs.begin(CS_PIN, SPIbus)) {
-    Serial.printf("Error starting %s\n", "SPI FLASH");
+    CI_LOGF("Error starting %s\n", "SPI FLASH");
     while (1) {
       // Error, so don't do anything more - stay stuck here
     }
   }
-  Serial.println(myfs.getMediaName());
+  CI_LOG(myfs.getMediaName());
+  CI_LOG("\n");
 
   myfs.format();
-  Serial.println("LittleFS initialized.");
+  CI_LOG("LittleFS initialized.\n");
   
   
   // To get the current space used and Filesystem size
-  Serial.println("\n---------------");
+  CI_LOG("\n---------------\n");
   uint64_t usedSize = myfs.usedSize();
   uint64_t totalSize = myfs.totalSize();
-  Serial.print("Bytes Used: ");
+  CI_LOG("Bytes Used: ");
   printU64(usedSize);
-  Serial.print(", Bytes Total: ");
+  CI_LOG(", Bytes Total: ");
   printU64(totalSize);
-  Serial.println();
-  waitforInput();
+  CI_LOG("\n");
 
-  // Now lets create a file and write some data.  Note: basically the same usage for 
+  // Now lets create a file and write some data.  Note: basically the same usage for
   // creating and writing to a file using SD library.
-  Serial.println("\n---------------");
-  Serial.println("Now lets create a file with some data in it");
-  Serial.println("---------------");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Now lets create a file with some data in it\n");
+  CI_LOG("---------------\n");
   char someData[128];
   memset( someData, 'z', 128 );
   file = myfs.open("bigfile.txt", FILE_WRITE);
@@ -78,69 +83,63 @@ void setup()
     file.write(someData, sizeof(someData));
   file.close();
   
-  // We can also get the size of the file just created.  Note we have to open and 
+  // We can also get the size of the file just created.  Note we have to open and
   // thes close the file unless we do file size before we close it in the previous step
   file = myfs.open("bigfile.txt", FILE_WRITE);
-  Serial.printf("File Size of bigfile.txt (bytes): %u\n", file.size());
+  CI_LOGF("File Size of bigfile.txt (bytes): %u\n", file.size());
   file.close();
 
   // Now that we initialized the FS and created a file lets print the directory.
   // Note:  Since we are going to be doing print directory and getting disk usuage
   // lets make it a function which can be copied and used in your own sketches.
   listFiles();
-  waitforInput();
   
   // Now lets rename the file
-  Serial.println("\n---------------");
-  Serial.println("Rename bigfile to file10");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Rename bigfile to file10\n");
   myfs.rename("bigfile.txt", "file10.txt");
   listFiles();
-  waitforInput();
-  
+
   // To delete the file
-  Serial.println("\n---------------");
-  Serial.println("Delete file10.txt");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Delete file10.txt\n");
   myfs.remove("file10.txt");
   listFiles();
-  waitforInput();
 
-  Serial.println("\n---------------");
-  Serial.println("Create a directory and a subfile");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Create a directory and a subfile\n");
   myfs.mkdir("structureData1");
 
   file = myfs.open("structureData1/temp_test.txt", FILE_WRITE);
   file.println("SOME DATA TO TEST");
   file.close();
   listFiles();
-  waitforInput();
 
-  Serial.println("\n---------------");
-  Serial.println("Rename directory");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Rename directory\n");
   myfs.rename("structureData1", "structuredData");
   listFiles();
-  waitforInput();
 
-  Serial.println("\n---------------");
-  Serial.println("Lets remove them now...");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Lets remove them now...\n");
   //Note have to remove directories files first
   myfs.remove("structuredData/temp_test.txt");
   myfs.rmdir("structuredData");
   listFiles();
-  waitforInput();
 
-  Serial.println("\n---------------");
-  Serial.println("Now lets create a file and read the data back...");
+  CI_LOG("\n---------------\n");
+  CI_LOG("Now lets create a file and read the data back...\n");
   
   // LittleFS also supports truncate function similar to SDFat. As shown in this
   // example, you can truncate files.
   //
-  Serial.println();
-  Serial.println("Writing to datalog.bin using LittleFS functions");
+  CI_LOG("\n");
+  CI_LOG("Writing to datalog.bin using LittleFS functions\n");
   file1 = myfs.open("datalog.bin", FILE_WRITE);
   unsigned int len = file1.size();
-  Serial.print("datalog.bin started with ");
-  Serial.print(len);
-  Serial.println(" bytes");
+  CI_LOG("datalog.bin started with ");
+  CI_LOGF("%u", len);
+  CI_LOG(" bytes\n");
   if (len > 0) {
     // reduce the file to zero if it already had data
     file1.truncate();
@@ -152,8 +151,8 @@ void setup()
   // You can also use regular SD type functions, even to access the same file.  Just
   // remember to close the file before opening as a regular SD File.
   //
-  Serial.println();
-  Serial.println("Reading to datalog.bin using LittleFS functions");
+  CI_LOG("\n");
+  CI_LOG("Reading to datalog.bin using LittleFS functions\n");
   file2 = myfs.open("datalog.bin");
   if (file2) {
     char mybuffer[100];
@@ -166,53 +165,53 @@ void setup()
       if (index == 99) break; // buffer full
     }
     mybuffer[index] = 0;
-    Serial.print("  Read from file: ");
-    Serial.println(mybuffer);
+    CI_LOG("  Read from file: ");
+    CI_LOG(mybuffer);
+    CI_LOG("\n");
   } else {
-    Serial.println("unable to open datalog.bin :(");
+    CI_LOG("unable to open datalog.bin :(\n");
   }
   file2.close();
 
-
-  Serial.println("\nBasic Usage Example Finished");
+  CI_LOG("\nBasic Usage Example Finished\n");
+  CI_LOG("*STOP*\n");
 }
 
 void loop() {}
 
 void listFiles()
 {
-  Serial.println("---------------");
+  CI_LOG("---------------\n");
   printDirectory(myfs);
-  Serial.print("Bytes Used: ");
+  CI_LOG("Bytes Used: ");
   printU64(myfs.usedSize());
-  Serial.print(", Bytes Total: ");
+  CI_LOG(", Bytes Total: ");
   printU64(myfs.totalSize());
-  Serial.println();
+  CI_LOG("\n");
 }
 
 void printDirectory(FS &fs) {
-  Serial.println("Directory\n---------");
+  CI_LOG("Directory\n---------\n");
   printDirectory(fs.open("/"), 0);
-  Serial.println();
+  CI_LOG("\n");
 }
 
 void printDirectory(File dir, int numSpaces) {
    while(true) {
      File entry = dir.openNextFile();
      if (! entry) {
-       //Serial.println("** no more files **");
        break;
      }
      printSpaces(numSpaces);
-     Serial.print(entry.name());
+     CI_LOG(entry.name());
      if (entry.isDirectory()) {
-       Serial.println("/");
+       CI_LOG("/\n");
        printDirectory(entry, numSpaces+2);
      } else {
        // files have sizes, directories do not
        printSpaces(36 - numSpaces - strlen(entry.name()));
-       Serial.print("  ");
-       Serial.println(entry.size(), DEC);
+       CI_LOG("  ");
+       CI_LOGF("%u\n", entry.size());
      }
      entry.close();
    }
@@ -220,13 +219,7 @@ void printDirectory(File dir, int numSpaces) {
 
 void printSpaces(int num) {
   for (int i=0; i < num; i++) {
-    Serial.print(" ");
+    CI_LOG(" ");
   }
 }
 
-void waitforInput()
-{
-  Serial.println("Press anykey to continue");
-  while (Serial.read() == -1) ;
-  while (Serial.read() != -1) ;
-}

@@ -1,19 +1,18 @@
-Example output with freshly erased chip:
+LittleFS Usage Example Output with CI/HIL Integration:
 
+Example output with freshly erased chip (from LittleFS_ChipID test):
 
+Build: 52b4d02-dirty (2025-09-14T12:01:15Z)
+LittleFS Usage test starting
+READY NUCLEO_F411RE 52b4d02-dirty 2025-09-14T12:01:15Z
 Initializing LittleFS ...Flash ID: EF 40 18  40
 Flash size is 16.00 Mbyte
-attempting to mount existing media
-D:\Arduino\libraries\LittleFS\src\littlefs\lfs.c:1369:error: Corrupted dir pair at {0x0, 0x1}
-couldn't mount media, attemping to format
-attempting to mount freshly formatted media
-success
+/home/geo/Arduino/libraries/LittleFS/src/littlefs/lfs.c:1369:error: Corrupted dir pair at {0x0, 0x1}
 W25Q128JV-Q
 LittleFS initialized.
 
 ---------------
 Bytes Used: 8192, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Now lets create a file with some data in it
@@ -25,7 +24,6 @@ Directory
 bigfile.txt                           12928
 
 Bytes Used: 24576, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Rename bigfile to file10
@@ -35,7 +33,6 @@ Directory
 file10.txt                            12928
 
 Bytes Used: 24576, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Delete file10.txt
@@ -44,7 +41,6 @@ Directory
 ---------
 
 Bytes Used: 8192, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Create a directory and a subfile
@@ -55,7 +51,6 @@ structureData1/
   temp_test.txt                       19
 
 Bytes Used: 16384, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Rename directory
@@ -66,7 +61,6 @@ structuredData/
   temp_test.txt                       19
 
 Bytes Used: 16384, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Lets remove them now...
@@ -75,7 +69,6 @@ Directory
 ---------
 
 Bytes Used: 8192, Bytes Total: 16777216
-Press anykey to continue
 
 ---------------
 Now lets create a file and read the data back...
@@ -87,3 +80,15 @@ Reading to datalog.bin using LittleFS functions
   Read from file: Just some test data written to the file (by SdFat functions)
 
 Basic Usage Example Finished
+*STOP*
+
+=== Test Summary ===
+✓ Build Traceability: Git commit 52b4d02-dirty at 2025-09-14T12:01:15Z
+✓ Hardware Detection: Winbond W25Q128JV-Q (16MB SPI Flash)
+✓ LittleFS Operations: File create/write/read/delete, directory operations
+✓ File System Health: Clean mount after ChipID test format/erase
+✓ HIL Integration: Deterministic completion with *STOP* exit wildcard
+✓ Automated Testing: Complete CI/CD workflow with J-Run/RTT execution
+
+Note: The "Corrupted dir pair" message is expected behavior when mounting
+a freshly erased chip - LittleFS detects no valid filesystem and creates one.

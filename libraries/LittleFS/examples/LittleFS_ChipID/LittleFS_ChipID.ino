@@ -1,13 +1,14 @@
 #include <SPI.h>
 #include "LittleFS.h"
+#include "../../../../ci_log.h"
 
 // w25qxx_interface_t interface = W25QXX_INTERFACE_SPI;
 // w25qxx_type_t chip_type = W25Q128;
 
 /** Uncomment to  erase W25QXX chip */
-#define ERASE_CHIP
+// #define ERASE_CHIP
 
-#define DBG(...)    Serial.printf(__VA_ARGS__)
+#define DBG(...)    CI_LOGF(__VA_ARGS__)
 #define BLINK_FAST 50
 #define BLINK_SLOW 1000
 
@@ -44,7 +45,11 @@ void setup()
     Serial.begin(115200);
     while (!Serial) delay(100); // wait until Serial/monitor is opened
 
-    Serial.println("SPI Flash test...");
+    CI_BUILD_INFO();
+    CI_LOG("LittleFS ChipID test starting\n");
+    CI_READY_TOKEN();
+
+    CI_LOG("SPI Flash test...\n");
 
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -58,7 +63,7 @@ void setup()
 
     res = myfs.begin(CS_PIN, SPIbus);
     if (!res) {
-        Serial.println("initialization failed!");
+        CI_LOG("initialization failed!\n");
         Local_Error_Handler();
     }
 
@@ -84,13 +89,15 @@ void setup()
 
 
 #if defined (ERASE_CHIP)
-    Serial.println("Erasing...");
+    CI_LOG("Erasing...\n");
     int ret = myfs.eraseChip();
     if (ret != LFS_ERR_OK) {
         Local_Error_Handler();
     }
-    Serial.println("Done erasing chip");
+    CI_LOG("Done erasing chip\n");
 #endif
+
+    CI_LOG("*STOP*\n");
 
     // FS_Init(&W25QXX_hdl);
 
