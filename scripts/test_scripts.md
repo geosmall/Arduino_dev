@@ -117,7 +117,7 @@ Compile sketches with build caching, ELF preservation, optional environment vali
 ./scripts/build.sh HIL_RTT_Test --env-check
 ./scripts/build.sh HIL_RTT_Test --env-check --build-id
 ./scripts/build.sh HIL_RTT_Test --use-rtt --build-id --env-check  # Unified framework
-./scripts/build.sh libraries/SDFS/examples/SDFS_Test --use-rtt    # SDFS with RTT
+./scripts/build.sh libraries/LittleFS/examples/ListFiles --use-rtt    # LittleFS with RTT
 ./scripts/build.sh HIL_RTT_Test STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE --env-check
 ```
 **Success**: Compilation succeeds, binary + ELF created, build time displayed, optional build_id.h generated, RTT mode enabled
@@ -160,7 +160,7 @@ Complete build-jrun-test workflow with optional environment validation, build-ID
 ./scripts/aflash.sh HIL_RTT_Test
 ./scripts/aflash.sh HIL_RTT_Test --env-check
 ./scripts/aflash.sh HIL_RTT_Test --use-rtt --build-id --env-check     # Complete unified workflow
-./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt      # SDFS unified test
+./scripts/aflash.sh libraries/LittleFS/examples/ListFiles --use-rtt      # LittleFS unified test
 ./scripts/aflash.sh HIL_RTT_Test STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE 60 "*STOP*" --env-check
 ```
 **Success**: Build completes, J-Run executes with RTT, exit wildcard detected, build traceability included
@@ -172,10 +172,10 @@ Test the single-codebase approach supporting both Arduino IDE and CI/HIL workflo
 
 ```bash
 # Arduino IDE mode (Serial output)
-./scripts/build.sh libraries/SDFS/examples/SDFS_Test
+./scripts/build.sh libraries/LittleFS/examples/ListFiles
 
 # CI/HIL mode (RTT output with build traceability)
-./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt --build-id --env-check
+./scripts/aflash.sh libraries/LittleFS/examples/ListFiles --use-rtt --build-id --env-check
 ```
 **Success**: Same sketch works in both modes, appropriate output format, deterministic completion
 

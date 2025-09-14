@@ -80,8 +80,6 @@ make check          # Verify environment
 
 - **LittleFS**: SPI flash storage for configuration and firmware
 - **SDFS v1.0.0**: SD card filesystem via SPI with LittleFS-compatible configuration
-- **SD**: Arduino standard SD library (v1.3.0)
-- **SdFat**: Advanced SD library (v2.1.2) with full FAT support
 
 ## Project Structure
 
@@ -89,7 +87,6 @@ make check          # Verify environment
 ├── Arduino_Core_STM32/    # STM32 Arduino core (fork of stm32duino/Arduino_Core_STM32)
 ├── libraries/             # Storage and utility libraries
 │   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
-│   ├── SD/                # Arduino standard SD library
 │   ├── STM32RTC/          # Real-time clock library
 │   └── SDFS/              # SD filesystem v1.0.0
 ├── scripts/               # Build and test automation
@@ -100,7 +97,6 @@ make check          # Verify environment
 ### Submodule Sources
 - **Arduino_Core_STM32**: [geosmall/Arduino_Core_STM32](https://github.com/geosmall/Arduino_Core_STM32) *(stm32duino fork, simplified variants)*
 - **LittleFS**: [geosmall/LittleFS](https://github.com/geosmall/LittleFS) *(PaulStoffregen fork, minimal branch)*
-- **SD**: [geosmall/SD](https://github.com/geosmall/SD) *(arduino fork)*
 - **STM32RTC**: [stm32duino/STM32RTC](https://github.com/stm32duino/STM32RTC) *(upstream original)*
 
 ## Production Development Workflow

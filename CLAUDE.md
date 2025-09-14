@@ -19,7 +19,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `libraries/` - Core STM32 libraries (SPI, Wire, SoftwareSerial, etc.)
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
-- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, SD, SdFat, etc.)
+- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, etc.)
 - `HIL_RTT_Test/` - HIL test framework with comprehensive validation and RTT debugging
 
 ## Build Systems and Commands
@@ -206,11 +206,7 @@ The repository includes multiple storage libraries designed for embedded systems
   - **Hardware Support**: 20+ SPI flash chips (512KB-128MB) from multiple manufacturers
 - **SDFS** - Custom SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
 
-**Additional SD Card Libraries**:
-- **SD** - Arduino standard SD card library (v1.3.0) for basic SD card operations
-- **SdFat** - Advanced SD card library (v2.1.2) with full FAT16/FAT32/exFAT support, optimized for Teensy but compatible with STM32
-
-Both LittleFS and SDFS provide identical APIs for seamless switching between storage types. The SD and SdFat libraries offer alternative approaches for SD card access with different feature sets and performance characteristics.
+Both LittleFS and SDFS provide identical APIs for seamless switching between storage types.
 
 ### Key Libraries
 
@@ -225,8 +221,6 @@ Both LittleFS and SDFS provide identical APIs for seamless switching between sto
 - `STM32RTC` - Real-time clock functionality
 - `LittleFS` - SPI flash filesystem with wear leveling (configuration, firmware)
 - `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
-- `SD` - Arduino standard SD card library (v1.3.0) - basic SD card access
-- `SdFat` - Advanced SD card library (v2.1.2) with FAT16/FAT32/exFAT support, Teensy-optimized
 - `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
 
 ### Hardware Abstraction
@@ -312,7 +306,7 @@ void setup() {
 - ✅ **HIL Integration**: Full integration with build/test framework and deterministic testing
 
 **v1.0.0 Features**:
-- **Configuration System**: Following SdFat library patterns with SDFS_* configurable constants
+- **Configuration System**: Following library configuration patterns with SDFS_* configurable constants
 - **Three-Phase SPI**: Init (400kHz) → Detection (2MHz) → Operation (4MHz, configurable up to 8MHz)
 - **CSD Reading**: Dynamic card capacity detection eliminates hardcoded 32MB limit
 - **Clean Codebase**: All debug code removed, comprehensive documentation
