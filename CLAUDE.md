@@ -422,7 +422,46 @@ File config = sdfs.open("/config.json", FILE_READ);  // Seamless switching```
 - ✅ **Deterministic Testing**: AUnit tests integrate with exit wildcard methodology
 - ✅ **CI/CD Compatible**: Automated execution through existing `aflash.sh` infrastructure
 
-**Next**: Phase 2 library-level unit tests (SDFS, LittleFS validation)
+### AUnit Phase 2: Library-Level Unit Tests ✅ **COMPLETED**
+
+**Status**: SDFS testing fully integrated with comprehensive unit test coverage
+
+**Key Achievement**: Successfully resolved SDFS/AUnit integration by following proper FatFs usage patterns
+
+#### SDFS Library Unit Testing ✅ **SUCCESS**
+
+**Challenge Overcome**: Initial investigation incorrectly attributed SDFS write operation failures to "AUnit framework incompatibility." Root cause analysis using FatFs best practices revealed the actual issue: improper filesystem mounting patterns.
+
+**Root Cause**: Violation of FatFs best practices:
+- Multiple `sdfs.begin()` calls causing mount/unmount churn
+- SPI configuration happening in individual tests instead of setup()
+- FatFs internal state corruption from repeated mounting
+
+**Solution Applied**:
+- ✅ **Mount once in setup()**: Follow FatFs guidance - mount filesystem once and keep mounted for entire test session
+- ✅ **Eliminate mount churn**: Remove all `sdfs.begin()` calls from individual test functions
+- ✅ **Proper initialization order**: Configure SPI pins before mounting in setup()
+- ✅ **State management**: Use flags to track mount success/failure for graceful test skipping
+
+**Test Results**: `tests/SDFS_Unit_Tests/test_output.txt`
+- ✅ **19 test cases executed successfully**
+- ✅ **Write operations working**: File creation, directory creation, data writing
+- ✅ **Read operations working**: File reading, directory enumeration
+- ✅ **AUnit integration**: Proper assertion reporting, deterministic completion
+- ✅ **HIL compatibility**: RTT output, exit wildcard detection, build traceability
+
+**Testing Workflow**:
+```bash
+# Complete SDFS functionality testing via AUnit
+./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
+
+# Standalone example validation (still valuable for development)
+./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt --build-id
+```
+
+**Key Lesson**: Always question assumptions and follow established best practices. The "incompatibility" was actually improper usage patterns that violated FatFs mounting guidelines.
+
+**Next**: LittleFS AUnit integration using the proven mounting pattern
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
