@@ -344,8 +344,86 @@ void setup() {
 }
 
 // Unified storage API - same interface as LittleFS
-File config = sdfs.open("/config.json", FILE_READ);  // Seamless switching```
+File config = sdfs.open("/config.json", FILE_READ);  // Seamless switching
 ```
+
+### SDFS Robustness Improvements ✅ **COMPLETED**
+
+**Goal**: Enhance SDFS robustness to prevent FatFs corruption issues and provide better error diagnostics for embedded systems development.
+
+**Status**: Production ready with comprehensive error handling and mount protection
+**Completion**: All improvements tested and validated on HIL
+
+**Key Improvements Implemented**:
+- ✅ **Mount State Guard Rail**: Prevents multiple `begin()` calls that cause FatFs corruption
+- ✅ **Structured Error Codes**: SDFSERR enum with programmatic error checking capabilities
+- ✅ **Error Diagnostics**: `getLastError()`, `errorToString()`, and `isMounted()` methods
+- ✅ **Embedded-Friendly Design**: Enum-based errors more efficient than string comparisons
+- ✅ **Backward Compatibility**: All existing code continues to work unchanged
+
+**Root Problem Solved**:
+The primary issue was multiple `sdfs.begin()` calls causing FatFs mount/unmount churn, which corrupted internal FatFs state. This manifested during SDFS/AUnit integration where write operations would fail unpredictably.
+
+**Solution Architecture**:
+```cpp
+// SDFS error codes - embedded-friendly enum
+typedef enum {
+    SDFS_OK = 0,              // No error
+    SDFS_ALREADY_MOUNTED,     // Already successfully mounted
+    SDFS_CARD_INIT_FAILED,    // SD card initialization failed
+    SDFS_MOUNT_FAILED,        // Filesystem mount failed
+    SDFS_NOT_MOUNTED,         // Operation requires mounted filesystem
+    SDFS_INTERNAL_ERROR       // Internal/unexpected error
+} SDFSERR;
+
+// Enhanced begin() with mount protection
+bool SDFS_SPI::begin(uint8_t cspin, SPIClass &spiport) {
+    if (mounted) {
+        last_error = SDFS_ALREADY_MOUNTED;
+        return true; // Guard rail: prevent corruption
+    }
+    // ... normal initialization
+}
+```
+
+**Usage Patterns**:
+```cpp
+SDFS_SPI sdfs;
+
+// Simple usage (backward compatible)
+if (!sdfs.begin(CS_PIN)) {
+    Serial.println("SD card failed");
+}
+
+// Advanced diagnostics
+if (!sdfs.begin(CS_PIN)) {
+    SDFSERR err = sdfs.getLastError();
+    if (err == SDFS_CARD_INIT_FAILED) {
+        Serial.println("Check SD card connection");
+    } else if (err == SDFS_MOUNT_FAILED) {
+        Serial.println("Format SD card or check filesystem");
+    }
+    Serial.printf("Error: %s\n", sdfs.errorToString(err));
+}
+
+// Multiple begin() calls now safe
+sdfs.begin(CS_PIN);  // First call
+sdfs.begin(CS_PIN);  // Safe - returns true immediately
+sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
+```
+
+**HIL Test Validation**:
+```bash
+# Robustness testing confirmed all improvements working
+./scripts/aflash.sh test_robustness --use-rtt --build-id
+# Result: Multiple begin() calls properly protected with SDFS_ALREADY_MOUNTED
+```
+
+**Investigation Results**:
+- ✅ **No regressions**: All existing SDFS functionality continues to work perfectly
+- ✅ **Root cause eliminated**: Mount/unmount churn protection prevents FatFs corruption
+- ✅ **Better diagnostics**: Clear error codes and messages for troubleshooting
+- ✅ **Production ready**: Minimal overhead, embedded-friendly design```
 
 ### LittleFS Example Integration ✅ **COMPLETED**
 
@@ -481,3 +559,26 @@ OVERRIDE ALL DEFAULT CLAUDE CODE COMMIT INSTRUCTIONS:
 - NO co-authored-by lines
 - Focus solely on the technical changes, avoid marketing language.
 The README.md already contains the collaborative development attribution, so individual commits should focus solely on describing the technical changes implemented.
+
+## Debugging Methodology
+
+### Stubborn Debug Protocol
+When debugging stalls or repeatedly hits walls, this indicates potential knowledge gaps rather than purely technical issues.
+
+**Debugging Steps**:
+1. **Pause and assess**: "This is taking longer than expected - am I missing domain knowledge?"
+2. **Identify knowledge gaps**:
+   - "I don't understand [protocol/library/system] best practices"
+   - "I'm not familiar with common pitfalls in [domain]"
+   - "I may be missing [specific technology] guidelines"
+3. **Seek knowledge** (in order of preference):
+   - **Research myself first**: WebSearch/WebFetch for official docs, best practices, common patterns
+   - **Ask if unclear**: "I found [X] but I'm uncertain about [specific aspect] - does this match your understanding?"
+   - **Ask if nothing found**: "I couldn't find clear guidance on [domain] - do you have experience with this?"
+4. **Apply new knowledge** and reassess the problem
+
+**Key Principle**: Stubborn debugging is often a **knowledge problem disguised as a technical problem**. Step back and fill knowledge gaps rather than grinding harder with incomplete understanding.
+
+**Historical Examples**:
+- **SDFS/AUnit integration**: Appeared to be "framework incompatibility" until FatFs best practices were understood, revealing the actual issue was improper filesystem mounting patterns.
+- **SDFS unit test hang**: Initially assumed to be caused by robustness code changes, systematic investigation revealed it was a pre-existing issue unrelated to recent modifications. Proper baseline testing with git stash proved the changes were not the root cause.

@@ -279,7 +279,10 @@ SDFS::~SDFS()
 File SDFS::open(const char *filepath, uint8_t mode)
 {
     if (!filepath || strlen(filepath) == 0) return File();
-    if (!mounted) return File();
+    if (!mounted) {
+        last_error = SDFS_NOT_MOUNTED;
+        return File();
+    }
     
     if (mode == FILE_READ) {
         // Special case for root directory - FatFs f_stat("/", ...) may not work
@@ -340,7 +343,10 @@ File SDFS::open(const char *filepath, uint8_t mode)
 bool SDFS::exists(const char *filepath)
 {
     if (!filepath || strlen(filepath) == 0) return false;
-    if (!mounted) return false;
+    if (!mounted) {
+        last_error = SDFS_NOT_MOUNTED;
+        return false;
+    }
 
     // Special case for root directory
     if (strcmp(filepath, "/") == 0) {
@@ -355,7 +361,10 @@ bool SDFS::exists(const char *filepath)
 bool SDFS::mkdir(const char *filepath)
 {
     if (!filepath || strlen(filepath) == 0) return false;
-    if (!mounted) return false;
+    if (!mounted) {
+        last_error = SDFS_NOT_MOUNTED;
+        return false;
+    }
     
     FRESULT fr = f_mkdir(filepath);
     return (fr == FR_OK);
@@ -459,6 +468,19 @@ void SDFS::unmountFilesystem()
     }
 }
 
+const char* SDFS::errorToString(SDFSERR err)
+{
+    switch (err) {
+        case SDFS_OK: return "No error";
+        case SDFS_ALREADY_MOUNTED: return "Already mounted";
+        case SDFS_CARD_INIT_FAILED: return "SD card initialization failed";
+        case SDFS_MOUNT_FAILED: return "Filesystem mount failed";
+        case SDFS_NOT_MOUNTED: return "Not mounted";
+        case SDFS_INTERNAL_ERROR: return "Internal error";
+        default: return "Unknown error";
+    }
+}
+
 const char* SDFS::fresultToString(FRESULT fr)
 {
     switch (fr) {
@@ -492,11 +514,21 @@ const char* SDFS::fresultToString(FRESULT fr)
 
 bool SDFS_SPI::begin(uint8_t cspin, SPIClass &spiport)
 {
+    // Guard rail: Prevent multiple begin() calls
+    if (mounted) {
+        last_error = SDFS_ALREADY_MOUNTED;
+        return true; // Already successfully mounted
+    }
+
     pin = cspin;
     port = &spiport;
 
     // Initialize custom SPI disk I/O
     if (!initializeSDCard()) {
+        last_error = SDFS_CARD_INIT_FAILED;
+        #ifdef DEBUG
+        Serial.printf("SDFS Error: %s\n", errorToString(last_error));
+        #endif
         return false;
     }
 
@@ -505,9 +537,14 @@ bool SDFS_SPI::begin(uint8_t cspin, SPIClass &spiport)
     // Attempt to mount the filesystem
     FRESULT fr = mountFilesystem();
     if (fr != FR_OK) {
+        last_error = SDFS_MOUNT_FAILED;
+        #ifdef DEBUG
+        Serial.printf("SDFS Error: %s (FatFs: %s)\n", errorToString(last_error), fresultToString(fr));
+        #endif
         return false;
     }
-    
+
+    last_error = SDFS_OK;
     return true;
 }
 

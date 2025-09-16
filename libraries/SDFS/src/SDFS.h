@@ -5,6 +5,16 @@
 #include "SDFSConfig.h"
 #include "fatfs/ff.h"
 
+// SDFS error codes - follows FatFs pattern but SDFS-specific
+typedef enum {
+    SDFS_OK = 0,              // No error
+    SDFS_ALREADY_MOUNTED,     // Already successfully mounted
+    SDFS_CARD_INIT_FAILED,    // SD card initialization failed
+    SDFS_MOUNT_FAILED,        // Filesystem mount failed
+    SDFS_NOT_MOUNTED,         // Operation requires mounted filesystem
+    SDFS_INTERNAL_ERROR       // Internal/unexpected error
+} SDFSERR;
+
 // Configuration - can be overridden at compile time
 #ifndef SDFS_MAX_OPEN_FILES
 #define SDFS_MAX_OPEN_FILES 2
@@ -66,7 +76,7 @@ private:
     FIL *file;
     DIR *dir;
     char fullpath[128];
-    
+
     uint32_t fatTimeToUnix(WORD fdate, WORD ftime);
     void unixToFatTime(uint32_t unixTime, WORD *fdate, WORD *ftime);
 };
@@ -91,12 +101,18 @@ public:
     virtual bool mediaPresent() override;
     virtual const char* name() override;
 
+    // Additional SDFS-specific methods for improved error handling
+    bool isMounted() const { return mounted; }
+    SDFSERR getLastError() const { return last_error; }
+    const char* errorToString(SDFSERR err);
+
 protected:
     bool configured = false;
     bool mounted = false;
     FATFS fatfs = {};
     char drive_path[4] = "0:/";  // FatFs drive path
-    
+    SDFSERR last_error = SDFS_OK;
+
     // Helper methods
     FRESULT mountFilesystem();
     void unmountFilesystem();
