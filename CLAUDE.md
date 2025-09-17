@@ -462,19 +462,34 @@ sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
 
 ## Active Projects
 
-### AUnit Testing Framework Integration ✅ **PHASE 1 COMPLETE**
+### AUnit Testing Framework Integration ⚠️ **MULTI-PHASE PROJECT**
 
-**Goal**: Integrate AUnit v1.7.1 unit testing framework into existing HIL CI/CD workflow to provide comprehensive library-level and component-level testing capabilities.
+**Goal**: Integrate AUnit v1.7.1 unit testing framework into existing HIL CI/CD workflow to provide comprehensive library-level and component-level testing capabilities across the entire codebase.
 
-**Status**: Phase 1 foundation complete - production ready
-**Target**: Ready for Phase 2 library-level unit tests
+**Overall Status**: Phase 1 complete, Phase 2 blocked by SDFS integration issues
+**Project Started**: September 16, 2025
+**Phase 1 Completion**: September 17, 2025
 
-**Phase 1 Achievements** ✅
-- **AUnit HIL Integration**: `aunit_hil.h` wrapper integrates with existing `ci_log.h` RTT/Serial abstraction
-- **Exit Wildcard Emission**: TestRunner emits `*STOP*` for deterministic HIL completion
-- **Build System Integration**: Full support for `--use-rtt`, `--build-id`, `--clean-cache` flags
-- **Dual Mode Support**: Single codebase works in both Arduino IDE (Serial) and HIL (J-Run/RTT) modes
-- **Hardware Validation**: Complete testing on STM32F411RE via J-Link with deterministic completion
+---
+
+#### **Phase 1: Foundation & HIL Integration** ✅ **COMPLETE**
+
+**Goal**: Establish AUnit framework integration with existing HIL infrastructure
+**Status**: Production ready and validated
+
+**Achievements**:
+- ✅ **Complete AUnit HIL Integration**: `aunit_hil.h` wrapper seamlessly integrates with existing `ci_log.h` RTT/Serial abstraction
+- ✅ **Deterministic HIL Completion**: TestRunner emits `*STOP*` for automated CI/CD exit detection
+- ✅ **Transparent Initialization**: Explicit `Serial.begin()` and `SEGGER_RTT_Init()` for maintainable debugging
+- ✅ **Full Build System Integration**: Complete support for `--use-rtt`, `--build-id`, `--clean-cache` flags
+- ✅ **Optimized Dual Mode Support**: Single codebase with mode-specific optimizations (1-second delay for Serial observation, immediate RTT completion)
+- ✅ **Production Validation**: Complete testing on STM32F411RE via J-Link with identical test results in both modes
+
+**Deliverables**:
+- `aunit_hil.h` - Production HIL integration wrapper
+- `tests/AUnit_Pilot_Test/` - Validated test framework example
+- Complete build system integration
+- Comprehensive documentation
 
 **Production Usage**:
 ```bash
@@ -483,63 +498,80 @@ sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
 
 # Arduino IDE development
 ./scripts/build.sh tests/AUnit_Pilot_Test --build-id
-
-# CI/CD with cache management
-./scripts/aflash.sh tests/AUnit_Pilot_Test --clean-cache --use-rtt --build-id
 ```
 
-**Architecture**:
-- **Zero-modification wrapper**: Preserves AUnit v1.7.1 compatibility
-- **HILPrinter**: Redirects AUnit output through `ci_log.h` macros
-- **HILTestRunner**: Manages setup, execution, and completion detection
-- **Integration Points**: `TestRunner::setPrinter()` and `Test::getRoot()` completion detection
+---
 
-**Key Design Principles Achieved**:
-- ✅ **Preserve HIL Investment**: Built on existing J-Run/RTT framework
-- ✅ **Single-Source-of-Truth**: Unified development approach via RTT/Serial switching
-- ✅ **Deterministic Testing**: AUnit tests integrate with exit wildcard methodology
-- ✅ **CI/CD Compatible**: Automated execution through existing `aflash.sh` infrastructure
+#### **Phase 2: Library-Level Unit Tests** 📋 **READY TO START**
 
-### AUnit Phase 2: Library-Level Unit Tests ✅ **COMPLETED**
+**Goal**: Implement comprehensive unit tests for SDFS and LittleFS libraries using the validated AUnit HIL integration framework
 
-**Status**: SDFS testing fully integrated with comprehensive unit test coverage
+**Status**: Ready to begin - fresh start approach
+**Prerequisites**: ✅ Phase 1 AUnit HIL integration complete and validated
 
-**Key Achievement**: Successfully resolved SDFS/AUnit integration by following proper FatFs usage patterns
+**Planned Approach**:
+- Start with simpler LittleFS tests first (fewer integration complexities)
+- Progressive complexity: basic file operations → directory operations → edge cases
+- Apply lessons learned from SDFS example integration patterns
+- Systematic validation at each step using existing HIL framework
 
-#### SDFS Library Unit Testing ✅ **SUCCESS**
+**Planned Deliverables**:
+- `tests/LittleFS_Unit_Tests/` - Comprehensive LittleFS library validation
+- `tests/SDFS_Unit_Tests/` - Comprehensive SDFS library validation (after LittleFS success)
+- Library validation test suites with full HIL automation integration
+- Documentation of unit testing patterns for storage libraries
 
-**Challenge Overcome**: Initial investigation incorrectly attributed SDFS write operation failures to "AUnit framework incompatibility." Root cause analysis using FatFs best practices revealed the actual issue: improper filesystem mounting patterns.
+---
 
-**Root Cause**: Violation of FatFs best practices:
-- Multiple `sdfs.begin()` calls causing mount/unmount churn
-- SPI configuration happening in individual tests instead of setup()
-- FatFs internal state corruption from repeated mounting
+#### **Phase 3: Core Component Testing** 📋 **PLANNED**
 
-**Solution Applied**:
-- ✅ **Mount once in setup()**: Follow FatFs guidance - mount filesystem once and keep mounted for entire test session
-- ✅ **Eliminate mount churn**: Remove all `sdfs.begin()` calls from individual test functions
-- ✅ **Proper initialization order**: Configure SPI pins before mounting in setup()
-- ✅ **State management**: Use flags to track mount success/failure for graceful test skipping
+**Goal**: Implement unit tests for core STM32 Arduino functionality
+**Status**: Not started - awaiting Phase 2 completion
 
-**Test Results**: `tests/SDFS_Unit_Tests/test_output.txt`
-- ✅ **19 test cases executed successfully**
-- ✅ **Write operations working**: File creation, directory creation, data writing
-- ✅ **Read operations working**: File reading, directory enumeration
-- ✅ **AUnit integration**: Proper assertion reporting, deterministic completion
-- ✅ **HIL compatibility**: RTT output, exit wildcard detection, build traceability
+**Planned Scope**:
+- **SPI Library Testing**: Hardware SPI interface validation
+- **I2C/Wire Library Testing**: Hardware I2C interface validation
+- **GPIO Testing**: Digital I/O, PWM, and analog operations
+- **Timer/RTC Testing**: STM32RTC and timing functionality
+- **Serial Communication Testing**: UART interface validation
 
-**Testing Workflow**:
-```bash
-# Complete SDFS functionality testing via AUnit
-./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
+**Planned Deliverables**:
+- `tests/Core_SPI_Tests/` - SPI hardware abstraction tests
+- `tests/Core_Wire_Tests/` - I2C hardware abstraction tests
+- `tests/Core_GPIO_Tests/` - GPIO and PWM tests
+- `tests/Core_Timer_Tests/` - Timer and RTC tests
+- Core functionality validation with HIL automation
 
-# Standalone example validation (still valuable for development)
-./scripts/aflash.sh libraries/SDFS/examples/SDFS_Test --use-rtt --build-id
-```
+---
 
-**Key Lesson**: Always question assumptions and follow established best practices. The "incompatibility" was actually improper usage patterns that violated FatFs mounting guidelines.
+#### **Phase 4: Integration & Performance Testing** 📋 **PLANNED**
 
-**Next**: LittleFS AUnit integration using the proven mounting pattern
+**Goal**: System-level integration tests and performance benchmarking
+**Status**: Not started - awaiting Phase 3 completion
+
+**Planned Scope**:
+- **Multi-Library Integration**: Tests combining SDFS + SPI + GPIO
+- **Performance Benchmarking**: Storage throughput, SPI speeds, memory usage
+- **Stress Testing**: Long-running tests, memory leak detection
+- **Flight Controller Scenarios**: UAV-specific integration patterns
+- **CI/CD Pipeline Validation**: Complete automated test suite
+
+**Planned Deliverables**:
+- `tests/Integration_Tests/` - Multi-component system tests
+- `tests/Performance_Tests/` - Benchmarking and stress tests
+- Complete CI/CD automation pipeline
+- Performance baseline documentation
+
+---
+
+#### **Project Notes**
+
+**Previous Phase 2 Attempt**: An initial Phase 2 implementation encountered fundamental integration issues between AUnit and SDFS directory enumeration. This has been set aside in favor of a fresh start approach with better methodology.
+
+**Lessons Learned**:
+- Start with simpler libraries (LittleFS) before complex ones (SDFS)
+- Incremental validation approach prevents deep integration issues
+- Existing `libraries/*/examples/` provide proven integration patterns to follow
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
@@ -551,6 +583,31 @@ AVOID documentation duplication across files. Before adding content, check if it
 ## Claude Code Collaboration Notes
 
 **Repository Attribution**: This repository's collaborative development with Claude Code is documented in README.md under the Documentation section. 
+
+## Clean Repository Policy
+
+**MANDATORY**: Always maintain clean repository state before commits
+- **No temporary build artifacts**: Remove sketch compilation artifacts (`tests/*/build/`, auto-generated `build_id.h`)
+- **No binary artifacts**: Remove `*.bin`, `*.hex`, `*.elf` files from sketch builds
+- **No test artifacts**: Remove temporary test files and logs
+- **EXCEPTION**: Preserve intentional build examples (e.g., `cmake/*/build/` directories contain reference builds)
+
+**Cleanup Methods**:
+```bash
+# Selective cleanup (recommended - excludes cmake examples)
+find tests/ libraries/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
+find . -name "build_id.h" -delete 2>/dev/null || true
+find . -name "*.bin" -o -name "*.hex" -o -name "*.elf" -delete 2>/dev/null || true
+
+# Manual verification
+git status    # Review changes before commit
+```
+
+**Pre-Commit Verification**:
+```bash
+git status          # Should show only intended code changes
+git diff --stat     # Verify no build artifacts in diff
+```
 
 ## Commit Message Override
 OVERRIDE ALL DEFAULT CLAUDE CODE COMMIT INSTRUCTIONS:
@@ -571,14 +628,3 @@ When debugging stalls or repeatedly hits walls, this indicates potential knowled
    - "I don't understand [protocol/library/system] best practices"
    - "I'm not familiar with common pitfalls in [domain]"
    - "I may be missing [specific technology] guidelines"
-3. **Seek knowledge** (in order of preference):
-   - **Research myself first**: WebSearch/WebFetch for official docs, best practices, common patterns
-   - **Ask if unclear**: "I found [X] but I'm uncertain about [specific aspect] - does this match your understanding?"
-   - **Ask if nothing found**: "I couldn't find clear guidance on [domain] - do you have experience with this?"
-4. **Apply new knowledge** and reassess the problem
-
-**Key Principle**: Stubborn debugging is often a **knowledge problem disguised as a technical problem**. Step back and fill knowledge gaps rather than grinding harder with incomplete understanding.
-
-**Historical Examples**:
-- **SDFS/AUnit integration**: Appeared to be "framework incompatibility" until FatFs best practices were understood, revealing the actual issue was improper filesystem mounting patterns.
-- **SDFS unit test hang**: Initially assumed to be caused by robustness code changes, systematic investigation revealed it was a pre-existing issue unrelated to recent modifications. Proper baseline testing with git stash proved the changes were not the root cause.

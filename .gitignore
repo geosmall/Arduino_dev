@@ -1,11 +1,15 @@
 # Test logs and build artifacts
 test_logs/
 
-# Arduino build artifacts
-build/
+# Arduino build artifacts (sketch compilation only)
+tests/*/build/
+libraries/*/build/
 *.bin
 *.hex
 *.elf
+
+# Auto-generated build identification files
+build_id.h
 
 # IDE and editor files
 .vscode/

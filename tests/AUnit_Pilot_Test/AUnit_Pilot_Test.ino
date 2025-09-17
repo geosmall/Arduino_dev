@@ -1,5 +1,13 @@
 #include "../../aunit_hil.h"
 
+/*
+ * AUnit Pilot Test - Single sketch supporting both Arduino IDE (Serial) and J-Run/RTT modes
+ * Controlled via USE_RTT compile flag for deterministic HIL testing.
+ *
+ * Arduino IDE mode: Serial output with manual monitoring
+ * J-Run/RTT mode:   RTT output with deterministic exit tokens
+ */
+
 // Basic functionality tests
 test(basic_arithmetic) {
   assertEqual(2 + 2, 4);
@@ -26,6 +34,17 @@ test(string_operations) {
 // }
 
 void setup() {
+#ifndef USE_RTT
+  // Arduino IDE mode: Initialize Serial and wait
+  Serial.begin(115200);
+  while (!Serial) {
+    delay(10);
+  }
+#else
+  // RTT mode: Initialize RTT
+  SEGGER_RTT_Init();
+#endif
+
   // Initialize HIL testing environment
   HIL_TEST_SETUP();
 

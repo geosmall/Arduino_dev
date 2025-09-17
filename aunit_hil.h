@@ -7,10 +7,25 @@
 
 // Custom printer that redirects AUnit output to ci_log system
 class HILPrinter : public Print {
+private:
+  static int callCount;
+  static char lineBuffer[256];
+  static int bufferPos;
+
 public:
   size_t write(uint8_t c) override {
-    char str[2] = {(char)c, '\0'};
-    CI_LOG(str);
+    callCount++;
+
+    // Buffer characters until we get a newline
+    if (c == '\n') {
+      lineBuffer[bufferPos] = '\0';
+      CI_LOG(lineBuffer);
+      CI_LOG("\n");
+      bufferPos = 0;
+    } else if (bufferPos < 255) {
+      lineBuffer[bufferPos++] = c;
+    }
+
     return 1;
   }
 
@@ -20,6 +35,8 @@ public:
     }
     return size;
   }
+
+  static int getCallCount() { return callCount; }
 };
 
 // HIL-specific TestRunner wrapper that adds exit wildcard functionality
@@ -35,6 +52,10 @@ public:
   static void setup() {
     if (isSetup) return;
 
+    CI_LOG("=== AUnit HIL Test Runner ===\n");
+    CI_BUILD_INFO();
+    CI_READY_TOKEN();
+
     // Set AUnit to use our HIL printer
     aunit::TestRunner::setPrinter(&hilPrinter);
 
@@ -42,25 +63,30 @@ public:
     aunit::TestRunner::setVerbosity(aunit::Verbosity::kAll);
 
     isSetup = true;
-
-    CI_LOG("=== AUnit HIL Test Runner ===\n");
-    CI_BUILD_INFO();
-    CI_READY_TOKEN();
   }
 
   // Run tests with HIL integration
   static void run() {
     setup();
 
-    // Run AUnit tests
-    aunit::TestRunner::run();
-
-    // Check if all tests are complete
-    // AUnit sets Test::getRoot() to nullptr when all tests are finished
-    if (*aunit::Test::getRoot() == nullptr) {
-      emitTestCompletion();
+    // Run AUnit tests for sufficient iterations to complete all tests
+    // TestRunner::run() is designed to be called in loop() - each call advances the state machine
+    // We use a fixed iteration approach to ensure all output is captured
+    for (int i = 0; i < 100; i++) {
+      aunit::TestRunner::run();
+      delay(10);  // Small delay to prevent tight loop issues and allow proper test execution
     }
+
+    // Emit completion after tests run
+    emitTestCompletion();
+
+    // In Serial mode, add delay to allow user to observe output before next iteration
+    // In RTT mode, J-Run will exit on *STOP* so this delay won't affect HIL testing
+#ifndef USE_RTT
+    delay(1000);  // 1 second delay for Serial mode observation
+#endif
   }
+
 
   // Emit HIL-compatible test completion signal
   static void emitTestCompletion() {
@@ -93,6 +119,11 @@ HILPrinter HILTestRunner::hilPrinter;
 bool HILTestRunner::isSetup = false;
 
 } // namespace aunit_hil
+
+// Static member definitions (outside namespace)
+int HILPrinter::callCount = 0;
+char HILPrinter::lineBuffer[256];
+int HILPrinter::bufferPos = 0;
 
 // Convenience macros for HIL testing
 #define HIL_TEST_SETUP() aunit_hil::HILTestRunner::setup()
