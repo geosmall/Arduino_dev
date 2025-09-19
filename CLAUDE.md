@@ -593,7 +593,57 @@ sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
 
 ## Active Projects
 
-*No active projects currently - all major framework components completed.*
+### Board Configuration System 📋 **ACTIVE PROJECT**
+
+**Goal**: Implement structured, compile-time board configuration system for multiple target platforms (flight controllers, ground rovers, AUVs, robots)
+
+**Status**: Design phase complete, implementation ready
+**Architecture**: External configuration approach using `targets/` directory to avoid Arduino_Core_STM32 circular dependencies
+
+**Key Requirements**:
+- ✅ **Design Complete**: External configuration system documented in `HW_CONFIG.md`
+- 📋 **Core Framework**: Implement `targets/BoardConfig.h` with board selection logic
+- 📋 **Configuration Types**: Implement `targets/ConfigTypes.h` with SPI, UART, I2C structures
+- 📋 **Board Definitions**: Create `targets/boards/NUCLEO_F411RE.h` and `targets/boards/NOXE_V3.h`
+- 📋 **Arduino Integration**: Minimal variant additions for NOXE_V3 board support
+
+**Implementation Scope**:
+- Type-safe constexpr configuration structures
+- Automatic board selection via `ARDUINO_*` defines
+- Clean separation: hardware definitions (core) vs usage configuration (external)
+- CI/CD compatible with existing build workflow
+
+### Generic Storage Abstraction 📋 **ACTIVE PROJECT**
+
+**Goal**: Create unified storage interface that abstracts SDFS and LittleFS behind common API, with BoardConfig handling all hardware-specific details
+
+**Status**: Architecture defined, implementation needed
+**Dependencies**: Requires Board Configuration System for hardware abstraction
+
+**Key Requirements**:
+- 📋 **Generic Storage Interface**: Abstract base class or unified API (`Storage.h`)
+- 📋 **BoardConfig Integration**: BoardConfig handles storage type selection and initialization
+- 📋 **Hardware Abstraction**: Pin configuration, SPI setup handled by BoardConfig
+- 📋 **Seamless Switching**: Applications work identically with SDFS or LittleFS backends
+
+**Application Benefits**:
+- Sketches include only `<Storage.h>`, not specific storage libraries
+- `BoardConfig::storage.begin()` handles all hardware setup
+- Same application code works on different target boards
+- Storage implementation choice becomes pure configuration decision
+
+**Implementation Approach**:
+```cpp
+// Application view
+#include <Storage.h>
+BoardConfig::storage.begin();           // All setup handled internally
+File log = BoardConfig::storage.open("/flight.log", FILE_WRITE);
+
+// BoardConfig handles internally
+// - Storage type (SDFS for SD card, LittleFS for SPI flash)
+// - Pin assignments and SPI configuration
+// - Hardware-specific initialization
+```
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
