@@ -508,13 +508,13 @@ sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
 **Hardware Validated**: W25Q128JV SPI flash (LittleFS) and SD card (SDFS) on STM32F411RE
 
 **Achievements**:
-- ✅ **LittleFS Complete Testing**: `tests/LittleFS_Unit_Tests_Final/` with 8 comprehensive test cases
+- ✅ **LittleFS Complete Testing**: `tests/LittleFS_Unit_Tests/` with 8 comprehensive test cases
   - File operations (create, read, write, delete, append, rename)
   - Directory operations (create, list, remove)
   - Seek/position functionality and large file operations
   - Filesystem information and capacity testing
   - **Hardware Validation**: 8/8 tests passed on W25Q128JV 16MB SPI flash
-- ✅ **SDFS Complete Testing**: `tests/SDFS_Unit_Tests_Progressive/` with 7 comprehensive test cases
+- ✅ **SDFS Complete Testing**: `tests/SDFS_Unit_Tests/` with 7 comprehensive test cases
   - File operations (create, read, write, delete, append, rename)
   - Directory operations and filesystem information
   - Progressive debugging approach resolved initial crash issues
@@ -524,8 +524,8 @@ sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
 - ✅ **Clean Test Architecture**: Production-ready test suites with proper cleanup procedures
 
 **Deliverables**:
-- `tests/LittleFS_Unit_Tests_Final/` - Production LittleFS test suite (8 tests, 100% pass rate)
-- `tests/SDFS_Unit_Tests_Progressive/` - Production SDFS test suite (7 tests, 100% pass rate)
+- `tests/LittleFS_Unit_Tests/` - Production LittleFS test suite (8 tests, 100% pass rate)
+- `tests/SDFS_Unit_Tests/` - Production SDFS test suite (7 tests, 100% pass rate)
 - `tests/AUnit_Pilot_Test/` - Framework validation (3 tests, 100% pass rate)
 - Complete hardware validation documentation
 - Proven patterns for embedded filesystem testing
@@ -533,12 +533,12 @@ sdfs.begin(CS_PIN);  // Safe - no FatFs corruption
 **Production Usage**:
 ```bash
 # Complete library validation suite
-./scripts/aflash.sh tests/LittleFS_Unit_Tests_Final --use-rtt --build-id
-./scripts/aflash.sh tests/SDFS_Unit_Tests_Progressive --use-rtt --build-id
+./scripts/aflash.sh tests/LittleFS_Unit_Tests --use-rtt --build-id
+./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
 ./scripts/aflash.sh tests/AUnit_Pilot_Test --use-rtt --build-id
 
 # Arduino IDE development mode
-./scripts/build.sh tests/LittleFS_Unit_Tests_Final --build-id
+./scripts/build.sh tests/LittleFS_Unit_Tests --build-id
 ```
 
 **Technical Achievements**:
