@@ -2,6 +2,13 @@
 #include <SPI.h>
 #include <LittleFS.h>
 
+// Board configuration for hardware abstraction
+#if defined(ARDUINO_BLACKPILL_F411CE)
+#include "../../targets/BLACKPILL_F411CE.h"
+#else
+#include "../../targets/NUCLEO_F411RE.h"
+#endif
+
 /*
  * LittleFS Unit Tests - AUnit Integration
  *
@@ -22,16 +29,11 @@
  * IDE Testing: Compile without --use-rtt for Serial monitor output
  */
 
-// Hardware configuration - exact match to working examples
-#if defined(ARDUINO_BLACKPILL_F411CE)
+// Hardware configuration - BoardConfig integration
 //              MOSI  MISO  SCLK
-SPIClass SPIbus(PA7,  PA6,  PA5);
-#define CS_PIN PA4
-#else
-//              MOSI  MISO  SCLK
-SPIClass SPIbus(PC12, PC11, PC10);
-#define CS_PIN PD2
-#endif
+SPIClass SPIbus(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin, BoardConfig::storage.sclk_pin);
+// CS pin from BoardConfig
+#define CS_PIN BoardConfig::storage.cs_pin
 
 // Global filesystem instance - initialized once
 LittleFS_SPIFlash myfs;

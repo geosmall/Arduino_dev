@@ -1,6 +1,13 @@
 #include "../../aunit_hil.h"
 #include <SDFS.h>
 
+// Board configuration for hardware abstraction
+#if defined(ARDUINO_BLACKPILL_F411CE)
+#include "../../targets/BLACKPILL_F411CE.h"
+#else
+#include "../../targets/NUCLEO_F411RE.h"
+#endif
+
 /*
  * SDFS Unit Tests - AUnit Integration
  *
@@ -23,18 +30,11 @@
  * Note: Progressive implementation - some advanced tests removed to ensure stability
  */
 
-// Hardware configuration
-#if defined(ARDUINO_BLACKPILL_F411CE)
-#define CS_PIN PA4
-#define SPI_MOSI PA7
-#define SPI_MISO PA6
-#define SPI_SCLK PA5
-#else
-#define CS_PIN PD2
-#define SPI_MOSI PC12
-#define SPI_MISO PC11
-#define SPI_SCLK PC10
-#endif
+// Hardware configuration - BoardConfig integration (all SPI pins converted)
+#define CS_PIN BoardConfig::storage.cs_pin
+#define SPI_MOSI BoardConfig::storage.mosi_pin
+#define SPI_MISO BoardConfig::storage.miso_pin
+#define SPI_SCLK BoardConfig::storage.sclk_pin
 
 // Global filesystem instance - initialized once
 SDFS_SPI sdfs;
