@@ -311,6 +311,38 @@ BoardConfig::storage.begin();           // All setup handled internally
 File log = BoardConfig::storage.open("/flight.log", FILE_WRITE);
 ```
 
+### Generic Storage Abstraction 📋 **FUTURE PROJECT**
+
+**Goal**: Create unified storage interface that abstracts SDFS and LittleFS behind common API, with BoardConfig handling all hardware-specific details
+
+**Status**: Architecture defined, implementation needed
+**Dependencies**: Requires Board Configuration System for hardware abstraction
+
+**Key Requirements**:
+- 📋 **Generic Storage Interface**: Abstract base class or unified API (`Storage.h`)
+- 📋 **BoardConfig Integration**: BoardConfig handles storage type selection and initialization
+- 📋 **Hardware Abstraction**: Pin configuration, SPI setup handled by BoardConfig
+- 📋 **Seamless Switching**: Applications work identically with SDFS or LittleFS backends
+
+**Application Benefits**:
+- Sketches include only `<Storage.h>`, not specific storage libraries
+- `BoardConfig::storage.begin()` handles all hardware setup
+- Same application code works on different target boards
+- Storage implementation choice becomes pure configuration decision
+
+**Implementation Approach**:
+```cpp
+// Application view
+#include <Storage.h>
+BoardConfig::storage.begin();           // All setup handled internally
+File log = BoardConfig::storage.open("/flight.log", FILE_WRITE);
+
+// BoardConfig handles internally
+// - Storage type (SDFS for SD card, LittleFS for SPI flash)
+// - Pin assignments and SPI configuration
+// - Hardware-specific initialization
+```
+
 ### New Variant Validation 📋 **FUTURE PROJECT**
 
 Establish automated validation methodology for new STM32 board variants in custom Arduino core fork.
@@ -335,15 +367,14 @@ AVOID documentation duplication across files. Before adding content, check if it
 ## Clean Repository Policy
 
 **MANDATORY**: Always maintain clean repository state before commits
-- **No temporary build artifacts**: Remove sketch compilation artifacts (`tests/*/build/`, auto-generated `build_id.h`)
+- **No temporary build artifacts**: Remove sketch compilation artifacts (`tests/*/build/`, `cmake/*/build/`, auto-generated `build_id.h`)
 - **No binary artifacts**: Remove `*.bin`, `*.hex`, `*.elf` files from sketch builds
 - **No test artifacts**: Remove temporary test files and logs
-- **EXCEPTION**: Preserve intentional build examples (e.g., `cmake/*/build/` directories contain reference builds)
 
 **Cleanup Methods**:
 ```bash
-# Selective cleanup (recommended - excludes cmake examples)
-find tests/ libraries/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
+# Complete cleanup (all build artifacts)
+find tests/ libraries/ cmake/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
 find . -name "build_id.h" -delete 2>/dev/null || true
 find . -name "*.bin" -o -name "*.hex" -o -name "*.elf" -delete 2>/dev/null || true
 
