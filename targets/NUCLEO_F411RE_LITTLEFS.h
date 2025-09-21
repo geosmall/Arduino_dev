@@ -7,7 +7,7 @@
 // Uses Arduino pin macros for compatibility with existing code
 namespace BoardConfig {
   // Storage: SPI Flash for LittleFS (breadboard setup)
-  static constexpr SPIConfig storage{PC12, PC11, PC10, PD2, 1000000, 8000000};
+  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PC12, PC11, PC10, PD2, 1000000, 8000000};
   //                                 MOSI  MISO  SCLK  CS   Setup   Runtime
 
   // IMU: Available SPI pins for sensors (if needed)

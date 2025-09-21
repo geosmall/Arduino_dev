@@ -13,42 +13,43 @@
  * - Provides structured configuration management
  */
 
-// Create SPI instance using BoardConfig
-SPIClass configuredSPI(
-  BoardConfig::storage.mosi_pin,
-  BoardConfig::storage.miso_pin,
-  BoardConfig::storage.sclk_pin
-);
-
 test(board_config_pin_values) {
-  // Verify storage configuration values
-  assertEqual((unsigned int)BoardConfig::storage.mosi_pin, (unsigned int)PC12);
-  assertEqual((unsigned int)BoardConfig::storage.miso_pin, (unsigned int)PC11);
-  assertEqual((unsigned int)BoardConfig::storage.sclk_pin, (unsigned int)PC10);
-  assertEqual((unsigned int)BoardConfig::storage.cs_pin, (unsigned int)PD2);
+  // Verify storage configuration values for base NUCLEO_F411RE (no storage)
+  assertEqual((unsigned int)BoardConfig::storage.backend_type, (unsigned int)StorageBackend::NONE);
+  assertEqual((unsigned int)BoardConfig::storage.mosi_pin, 0U);
+  assertEqual((unsigned int)BoardConfig::storage.miso_pin, 0U);
+  assertEqual((unsigned int)BoardConfig::storage.sclk_pin, 0U);
+  assertEqual((unsigned int)BoardConfig::storage.cs_pin, 0U);
 
-  // Verify clock settings
-  assertEqual((unsigned long)BoardConfig::storage.setup_clock_hz, 1000000UL);
-  assertEqual((unsigned long)BoardConfig::storage.runtime_clock_hz, 8000000UL);
+  // Verify clock settings (should be 0 for NONE backend)
+  assertEqual((unsigned long)BoardConfig::storage.setup_clock_hz, 0UL);
+  assertEqual((unsigned long)BoardConfig::storage.runtime_clock_hz, 0UL);
 }
 
 test(board_config_spi_compatibility) {
-  // Test that SPI class accepts BoardConfig pin values
-  pinMode(BoardConfig::storage.cs_pin, OUTPUT);
-  digitalWrite(BoardConfig::storage.cs_pin, HIGH);
+  // Test that NONE backend is properly configured (no actual SPI operations)
+  // Base NUCLEO_F411RE has no storage hardware, so backend should be NONE
+  assertEqual((unsigned int)BoardConfig::storage.backend_type, (unsigned int)StorageBackend::NONE);
 
-  // This tests that the pin values work with standard Arduino functions
-  assertTrue(true); // If we get here, pin values are compatible
+  // Test that we can access other configured peripherals (IMU uses SPI pins)
+  pinMode(BoardConfig::imu.cs_pin, OUTPUT);
+  digitalWrite(BoardConfig::imu.cs_pin, HIGH);
+
+  // This tests that other SPI configurations work properly
+  assertTrue(true); // If we get here, other SPI pin values are compatible
 }
 
 test(board_config_constexpr) {
   // Test that configuration is compile-time constant
   constexpr auto storage = BoardConfig::storage;
-  assertEqual((unsigned int)storage.mosi_pin, (unsigned int)PC12);
+  assertEqual((unsigned int)storage.backend_type, (unsigned int)StorageBackend::NONE);
 
-  // Test other peripherals exist
+  // Test other peripherals exist and are properly configured
   constexpr auto gps_config = BoardConfig::gps;
   assertEqual((unsigned long)gps_config.baud_rate, 115200UL);
+
+  constexpr auto imu_config = BoardConfig::imu;
+  assertEqual((unsigned int)imu_config.cs_pin, (unsigned int)PA4);
 }
 
 // ============================================================================

@@ -4,8 +4,9 @@
 // NUCLEO F411RE development board configuration
 // Uses Arduino pin macros for compatibility with existing code
 namespace BoardConfig {
-  // Storage: SPI connections via jumpers (reduced speed for reliability)
-  static constexpr SPIConfig storage{PC12, PC11, PC10, PD2, 1000000, 2000000};
+  // Storage: No storage hardware attached by default on base Nucleo
+  // Use NUCLEO_F411RE_LITTLEFS.h or NUCLEO_F411RE_SDFS.h for storage testing
+  static constexpr StorageConfig storage{StorageBackend::NONE, 0, 0, 0, 0, 0, 0};
 
   // IMU: SPI connections via jumpers (reduced speed for reliability)
   static constexpr SPIConfig imu{PA7, PA6, PA5, PA4, 1000000, 2000000};

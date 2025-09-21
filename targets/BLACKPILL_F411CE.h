@@ -5,7 +5,7 @@
 // Uses Arduino pin macros for compatibility with existing code
 namespace BoardConfig {
   // Storage: SPI flash hardwired (can use higher speed)
-  static constexpr SPIConfig storage{PA7, PA6, PA5, PA4, 1000000, 8000000};
+  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PA7, PA6, PA5, PA4, 1000000, 8000000};
 
   // IMU: SPI connections via jumpers (reduced speed for reliability)
   static constexpr SPIConfig imu{PB15, PB14, PB13, PB12, 1000000, 2000000};
