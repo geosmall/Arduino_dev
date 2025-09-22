@@ -1,8 +1,8 @@
-#include <MinIniStorage.h>
-#include "../../targets/NUCLEO_F411RE_LITTLEFS.h"
+#include <minIniStorage.h>
+#include "../../targets/NUCLEO_F411RE_SDFS.h"
 #include "../../ci_log.h"
 
-MinIniStorage config("config.ini");
+minIniStorage config("config.ini");
 
 void setup() {
 #ifndef USE_RTT
@@ -12,7 +12,7 @@ void setup() {
   }
 #endif
 
-  CI_LOG("MinIniStorage LittleFS Test Starting\n");
+  CI_LOG("minIniStorage SDFS Test Starting\n");
   CI_BUILD_INFO();
 
   // Initialize BoardStorage first (like in Generic Storage Test)
@@ -21,29 +21,29 @@ void setup() {
     while(1);
   }
 
-  // Now initialize MinIniStorage (should recognize already initialized storage)
+  // Now initialize minIniStorage (should recognize already initialized storage)
   if (!config.begin(BoardConfig::storage)) {
-    CI_LOG("Failed to initialize MinIniStorage\n");
+    CI_LOG("Failed to initialize minIniStorage\n");
     while(1);
   }
 
-  CI_LOG("LittleFS storage initialized\n");
+  CI_LOG("SDFS storage initialized\n");
 
   // Display storage info
   uint64_t total_bytes = config.totalSize();
   uint64_t used_bytes = config.usedSize();
-  uint32_t total_kb = (uint32_t)(total_bytes / 1024);
-  uint32_t used_kb = (uint32_t)(used_bytes / 1024);
+  uint32_t total_mb = (uint32_t)(total_bytes / (1024*1024));
+  uint32_t used_mb = (uint32_t)(used_bytes / (1024*1024));
 
   char info_buffer[64];
-  sprintf(info_buffer, "Total: %lu KB, Used: %lu KB\n", total_kb, used_kb);
+  sprintf(info_buffer, "Total: %lu MB, Used: %lu MB\n", total_mb, used_mb);
   CI_LOG(info_buffer);
 
-  CI_LOG("Testing MinIni configuration management...\n");
+  CI_LOG("Testing minIni configuration management...\n");
 }
 
 void loop() {
-  CI_LOG("=== MinIni LittleFS Configuration Test ===\n");
+  CI_LOG("=== minIni SDFS Configuration Test ===\n");
 
   // Test writing various data types
   CI_LOG("Writing configuration values...\n");
@@ -68,9 +68,9 @@ void loop() {
     CI_LOG("Cannot test file creation - storage not initialized\n");
   }
 
-  bool result1 = config.put("network", "ip_address", "192.168.1.50");
-  bool result2 = config.put("network", "port", 9090);
-  bool result3 = config.put("network", "dhcp_enabled", false);
+  bool result1 = config.put("network", "ip_address", "192.168.10.100");
+  bool result2 = config.put("network", "port", 8080);
+  bool result3 = config.put("network", "dhcp_enabled", true);
 
   CI_LOG("Put results: ");
   CI_LOG(result1 ? "1" : "0");
@@ -80,13 +80,13 @@ void loop() {
   CI_LOG(result3 ? "1" : "0");
   CI_LOG("\n");
 
-  config.put("sensor", "temperature_offset", 1.5f);
-  config.put("sensor", "calibration_factor", 0.987f);
-  config.put("sensor", "sample_rate", 500);
+  config.put("sensor", "temperature_offset", 2.5f);
+  config.put("sensor", "calibration_factor", 1.234f);
+  config.put("sensor", "sample_rate", 1000);
 
-  config.put("system", "device_name", "LittleFS_Controller");
-  config.put("system", "firmware_version", "2.1.0");
-  config.put("system", "debug_mode", true);
+  config.put("system", "device_name", "UAV_Controller_01");
+  config.put("system", "firmware_version", "1.2.3");
+  config.put("system", "debug_mode", false);
 
   CI_LOG("Configuration written successfully\n");
 
@@ -105,7 +105,7 @@ void loop() {
   CI_LOG(port_str);
   CI_LOG("\n");
 
-  bool dhcp = config.getbool("network", "dhcp_enabled", true);
+  bool dhcp = config.getbool("network", "dhcp_enabled", false);
   CI_LOG("DHCP: ");
   CI_LOG(dhcp ? "Enabled" : "Disabled");
   CI_LOG("\n");
@@ -134,7 +134,7 @@ void loop() {
   CI_LOG(fw_version.c_str());
   CI_LOG("\n");
 
-  bool debug = config.getbool("system", "debug_mode", false);
+  bool debug = config.getbool("system", "debug_mode", true);
   CI_LOG("Debug Mode: ");
   CI_LOG(debug ? "Enabled" : "Disabled");
   CI_LOG("\n");
@@ -158,7 +158,7 @@ void loop() {
     }
   }
 
-  CI_LOG("=== MinIni LittleFS Test Complete ===\n");
+  CI_LOG("=== minIni SDFS Test Complete ===\n");
   CI_LOG("*STOP*\n");
 
   while(true) {;}

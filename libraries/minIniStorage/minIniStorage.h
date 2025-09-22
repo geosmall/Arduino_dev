@@ -1,4 +1,4 @@
-/*  MinIniStorage Library - Main Include
+/*  minIniStorage Library - Main Include
  *
  *  Unified INI configuration management with Generic Storage Abstraction
  *
@@ -8,4 +8,4 @@
 
 #pragma once
 
-#include "src/MinIniStorage.h"
+#include "src/minIniStorage.h"

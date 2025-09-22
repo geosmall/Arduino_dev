@@ -1,7 +1,7 @@
 /*
- * MinIniStorage Example
+ * minIniStorage Example
  *
- * Demonstrates INI configuration management using MinIniStorage library
+ * Demonstrates INI configuration management using minIniStorage library
  * with automatic storage backend selection (LittleFS or SDFS).
  *
  * This example shows:
@@ -18,7 +18,7 @@
  * - Appropriate target configuration
  */
 
-#include <MinIniStorage.h>
+#include <minIniStorage.h>
 #include "../../../../../ci_log.h"
 
 // Board target configuration - update to match your hardware setup:
@@ -30,14 +30,14 @@ void setup() {
   Serial.begin(115200);
   while (!Serial) delay(10);
 
-  CI_LOG("=== MinIniStorage Example ===\n");
+  CI_LOG("=== minIniStorage Example ===\n");
   CI_LOG("minIni v1.5 Configuration Management Demo\n");
   CI_BUILD_INFO();
   CI_READY_TOKEN();
   CI_LOG("\n");
 
-  // Create MinIniStorage instance for settings file
-  MinIniStorage config("settings.ini");
+  // Create minIniStorage instance for settings file
+  minIniStorage config("settings.ini");
 
   // Initialize storage with board configuration
   CI_LOG("Initializing storage...\n");
@@ -150,7 +150,7 @@ void setup() {
 
   // === Demonstration Complete ===
   CI_LOG("=== Example Complete ===\n");
-  CI_LOG("MinIniStorage successfully demonstrated!\n");
+  CI_LOG("minIniStorage successfully demonstrated!\n");
   CI_LOG("Check your storage device - settings.ini has been created\n");
 
   #ifdef USE_RTT

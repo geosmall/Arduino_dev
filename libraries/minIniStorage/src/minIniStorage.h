@@ -1,4 +1,4 @@
-/*  MinIniStorage - INI Configuration Management with Generic Storage Abstraction
+/*  minIniStorage - INI Configuration Management with Generic Storage Abstraction
  *
  *  Provides unified configuration management supporting both:
  *  - LittleFS (SPI flash storage for configuration, firmware)
@@ -8,10 +8,10 @@
  *  Maintains MinIni's clean C++ std::string-based API.
  *
  *  Usage:
- *    #include <MinIniStorage.h>
+ *    #include <minIniStorage.h>
  *    #include "targets/NUCLEO_F411RE_LITTLEFS.h"  // or SDFS variant
  *
- *    MinIniStorage config("settings.ini");
+ *    minIniStorage config("settings.ini");
  *    std::string ip = config.gets("network", "ip_address", "192.168.1.1");
  *    config.put("user", "last_login", "2025-09-22");
  */
@@ -23,14 +23,14 @@
 #include <BoardStorage.h>
 #include "minIni.h"
 
-class MinIniStorage {
+class minIniStorage {
 private:
     std::string filename;
     bool storage_initialized;
 
 public:
     // Constructor takes INI filename
-    MinIniStorage(const std::string& iniFilename)
+    minIniStorage(const std::string& iniFilename)
         : filename(iniFilename), storage_initialized(false) {
     }
 
