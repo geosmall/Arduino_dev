@@ -109,6 +109,19 @@ public:
         return ini.getkey(Section, idx);
     }
 
+    // MinIni v1.5 new functionality
+    bool hassection(const std::string& Section) const {
+        if (!storage_initialized) return false;
+        minIni ini(filename);
+        return ini.hassection(Section);
+    }
+
+    bool haskey(const std::string& Section, const std::string& Key) const {
+        if (!storage_initialized) return false;
+        minIni ini(filename);
+        return ini.haskey(Section, Key);
+    }
+
     // Write methods
     bool put(const std::string& Section, const std::string& Key, long Value) {
         if (!storage_initialized) return false;

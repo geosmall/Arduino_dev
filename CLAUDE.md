@@ -336,25 +336,28 @@ void setup() {
 - **Type Safety**: Compile-time backend selection with runtime validation
 - **HIL Integration**: Seamless integration with existing test framework
 
-### MinIni Configuration Management System ✅ **COMPLETED**
+### minIni Configuration Management System ✅ **COMPLETED**
 
 Unified INI file configuration management system integrated with Generic Storage Abstraction supporting both LittleFS and SDFS backends.
 
-**Goal**: MinIni-based key-value configuration system with seamless storage backend switching for UAV flight controller applications
+**Goal**: minIni-based key-value configuration system with seamless storage backend switching for UAV flight controller applications
 
-**Status**: Complete integration with dual backend validation
+**Status**: Complete integration with minIni v1.5 upgrade and dual backend validation
 **Completion**: September 22, 2025
 
 **Key Achievements**:
+- ✅ **minIni v1.5 Upgrade**: Updated from legacy version to latest minIni v1.5 with enhanced functionality
 - ✅ **Complete MinIniStorage Library**: `libraries/MinIniStorage/` with StorageGlue.h abstraction layer
-- ✅ **Storage Integration**: MinIni operates through Generic Storage Abstraction instead of custom SD implementation
+- ✅ **Storage Integration**: minIni operates through Generic Storage Abstraction instead of custom SD implementation
 - ✅ **Dual Backend Support**: Full validation on both LittleFS (16MB SPI Flash) and SDFS (30GB SD Card)
 - ✅ **Split Test Architecture**: Separate unit tests for each backend without manual switching
 - ✅ **Complete Data Type Support**: Strings, integers, floats, booleans, section/key enumeration
+- ✅ **minIni v1.5 Features**: New hassection() and haskey() validation methods
 - ✅ **HIL Integration**: Deterministic testing with exit wildcard detection and build traceability
+- ✅ **Production Example**: Complete MinIniStorage_Example with ci_log.h integration
 
 **Technical Implementation**:
-- **StorageGlue.h**: Complete glue layer replacing minGlue.h, bridges MinIni to Storage.h API
+- **StorageGlue.h**: Complete glue layer replacing minGlue.h, bridges minIni to Storage.h API
 - **MinIniStorage.h**: High-level wrapper class providing clean initialization and configuration management
 - **Backend Abstraction**: Automatic storage selection via BoardConfig with no code changes required
 - **Filename Compatibility**: Resolved FAT filesystem limitations for reliable INI file operations
@@ -377,13 +380,20 @@ void setup() {
     std::string ip = config.gets("network", "ip_address", "192.168.1.1");
     int rate = config.geti("system", "sample_rate", 100);
     bool debug = config.getbool("debug", "enabled", false);
+
+    // minIni v1.5 features
+    if (config.hassection("network")) {
+      if (config.haskey("network", "ip_address")) {
+        // Key exists, safe to read
+      }
+    }
   }
 }
 ```
 
 **Validation Results**:
-- **LittleFS Backend**: All 3 unit tests passed (8/8 core tests, storage abstraction, MinIni integration)
-- **SDFS Backend**: All 3 unit tests passed (7/7 core tests, storage abstraction, MinIni integration)
+- **LittleFS Backend**: All 3 unit tests passed (8/8 core tests, storage abstraction, minIni integration)
+- **SDFS Backend**: All 3 unit tests passed (7/7 core tests, storage abstraction, minIni integration)
 - **Cross-Platform**: Same MinIniStorage code works seamlessly with both storage types
 - **HIL Testing**: Complete deterministic validation with 6 comprehensive test suites
 
