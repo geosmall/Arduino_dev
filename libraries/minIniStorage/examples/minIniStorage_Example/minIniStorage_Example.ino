@@ -110,8 +110,8 @@ void setup() {
   CI_LOG("Debug Mode: "); CI_LOG(debug ? "Enabled" : "Disabled"); CI_LOG("\n");
   CI_LOG("\n");
 
-  // === MinIni v1.5 New Features ===
-  CI_LOG("=== MinIni v1.5 Features ===\n");
+  // === minIni v1.5 New Features ===
+  CI_LOG("=== minIni v1.5 Features ===\n");
 
   // Check if sections exist
   CI_LOG("Has 'network' section: ");

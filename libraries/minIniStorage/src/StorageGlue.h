@@ -1,6 +1,6 @@
 /*  Storage Glue functions for the minIni library, using Generic Storage Abstraction
  *
- *  Integrates MinIni with unified Storage.h interface supporting both:
+ *  Integrates minIni with unified Storage.h interface supporting both:
  *  - LittleFS (SPI flash storage)
  *  - SDFS (SD card storage via SPI)
  *

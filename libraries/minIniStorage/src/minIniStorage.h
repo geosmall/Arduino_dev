@@ -5,7 +5,7 @@
  *  - SDFS (SD card storage for data logging, bulk storage)
  *
  *  Storage backend automatically selected based on BoardConfig.
- *  Maintains MinIni's clean C++ std::string-based API.
+ *  Maintains minIni's clean C++ std::string-based API.
  *
  *  Usage:
  *    #include <minIniStorage.h>
@@ -66,7 +66,7 @@ public:
         return BOARD_STORAGE.usedSize();
     }
 
-    // MinIni wrapper methods - delegate to internal minIni instance
+    // minIni wrapper methods - delegate to internal minIni instance
     bool getbool(const std::string& Section, const std::string& Key, bool DefValue = false) const {
         if (!storage_initialized) return DefValue;
         minIni ini(filename);
@@ -109,7 +109,7 @@ public:
         return ini.getkey(Section, idx);
     }
 
-    // MinIni v1.5 new functionality
+    // minIni v1.5 new functionality
     bool hassection(const std::string& Section) const {
         if (!storage_initialized) return false;
         minIni ini(filename);

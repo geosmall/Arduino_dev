@@ -347,27 +347,27 @@ Unified INI file configuration management system integrated with Generic Storage
 
 **Key Achievements**:
 - ✅ **minIni v1.5 Upgrade**: Updated from legacy version to latest minIni v1.5 with enhanced functionality
-- ✅ **Complete MinIniStorage Library**: `libraries/MinIniStorage/` with StorageGlue.h abstraction layer
+- ✅ **Complete minIniStorage Library**: `libraries/minIniStorage/` with StorageGlue.h abstraction layer
 - ✅ **Storage Integration**: minIni operates through Generic Storage Abstraction instead of custom SD implementation
 - ✅ **Dual Backend Support**: Full validation on both LittleFS (16MB SPI Flash) and SDFS (30GB SD Card)
 - ✅ **Split Test Architecture**: Separate unit tests for each backend without manual switching
 - ✅ **Complete Data Type Support**: Strings, integers, floats, booleans, section/key enumeration
 - ✅ **minIni v1.5 Features**: New hassection() and haskey() validation methods
 - ✅ **HIL Integration**: Deterministic testing with exit wildcard detection and build traceability
-- ✅ **Production Example**: Complete MinIniStorage_Example with ci_log.h integration
+- ✅ **Production Example**: Complete minIniStorage_Example with ci_log.h integration
 
 **Technical Implementation**:
 - **StorageGlue.h**: Complete glue layer replacing minGlue.h, bridges minIni to Storage.h API
-- **MinIniStorage.h**: High-level wrapper class providing clean initialization and configuration management
+- **minIniStorage.h**: High-level wrapper class providing clean initialization and configuration management
 - **Backend Abstraction**: Automatic storage selection via BoardConfig with no code changes required
 - **Filename Compatibility**: Resolved FAT filesystem limitations for reliable INI file operations
 
 **Production Usage**:
 ```cpp
-#include <MinIniStorage.h>
+#include <minIniStorage.h>
 #include "targets/NUCLEO_F411RE_LITTLEFS.h"  // or SDFS variant
 
-MinIniStorage config("config.ini");
+minIniStorage config("config.ini");
 
 void setup() {
   if (config.begin(BoardConfig::storage)) {
@@ -394,7 +394,7 @@ void setup() {
 **Validation Results**:
 - **LittleFS Backend**: All 3 unit tests passed (8/8 core tests, storage abstraction, minIni integration)
 - **SDFS Backend**: All 3 unit tests passed (7/7 core tests, storage abstraction, minIni integration)
-- **Cross-Platform**: Same MinIniStorage code works seamlessly with both storage types
+- **Cross-Platform**: Same minIniStorage code works seamlessly with both storage types
 - **HIL Testing**: Complete deterministic validation with 6 comprehensive test suites
 
 ## Future Projects
