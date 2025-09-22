@@ -1,31 +1,19 @@
-// Generic Storage Abstraction Test
-// Comprehensive validation without AUnit framework
-
-// Define target configuration for LittleFS SPI flash rig
-#define TARGET_NUCLEO_F411RE_LITTLEFS
+// Generic Storage Abstraction Test - LittleFS Backend
+// Comprehensive validation of Storage abstraction with LittleFS SPI flash
 
 #include <Storage.h>
 #include <BoardStorage.h>
+#include "../../targets/NUCLEO_F411RE_LITTLEFS.h"
 #include "../../ci_log.h"
 
-// Include board configuration
-#if defined(ARDUINO_BLACKPILL_F411CE)
-#include "../../targets/BLACKPILL_F411CE.h"
-#elif defined(TARGET_NUCLEO_F411RE_LITTLEFS)
-#include "../../targets/NUCLEO_F411RE_LITTLEFS.h"
-#elif defined(TARGET_NUCLEO_F411RE_SDFS)
-#include "../../targets/NUCLEO_F411RE_SDFS.h"
-#else
-#include "../../targets/NUCLEO_F411RE.h"
-#endif
-
 void setup() {
+#ifndef USE_RTT
   Serial.begin(115200);
   while (!Serial) delay(10);
+#endif
 
-  CI_LOG("=== Generic Storage Test ===\n");
+  CI_LOG("=== Generic Storage LittleFS Test ===\n");
   CI_BUILD_INFO();
-  CI_READY_TOKEN();
 
   // Test 1: Check board configuration
   CI_LOG("Test 1: Board Configuration\n");
@@ -71,7 +59,7 @@ void setup() {
     CI_LOG("Test 4: File Operations\n");
     File testFile = fs.open("/test.txt", FILE_WRITE);
     if (testFile) {
-      testFile.println("Generic Storage Test");
+      testFile.println("Generic Storage LittleFS Test");
       testFile.close();
       CI_LOG("✓ File written\n");
 
@@ -95,10 +83,8 @@ void setup() {
     }
   }
 
-  CI_LOG("\n=== Test Complete ===\n");
-  #ifdef USE_RTT
+  CI_LOG("\n=== LittleFS Test Complete ===\n");
   CI_LOG("*STOP*\n");
-  #endif
 }
 
 void loop() {
