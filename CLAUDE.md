@@ -351,7 +351,38 @@ Establish automated validation methodology for new STM32 board variants in custo
 
 ## Active Projects
 
-*No active projects currently - all major framework components completed.*
+### MinIni Configuration Management System 🔄 **ACTIVE PROJECT**
+
+Create MinIni-based key-value configuration file management system integrated with Generic Storage Abstraction.
+
+**Goal**: Unified configuration system supporting both LittleFS (SPI flash) and SDFS (SD card) backends with MinIni INI file parser
+
+**Current Status**: Foundation established with working MinIni example
+**Started**: September 22, 2025
+
+**Completed Foundation**:
+- ✅ **MinIni_Ex Working Example**: Successfully tested on SD card rig with PD2 CS pin
+- ✅ **Dual-Mode Support**: Same code works with Arduino IDE (Serial) and HIL framework (RTT)
+- ✅ **Float Support Fixed**: CI_LOG_FLOAT() helper for both RTT (dtostrf) and Serial (native) modes
+- ✅ **HIL Integration**: Deterministic testing with *STOP* token and build traceability
+- ✅ **MinIni v1.5 Source**: Official library available for future integration
+
+**Architecture Plan**:
+- **Storage Glue Layer**: Replace `geoSD` dependency with Generic Storage Abstraction
+- **Unified Backend**: MinIni working seamlessly with both LittleFS and SDFS
+- **Board Configuration**: Automatic storage selection via BoardConfig system
+- **Clean API**: Maintain MinIni's std::string-based C++ interface
+
+**Next Steps**:
+1. Create Storage-based glue layer (`StorageGlue.h`) to replace `minGlue.h`
+2. Port MinIni library to use `Storage.h` instead of custom SD implementation
+3. Design configuration system leveraging BoardConfig for storage selection
+4. Validate on both SPI flash (LittleFS) and SD card (SDFS) backends
+
+**Target Applications**:
+- UAV flight controller configuration management
+- Sensor calibration parameters
+- System settings and operational parameters
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
