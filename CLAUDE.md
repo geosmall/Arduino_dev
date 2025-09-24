@@ -146,16 +146,10 @@ This repository is specifically designed for **UAV flight controller boards** wi
 - **Real-time Data Logging** - Flight data, telemetry, and configuration storage
 - **Sensor Data Management** - IMU, GPS, and other sensor data processing
 
-### Storage Libraries Focus
-The repository includes multiple storage libraries designed for embedded systems applications:
-
-**Primary Storage Libraries**:
-- **LittleFS** - SPI flash storage for configuration, firmware, and small data files
-  - **Examples**: ListFiles, LittleFS_ChipID, LittleFS_Usage (all integrated with ci_log.h for HIL testing)
-  - **Hardware Support**: 20+ SPI flash chips (512KB-128MB) from multiple manufacturers
-- **SDFS** - Custom SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
-
-Both LittleFS and SDFS provide identical APIs for seamless switching between storage types.
+### Storage Libraries
+- **LittleFS** - SPI flash storage (configuration, firmware, small data files)
+- **SDFS** - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
+- **Generic Storage Abstraction** - Unified interface for seamless backend switching
 
 ### Key Libraries
 
@@ -294,35 +288,22 @@ SPIClass SPIbus(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin, Bo
 
 ### Generic Storage Abstraction ✅ **COMPLETED**
 
-**Goal**: Create unified storage interface that abstracts SDFS and LittleFS behind common API, with BoardConfig handling all hardware-specific details
+Unified storage interface abstracting SDFS and LittleFS with automatic backend selection.
 
-**Status**: Complete unified storage abstraction with automatic backend selection
-**Completion**: September 21, 2025
-
-**Key Achievements**:
-- ✅ **Unified Storage Interface**: `Storage.h` provides seamless abstraction over SDFS and LittleFS
-- ✅ **Board Configuration Integration**: `BoardStorage::begin(config)` with explicit configuration passing
-- ✅ **Runtime Backend Selection**: Factory pattern selects storage backend based on board configuration
-- ✅ **Target Configuration Fix**: Resolved library compilation mismatch for preprocessor defines
-- ✅ **Clean API Design**: Single `BOARD_STORAGE` macro provides access to configured storage
-
-**Technical Implementation**:
-- **Storage.cpp**: Delegation pattern with backend-specific initialization
-- **BoardStorage.cpp**: Factory with explicit configuration to avoid compilation issues
-- **Storage_Demo**: Complete demonstration example with HIL integration
-- **Error Handling**: Comprehensive error reporting and graceful failure handling
+**Key Features**:
+- **Unified API**: Single interface for both storage backends
+- **Board Integration**: Automatic backend selection via BoardConfig
+- **Runtime Safety**: Factory pattern with comprehensive error handling
 
 **Production Usage**:
 ```cpp
 #include <Storage.h>
 #include <BoardStorage.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"  // or appropriate target
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
 
 void setup() {
-  // Initialize with explicit configuration (resolves library compilation issues)
   if (BoardStorage::begin(BoardConfig::storage)) {
     Storage& fs = BOARD_STORAGE;
-
     File log = fs.open("/flight.log", FILE_WRITE);
     log.println("Unified storage working!");
     log.close();
@@ -330,75 +311,94 @@ void setup() {
 }
 ```
 
-**Architecture Benefits**:
-- **Single Codebase**: Applications work with both storage types without modification
-- **Board-Specific**: Storage type automatically selected based on hardware configuration
-- **Type Safety**: Compile-time backend selection with runtime validation
-- **HIL Integration**: Seamless integration with existing test framework
-
 ### minIni Configuration Management System ✅ **COMPLETED**
 
-Unified INI file configuration management system integrated with Generic Storage Abstraction supporting both LittleFS and SDFS backends.
+INI file configuration management integrated with Generic Storage Abstraction for both LittleFS and SDFS backends.
 
-**Goal**: minIni-based key-value configuration system with seamless storage backend switching for UAV flight controller applications
-
-**Status**: Complete integration with minIni v1.5 upgrade and dual backend validation
-**Completion**: September 22, 2025
-
-**Key Achievements**:
-- ✅ **minIni v1.5 Upgrade**: Updated from legacy version to latest minIni v1.5 with enhanced functionality
-- ✅ **Complete minIniStorage Library**: `libraries/minIniStorage/` with StorageGlue.h abstraction layer
-- ✅ **Storage Integration**: minIni operates through Generic Storage Abstraction instead of custom SD implementation
-- ✅ **Dual Backend Support**: Full validation on both LittleFS (16MB SPI Flash) and SDFS (30GB SD Card)
-- ✅ **Split Test Architecture**: Separate unit tests for each backend without manual switching
-- ✅ **Complete Data Type Support**: Strings, integers, floats, booleans, section/key enumeration
-- ✅ **minIni v1.5 Features**: New hassection() and haskey() validation methods
-- ✅ **HIL Integration**: Deterministic testing with exit wildcard detection and build traceability
-- ✅ **Production Example**: Complete minIniStorage_Example with ci_log.h integration
-
-**Technical Implementation**:
-- **StorageGlue.h**: Complete glue layer replacing minGlue.h, bridges minIni to Storage.h API
-- **minIniStorage.h**: High-level wrapper class providing clean initialization and configuration management
-- **Backend Abstraction**: Automatic storage selection via BoardConfig with no code changes required
-- **Filename Compatibility**: Resolved FAT filesystem limitations for reliable INI file operations
+**Key Features**:
+- **minIni v1.5**: Latest version with enhanced validation (hassection/haskey)
+- **Storage Integration**: Works with both LittleFS and SDFS via unified interface
+- **Data Types**: Strings, integers, floats, booleans with section/key enumeration
+- **HIL Testing**: Full deterministic validation with 6 test suites
 
 **Production Usage**:
 ```cpp
 #include <minIniStorage.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"  // or SDFS variant
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
 
 minIniStorage config("config.ini");
 
 void setup() {
   if (config.begin(BoardConfig::storage)) {
-    // Write configuration
     config.put("network", "ip_address", "192.168.1.100");
     config.put("system", "sample_rate", 1000);
-    config.put("debug", "enabled", true);
 
-    // Read configuration
     std::string ip = config.gets("network", "ip_address", "192.168.1.1");
     int rate = config.geti("system", "sample_rate", 100);
-    bool debug = config.getbool("debug", "enabled", false);
-
-    // minIni v1.5 features
-    if (config.hassection("network")) {
-      if (config.haskey("network", "ip_address")) {
-        // Key exists, safe to read
-      }
-    }
   }
 }
 ```
 
-**Validation Results**:
-- **LittleFS Backend**: All 3 unit tests passed (8/8 core tests, storage abstraction, minIni integration)
-- **SDFS Backend**: All 3 unit tests passed (7/7 core tests, storage abstraction, minIni integration)
-- **Cross-Platform**: Same minIniStorage code works seamlessly with both storage types
-- **HIL Testing**: Complete deterministic validation with 6 comprehensive test suites
+## Active Projects
+
+### ICM-42688-P IMU Library Integration 🔄 **ACTIVE PROJECT**
+
+Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL testing integration.
+
+**Goal**: Port manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface
+**Status**: Phase 1 Complete ✅ | Phase 2 - Advanced functionality in progress
+**Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI
+
+**Phase 1 Complete ✅**: Minimal SPI Communication
+- **✅ Minimal Arduino Library**: `ICM42688P_Simple` class with software CS control
+- **✅ SPI Communication**: Successfully reading WHO_AM_I register (0x47)
+- **✅ HIL Integration**: Full `ci_log.h` integration with deterministic testing
+- **✅ Pin Configuration**: NUCLEO_F411RE pins verified (PA4=CS, PA7=MOSI, PA6=MISO, PA5=SCLK)
+- **✅ Build Integration**: Complete `./scripts/build.sh` and `./scripts/aflash.sh` support
+
+**Production Integration**:
+```cpp
+#include <ICM42688P_Simple.h>
+#include <SPI.h>
+#include "../../../../ci_log.h"
+
+SPIClass spi(PA7, PA6, PA5);  // MOSI, MISO, SCLK (software CS)
+ICM42688P_Simple imu;
+
+void setup() {
+  if (imu.begin(spi, PA4, 1000000)) {  // CS=PA4, 1MHz
+    uint8_t device_id = imu.readWhoAmI();  // Returns 0x47
+    CI_LOG("✓ ICM42688P connected and responding\n");
+  }
+}
+```
+
+**Current Development Plan**:
+
+**Phase 2: Advanced IMU Functionality** (In Progress)
+1. **Sensor Data Reading** - Accelerometer and gyroscope data acquisition
+2. **Configuration Management** - Sample rates, ranges, filters
+3. **Interrupt Handling** - Data ready and threshold interrupts
+4. **Calibration Support** - Zero-offset and sensitivity calibration
+
+**Phase 3: Manufacturer Integration**
+5. **Port manufacturer drivers** - Integrate TDK InvenSense drivers from `src/Invn/`
+6. **Self-test integration** - Port manufacturer self-test routines
+7. **Advanced features** - Motion detection, FIFO management
+
+**Technical Architecture**:
+- **Minimal Layer**: `ICM42688P_Simple` for basic register access
+- **Advanced Layer**: Full manufacturer driver integration
+- **Software CS Control**: Required for reliable IMU communication
+- **HIL Testing**: Deterministic validation at each layer
+
+**Key Success Factors**:
+1. **✅ Software CS Control**: Essential for IMU communication reliability
+2. **✅ Pin Configuration**: Proper Arduino pin mapping without integer arithmetic
+3. **✅ HIL Integration**: Automated testing with RTT and exit wildcards
+4. **✅ Build Traceability**: Git SHA and timestamp integration
 
 ## Future Projects
-
 
 ### New Variant Validation 📋 **FUTURE PROJECT**
 
@@ -409,10 +409,6 @@ Establish automated validation methodology for new STM32 board variants in custo
 - **Serial Communication**: Validation patterns for `Serial.print()` functionality
 - **HIL Integration**: Integration with existing framework for deterministic testing
 - **Multi-Family Support**: STM32F4xx, F7xx, H7xx variant validation
-
-## Active Projects
-
-*No active projects currently - all major framework components completed.*
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
