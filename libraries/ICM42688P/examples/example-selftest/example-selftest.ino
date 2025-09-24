@@ -37,7 +37,6 @@
 
 // libPrintf integration - automatic aliasing enabled
 #include <libPrintf.h>
-
 // Uncomment to use software driven NSS
 #define USE_SOFT_NSS
 #define DESIRED_SPI_FREQ 1000000
@@ -59,7 +58,6 @@ SPIClass spi_bus(IMU_MOSI_PIN, IMU_MISO_PIN, IMU_SCLK_PIN);  // No SSEL = softwa
 char buf[128];
 
 void setup() {
-
     // Initialize the UVOS board hardware
 #ifndef USE_RTT
     Serial.begin(115200);
