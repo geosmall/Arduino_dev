@@ -2,9 +2,10 @@
  *  Extern functions definition - Invensense to UVOS adapters
  * -------------------------------------------------------------------------------------- */
 
+#include "stm32f4xx_ll_spi.h"
+
 /* Default SPI frequency is 1 Mhz */
 static uint32_t spi_freq_hz_ = IMU_SPI_SPEED;
-SPIClass* spi_bus_;
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,6 +19,97 @@ void inv_spi_bus_deselect_device(void);
 uint8_t inv_spi_transfer_byte(uint8_t txByte);
 int inv_spi_bus_read_registers(uint8_t addr, uint8_t count, uint8_t* data);
 int inv_spi_bus_write_register(uint8_t reg, const uint8_t* data);
+
+/******************************************************/
+/* Low-level DWT based delay interface implementation */
+/******************************************************/
+
+static uint32_t usTicks_; // Holds DWT ticks per microsecond
+static SPI_HandleTypeDef* spi_hdl_; // Used for STM32 HAL/LL SPI access
+static PinName cs_pin_; // Hold for fast CS pin access
+
+
+void DelayUs(uint32_t delay_us);
+void DelayNs(uint32_t delay_ns);
+spi_status_e TransferLL(const uint8_t *tx_buffer, uint8_t *rx_buffer, uint16_t len);
+
+void DelayUs(uint32_t delay_us)
+{
+    const uint32_t start  = dwt_getCycles();
+    const uint32_t ticks = delay_us * usTicks_;
+    while ((dwt_getCycles() - start) < ticks) { }
+}
+
+void DelayNs(uint32_t delay_ns)
+{
+    const uint32_t start  = DWT->CYCCNT;
+    const uint32_t ticks = (delay_ns * usTicks_) / 1000;
+    while ((DWT->CYCCNT - start) < ticks) { }
+}
+
+spi_status_e TransferLL(const uint8_t *tx_buffer, uint8_t *rx_buffer, uint16_t len)
+{
+  spi_status_e ret = SPI_OK;
+  uint32_t tickstart, size = len;
+  SPI_TypeDef *_SPI = spi_hdl_->Instance;
+  uint8_t *tx_buf = (uint8_t *)tx_buffer;
+
+  if (len == 0) {
+    ret = SPI_ERROR;
+  } else {
+    tickstart = HAL_GetTick();
+
+#if defined(SPI_CR2_TSIZE)
+    /* Start transfer */
+    LL_SPI_SetTransferSize(_SPI, size);
+    LL_SPI_Enable(_SPI);
+    LL_SPI_StartMasterTransfer(_SPI);
+#endif
+
+    while (size--) {
+#if defined(SPI_SR_TXP)
+      while (!LL_SPI_IsActiveFlag_TXP(_SPI));
+#else
+      while (!LL_SPI_IsActiveFlag_TXE(_SPI));
+#endif
+      LL_SPI_TransmitData8(_SPI, tx_buf ? *tx_buf++ : 0XFF);
+
+#if defined(SPI_SR_RXP)
+      while (!LL_SPI_IsActiveFlag_RXP(_SPI));
+#else
+      while (!LL_SPI_IsActiveFlag_RXNE(_SPI));
+#endif
+      if (rx_buffer) {
+        *rx_buffer++ = LL_SPI_ReceiveData8(_SPI);
+      } else {
+        LL_SPI_ReceiveData8(_SPI);
+      }
+      if ((SPI_TRANSFER_TIMEOUT != HAL_MAX_DELAY) &&
+          (HAL_GetTick() - tickstart >= SPI_TRANSFER_TIMEOUT)) {
+        ret = SPI_TIMEOUT;
+        break;
+      }
+    }
+
+#if defined(SPI_IFCR_EOTC)
+    // Add a delay before disabling SPI otherwise last-bit/last-clock may be truncated
+    // See https://github.com/stm32duino/Arduino_Core_STM32/issues/1294
+    // Computed delay is half SPI clock
+    delayMicroseconds(obj->disable_delay);
+
+    /* Close transfer */
+    /* Clear flags */
+    LL_SPI_ClearFlag_EOT(_SPI);
+    LL_SPI_ClearFlag_TXTF(_SPI);
+    /* Disable SPI peripheral */
+    LL_SPI_Disable(_SPI);
+#else
+    /* Wait for end of transfer */
+    while (LL_SPI_IsActiveFlag_BSY(_SPI));
+#endif
+  }
+  return ret;
+}
 
 /******************************************************/
 /* Low-level serial interface function implementation */
@@ -37,56 +129,17 @@ void inv_io_hal_configure_spi_speed(uint8_t spi_freq_mhz)
 
 int inv_io_hal_init(struct inv_icm426xx_serif* serif)
 {
-
-#if 0 // gls
-    uint8_t spi_freq_mhz = spi_default_freq_mhz_;
-
-    // Initialize chip select (CS) pin
-    csPin_.Init(CS_PIN, GPIO::Mode::OUTPUT, GPIO::Pull::PULLUP);
-
-    // Configure the Uart Peripheral to print out results
-    UartHandler::Config uart_conf;
-    uart_conf.periph        = UART_NUM;
-    uart_conf.mode          = UartHandler::Config::Mode::TX;
-    uart_conf.pin_config.tx = TX_PIN;
-    uart_conf.pin_config.rx = RX_PIN;
-
-    // Initialize the uart peripheral and start the DMA transmit
-    uart.Init(uart_conf);
-
-    // Configure the ICM-42688P IMU SPI interface (match for Matek_H743 WLITE)
-    spi_conf.periph = SpiHandle::Config::Peripheral::SPI_1;
-    spi_conf.mode = SpiHandle::Config::Mode::MASTER;
-    spi_conf.direction = SpiHandle::Config::Direction::TWO_LINES;
-    spi_conf.clock_polarity = SpiHandle::Config::ClockPolarity::HIGH;
-    spi_conf.clock_phase = SpiHandle::Config::ClockPhase::TWO_EDGE;
-
-#ifdef USE_SOFT_NSS
-    spi_conf.nss = SpiHandle::Config::NSS::SOFT;
-#else
-    spi_conf.nss = SpiHandle::Config::NSS::HARD_OUTPUT;
-#endif /* USE_SOFT_NSS */
-
-    spi_conf.pin_config.nss = CS_PIN;
-    spi_conf.pin_config.sclk = SCLK_PIN;
-    spi_conf.pin_config.miso = MISO_PIN;
-    spi_conf.pin_config.mosi = MOSI_PIN;
-
-    // spi_conf.baud_prescaler = SpiHandle::Config::BaudPrescaler::PS_32;
-    spi_handle.GetBaudHz(spi_conf.periph, (spi_freq_mhz * 1'000'000), spi_conf.baud_prescaler);
-
-    // Initialize the IMU SPI instance
-    spi_handle.Init(spi_conf);
-
-#endif // gls
-
-    // Initialize CS pin
+    // Initialize CS pin and save PinName for fast access
     pinMode(IMU_CS_PIN, OUTPUT);
     digitalWrite(IMU_CS_PIN, HIGH);
+    cs_pin_ = digitalPinToPinName(IMU_CS_PIN);
 
-    // Cast the context back to SPIClass pointer and call begin()
-    spi_bus_ = static_cast<SPIClass*>(serif->context);
-    spi_bus_->begin(SPISettings(spi_freq_hz_, MSBFIRST, SPI_MODE0));
+    // Set DWT ticks per uSec
+    usTicks_ = SystemCoreClock / 1'000'000;
+
+    // Save SPI instance handle and init SPI peripheral
+    spi_hdl_ = spi_bus.getHandle();
+    spi_bus.begin(SPISettings(spi_freq_hz_, MSBFIRST, SPI_MODE0));
 
     return 0;
 }
@@ -121,35 +174,33 @@ void inv_spi_chip_select_setup_delay(void)
 {
     // CS->CLK delay, MPU6000 - 8ns
     // CS->CLK delay, ICM42688P - 39ns
-    // System::DelayNs(39);
-    delayMicroseconds(1);
+    DelayNs(39);
 }
 
 void inv_spi_chip_select_hold_time(void)
 {
     // CLK->CS delay, MPU6000 - 500ns
     // CS->CLK delay, ICM42688P - 18ns
-    delayMicroseconds(1);
+    DelayNs(18);
 }
 
 void inv_spi_bus_select_device(void)
 {
-    // csPin_.Write(GPIO_PIN_RESET);
-    digitalWrite(IMU_CS_PIN, LOW);
+    digitalWriteFast(cs_pin_, LOW);
     inv_spi_chip_select_setup_delay();
 }
 
 void inv_spi_bus_deselect_device(void)
 {
     inv_spi_chip_select_hold_time();
-    // csPin_.Write(GPIO_PIN_SET);
-    digitalWrite(IMU_CS_PIN, HIGH);
+    digitalWriteFast(cs_pin_, HIGH);
 }
 
 uint8_t inv_spi_transfer_byte(uint8_t txByte)
 {
     uint8_t value = 0xFF;
-    spi_bus_->transfer(&txByte, &value, 1);
+    // spi_bus.transfer(&txByte, &value, 1);
+    TransferLL(&txByte, &value, 1);
     return value;
 }
 
@@ -159,7 +210,8 @@ int inv_spi_bus_read_registers(uint8_t addr, uint8_t count, uint8_t* data)
 
     inv_spi_transfer_byte((addr | 0x80));
     for (uint8_t i = 0; i < count; i++) {
-        spi_bus_->transfer(NULL, &data[i], 1);
+        // spi_bus.transfer(NULL, &data[i], 1);
+        TransferLL(NULL, &data[i], 1);
     }
 
     inv_spi_bus_deselect_device();

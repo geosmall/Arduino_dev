@@ -28,8 +28,8 @@ SPIClass spi_bus(IMU_MOSI_PIN, IMU_MISO_PIN, IMU_SCLK_PIN);  // No SSEL = softwa
 // Global print buffer
 char buf[128];
 
-int main(void)
-{
+void setup() {
+
     // Initialize the UVOS board hardware
 #ifndef USE_RTT
     Serial.begin(115200);
@@ -39,21 +39,15 @@ int main(void)
     CI_LOG("Initializing Example SelfTest...\n");
     CI_BUILD_INFO();
 
-    // Create Invn serial spi interface
-    inv_icm426xx_serif spi_if = {
-        .context = &spi_bus,
-    };
-
     // Give ICM-42688P some time to stabilize
     delay(5);
 
     // Call the main function of the Invensense example
     inv_main();
+}
 
-    // Infinite loop
-    while(1) {
-        // Do nothing
-    }
+// Infinite loop
+void loop() {
 }
 
 /* --------------------------------------------------------------------------------------

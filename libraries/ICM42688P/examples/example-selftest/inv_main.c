@@ -37,7 +37,7 @@
 /* 
  * Select communication between SmartMotion and ICM426xx by setting correct SERIF_TYPE 
  */
-#define SERIF_TYPE ICM426XX_UI_SPI4
+#define SERIF_TYPE ICM426XX_UI_SPI4 /**< 4-wire SPI interface. See Icm426xxTransport */
 //#define SERIF_TYPE ICM426XX_UI_I2C
 
 /* 
@@ -76,7 +76,7 @@ int inv_main(void)
 	GetBias();
 
 	/* Add a delay so the messages get fully printed out */
-	inv_delay_us(1000000);
+	delay(1000);
 }
 
 /* --------------------------------------------------------------------------------------
