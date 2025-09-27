@@ -17,9 +17,8 @@
 /* std */
 #include <stdio.h>
 
-/* Embedded printf integration - override standard functions */
-#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT 1
-#include "printf.h"
+/* libPrintf integration - automatic aliasing enabled */
+#include "libPrintf.h"
 
 /* --------------------------------------------------------------------------------------
  *  Example configuration

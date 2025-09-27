@@ -18,11 +18,6 @@
  * - Gyro Bias (dps): x=0.358582, y=-0.778198, z=0.251770
  * - Accel Bias (g): x=-0.010132, y=0.044250, z=0.039490
  *
- * BUILD REQUIREMENTS:
- * - FQBN: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp
- * - Build command: ./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest \
- *                  "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp" --use-rtt
- *
  * CI/HIL INTEGRATION:
  * - RTT output for automated testing
  * - Serial output for Arduino IDE
@@ -40,9 +35,8 @@
 
 #include <cstring>
 
-// Embedded printf integration - enable automatic aliasing
-#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT 1
-#include "printf.h"
+// libPrintf integration - automatic aliasing enabled
+#include <libPrintf.h>
 
 // Uncomment to use software driven NSS
 #define USE_SOFT_NSS
