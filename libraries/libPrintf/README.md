@@ -27,7 +27,7 @@ Copy the `libPrintf` directory to your Arduino `libraries/` folder, or place it 
 #include <libPrintf.h>
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);  // Required: libPrintf routes to Serial by default
 
   // All standard printf functions now work with float support
   printf("Pi = %.6f\n", 3.14159265);
@@ -61,14 +61,15 @@ extern "C" void putchar_(char c) {
 
 ### Function Aliasing
 
-libPrintf uses `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT` to automatically replace standard printf functions. This means:
+libPrintf uses `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT` to automatically replace standard printf functions when the library is included. This means:
 
 - `printf()` → `printf_()`
 - `sprintf()` → `sprintf_()`
 - `fprintf()` → `fprintf_()`
-- And so on...
+- `snprintf()` → `snprintf_()`
+- And all other printf family functions...
 
-This aliasing is completely transparent - your existing code works unchanged.
+This aliasing is completely transparent - your existing code works unchanged once you include `<libPrintf.h>`.
 
 ### Binary Size Comparison
 
@@ -120,8 +121,8 @@ void setup() {
 
 ## Version Information
 
-- **libPrintf**: v6.2.0
-- **Based on**: eyalroz/printf v6.2.0
+- **libPrintf**: v1.0.0 (Arduino wrapper library)
+- **Based on**: eyalroz/printf v6.2.0 (embedded implementation)
 - **License**: MIT (see eyalroz/printf repository)
 
 ## Integration Notes

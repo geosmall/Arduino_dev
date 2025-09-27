@@ -43,60 +43,65 @@ This eliminates circular dependencies by keeping configuration external to the c
 
 ```
 /home/geo/Arduino/targets/
-├── BoardConfig.h                 # Core configuration framework
-├── ConfigTypes.h                 # Configuration structures (SPI, UART, etc.)
-├── boards/
-│   ├── NUCLEO_F411RE.h          # Development board configuration
-│   └── NOXE_V3.h                # Production flight controller configuration
-└── README.md                    # Configuration documentation
+├── config/
+│   └── ConfigTypes.h            # Configuration structures (SPI, UART, Storage, etc.)
+├── NUCLEO_F411RE.h              # Base development board configuration
+├── NUCLEO_F411RE_LITTLEFS.h     # Development board with LittleFS storage
+├── NUCLEO_F411RE_SDFS.h         # Development board with SDFS storage
+├── BLACKPILL_F411CE.h           # BlackPill F411CE board configuration
+├── NOXE_V3.h                    # Production flight controller configuration
+└── PIN_USE.md                   # Pin usage documentation
 ```
 
 ### Configuration Framework
 
-**Core Framework** (`targets/BoardConfig.h`):
+**Configuration Types** (`targets/config/ConfigTypes.h`):
 ```cpp
 #pragma once
-#include "ConfigTypes.h"
 
-// Board selection based on Arduino defines (from core)
-#if defined(ARDUINO_NUCLEO_F411RE)
-  #include "boards/NUCLEO_F411RE.h"
-#elif defined(ARDUINO_NOXE_V3)
-  #include "boards/NOXE_V3.h"
-#else
-  #error "Board configuration not available for this board"
-#endif
-```
-
-**Configuration Types** (`targets/ConfigTypes.h`):
-```cpp
-#pragma once
+// Storage backend types
+enum class StorageBackend {
+    NONE,      // No storage hardware attached
+    LITTLEFS,  // SPI flash storage
+    SDFS       // SD card storage
+};
 
 namespace BoardConfig {
   struct SPIConfig {
-    constexpr SPIConfig(uint8_t mosi, uint8_t miso, uint8_t sclk, uint8_t cs,
+    constexpr SPIConfig(uint32_t mosi, uint32_t miso, uint32_t sclk, uint32_t cs,
                        uint32_t setup_hz, uint32_t runtime_hz)
       : mosi_pin(mosi), miso_pin(miso), sclk_pin(sclk), cs_pin(cs),
         setup_clock_hz(setup_hz), runtime_clock_hz(runtime_hz) {}
 
-    const uint8_t mosi_pin, miso_pin, sclk_pin, cs_pin;
+    const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
     const uint32_t setup_clock_hz, runtime_clock_hz;
   };
 
   struct UARTConfig {
-    constexpr UARTConfig(uint8_t tx, uint8_t rx, uint32_t baud)
+    constexpr UARTConfig(uint32_t tx, uint32_t rx, uint32_t baud)
       : tx_pin(tx), rx_pin(rx), baud_rate(baud) {}
 
-    const uint8_t tx_pin, rx_pin;
+    const uint32_t tx_pin, rx_pin;
     const uint32_t baud_rate;
   };
 
   struct I2CConfig {
-    constexpr I2CConfig(uint8_t sda, uint8_t scl, uint32_t freq)
+    constexpr I2CConfig(uint32_t sda, uint32_t scl, uint32_t freq)
       : sda_pin(sda), scl_pin(scl), frequency_hz(freq) {}
 
-    const uint8_t sda_pin, scl_pin;
+    const uint32_t sda_pin, scl_pin;
     const uint32_t frequency_hz;
+  };
+
+  struct StorageConfig {
+    constexpr StorageConfig(StorageBackend backend, uint32_t mosi, uint32_t miso,
+                           uint32_t sclk, uint32_t cs, uint32_t setup_hz, uint32_t runtime_hz)
+      : backend_type(backend), mosi_pin(mosi), miso_pin(miso), sclk_pin(sclk),
+        cs_pin(cs), setup_clock_hz(setup_hz), runtime_clock_hz(runtime_hz) {}
+
+    const StorageBackend backend_type;
+    const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
+    const uint32_t setup_clock_hz, runtime_clock_hz;
   };
 }
 ```
@@ -105,19 +110,20 @@ namespace BoardConfig {
 
 ### Development Board (NUCLEO_F411RE)
 
-**Configuration** (`targets/boards/NUCLEO_F411RE.h`):
+**Base Configuration** (`targets/NUCLEO_F411RE.h`):
 ```cpp
 #pragma once
-#include "../ConfigTypes.h"
+#include "config/ConfigTypes.h"
 
 // NUCLEO F411RE development board configuration
-// Uses standard Arduino pin names from core variant
+// Uses Arduino pin macros for compatibility with existing code
 namespace BoardConfig {
-  // Storage: SD card via SPI (development/testing)
-  static constexpr SPIConfig storage{PC12, PC11, PC10, PD2, 1000000, 8000000};
+  // Storage: No storage hardware attached by default on base Nucleo
+  // Use NUCLEO_F411RE_LITTLEFS.h or NUCLEO_F411RE_SDFS.h for storage testing
+  static constexpr StorageConfig storage{StorageBackend::NONE, 0, 0, 0, 0, 0, 0};
 
-  // IMU: Accelerometer/Gyroscope via SPI
-  static constexpr SPIConfig imu{PA7, PA6, PA5, PA4, 1000000, 8000000};
+  // IMU: SPI connections via jumpers (reduced speed for reliability)
+  static constexpr SPIConfig imu{PA7, PA6, PA5, PA4, 1000000, 2000000};
 
   // GPS: UART communication
   static constexpr UARTConfig gps{PA9, PA10, 115200};
@@ -127,17 +133,62 @@ namespace BoardConfig {
 }
 ```
 
-### Production Board (NOXE_V3)
-
-**Configuration** (`targets/boards/NOXE_V3.h`):
+**With LittleFS Storage** (`targets/NUCLEO_F411RE_LITTLEFS.h`):
 ```cpp
 #pragma once
-#include "../ConfigTypes.h"
+#include "config/ConfigTypes.h"
+
+// NUCLEO F411RE with LittleFS SPI flash storage for testing
+namespace BoardConfig {
+  // Storage: SPI flash via breakout board
+  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PA7, PA6, PA5, PA4, 1000000, 8000000};
+
+  // IMU: Alternative SPI pins (when storage uses primary SPI)
+  static constexpr SPIConfig imu{PC12, PC11, PC10, PD2, 1000000, 2000000};
+
+  // GPS: UART communication
+  static constexpr UARTConfig gps{PA9, PA10, 115200};
+
+  // I2C: Magnetometer, barometer
+  static constexpr I2CConfig sensors{PB9, PB8, 400000};
+}
+```
+
+### Alternative Development Board (BLACKPILL_F411CE)
+
+**Configuration** (`targets/BLACKPILL_F411CE.h`):
+```cpp
+#pragma once
+#include "config/ConfigTypes.h"
+
+// BlackPill F411CE development board configuration
+// Compact development board with USB-C connector
+namespace BoardConfig {
+  // Storage: SPI flash or SD card via breakout board
+  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PA7, PA6, PA5, PA4, 1000000, 8000000};
+
+  // IMU: SPI connections (optimized speeds for hardwired connections)
+  static constexpr SPIConfig imu{PB15, PB14, PB13, PB12, 1000000, 8000000};
+
+  // GPS: UART communication
+  static constexpr UARTConfig gps{PA9, PA10, 115200};
+
+  // I2C: Magnetometer, barometer
+  static constexpr I2CConfig sensors{PB8, PB9, 400000};
+}
+```
+
+### Production Board (NOXE_V3)
+
+**Configuration** (`targets/NOXE_V3.h`):
+```cpp
+#pragma once
+#include "config/ConfigTypes.h"
 
 // NOXE V3 flight controller production configuration
 namespace BoardConfig {
   // Storage: High-speed SD card for data logging
-  static constexpr SPIConfig storage{PB15, PB14, PB13, PB12, 1000000, 8000000};
+  static constexpr StorageConfig storage{StorageBackend::SDFS, PB15, PB14, PB13, PB12, 1000000, 8000000};
 
   // IMU: High-performance IMU for flight control
   static constexpr SPIConfig imu{PA7, PA6, PA5, PA4, 1000000, 8000000};
@@ -192,32 +243,69 @@ void SystemClock_Config(void) {
 
 ### Hardware Unit Tests
 
-**Storage Tests** (`tests/Storage_Hardware_Tests/Storage_Hardware_Tests.ino`):
+**Board Configuration Tests** (`tests/BoardConfig_Test/BoardConfig_Test.ino`):
 ```cpp
-#include <Arduino.h>                     // Core pins available
-#include "../../targets/BoardConfig.h"   // Board configuration
-#include <Storage.h>                     // Generic storage interface
+#include <Arduino.h>
+#include "../../../../ci_log.h"
+
+// Include target-specific configuration
+#if defined(ARDUINO_BLACKPILL_F411CE)
+#include "../../targets/BLACKPILL_F411CE.h"
+#else
+#include "../../targets/NUCLEO_F411RE.h"
+#endif
 
 void setup() {
-  CI_LOG("Storage Hardware Test\n");
+  CI_LOG("Board Configuration Test\n");
+  CI_BUILD_INFO();
+  CI_READY_TOKEN();
 
-  // BoardConfig handles all storage setup internally
-  // - Storage type selection (SDFS vs LittleFS)
-  // - Pin configuration and SPI setup
-  // - Hardware-specific initialization
-  if (BoardConfig::storage.begin()) {
-    CI_LOG("Storage initialized successfully\n");
+  // Test configuration accessibility
+  CI_LOG("IMU SPI Config: MOSI=%lu, MISO=%lu, SCLK=%lu, CS=%lu\n",
+         BoardConfig::imu.mosi_pin, BoardConfig::imu.miso_pin,
+         BoardConfig::imu.sclk_pin, BoardConfig::imu.cs_pin);
 
-    // Generic storage operations
-    File testFile = BoardConfig::storage.open("/test.txt", FILE_WRITE);
+  CI_LOG("Storage Config: Backend=%d, CS=%lu\n",
+         (int)BoardConfig::storage.backend_type, BoardConfig::storage.cs_pin);
+
+  CI_LOG("GPS UART Config: TX=%lu, RX=%lu, Baud=%lu\n",
+         BoardConfig::gps.tx_pin, BoardConfig::gps.rx_pin, BoardConfig::gps.baud_rate);
+
+  CI_LOG("Board configuration test completed successfully\n");
+  CI_LOG("*STOP*\n");
+}
+```
+
+**Storage Tests** (`tests/Generic_Storage_LittleFS_Unit_Tests/Generic_Storage_LittleFS_Unit_Tests.ino`):
+```cpp
+#include <Arduino.h>
+#include <Storage.h>
+#include <BoardStorage.h>
+#include "../../../../ci_log.h"
+#include "../../targets/NUCLEO_F411RE_LITTLEFS.h"
+
+void setup() {
+  CI_LOG("Generic Storage LittleFS Unit Tests\n");
+  CI_BUILD_INFO();
+  CI_READY_TOKEN();
+
+  // BoardStorage uses configuration from included target header
+  if (BoardStorage::begin(BoardConfig::storage)) {
+    CI_LOG("LittleFS storage initialized successfully\n");
+
+    // Generic storage operations via abstraction
+    Storage& fs = BOARD_STORAGE;
+    File testFile = fs.open("/test.txt", FILE_WRITE);
     if (testFile) {
-      testFile.println("Test data");
+      testFile.println("Hardware configuration test data");
       testFile.close();
-      CI_LOG("Test file created\n");
+      CI_LOG("Test file created via generic interface\n");
     }
   } else {
     CI_LOG("Storage initialization failed\n");
   }
+
+  CI_LOG("*STOP*\n");
 }
 ```
 
@@ -262,21 +350,39 @@ void loop() {
 
 ### Build System Compatibility
 
-**Hardware Tests on Development Board**:
+**Hardware Configuration Tests**:
 ```bash
-# Automatically uses NUCLEO_F411RE configuration
-./scripts/aflash.sh tests/Storage_Hardware_Tests --use-rtt --build-id
+# Test board configuration on NUCLEO_F411RE
+./scripts/aflash.sh tests/BoardConfig_Test --use-rtt --build-id
+
+# Test storage configurations
+./scripts/aflash.sh tests/Generic_Storage_LittleFS_Unit_Tests --use-rtt --build-id
+./scripts/aflash.sh tests/Generic_Storage_SDFS_Unit_Tests --use-rtt --build-id
+```
+
+**Multi-Board Testing**:
+```bash
+# NUCLEO_F411RE (automatic configuration selection)
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE tests/BoardConfig_Test/
+
+# BlackPill F411CE (automatic configuration selection)
+arduino-cli compile --fqbn STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE tests/BoardConfig_Test/
 ```
 
 **Production Builds**:
 ```bash
-# Automatically uses NOXE_V3 configuration
+# NOXE_V3 flight controller (when variant is available)
 arduino-cli compile --fqbn STMicroelectronics:stm32:NOXE_V3 sketches/NOXE_V3_FlightController/
 ```
 
 ### Board Selection
 
-The Arduino build system automatically sets the correct `ARDUINO_*` define based on the FQBN, which triggers the appropriate configuration inclusion.
+The Arduino build system automatically sets the correct `ARDUINO_*` define based on the FQBN:
+- `ARDUINO_NUCLEO_F411RE` → `targets/NUCLEO_F411RE.h`
+- `ARDUINO_BLACKPILL_F411CE` → `targets/BLACKPILL_F411CE.h`
+- `ARDUINO_NOXE_V3` → `targets/NOXE_V3.h`
+
+Tests can override default configuration by explicitly including specific target headers (e.g., `NUCLEO_F411RE_LITTLEFS.h`).
 
 ## Benefits
 
