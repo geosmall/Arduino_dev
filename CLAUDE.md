@@ -19,7 +19,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `libraries/` - Core STM32 libraries (SPI, Wire, SoftwareSerial, etc.)
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
-- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, libPrintf, etc.)
+- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, ICM42688P, libPrintf, minIniStorage, Storage, AUnit, etc.)
 - `HIL_RTT_Test/` - HIL test framework with comprehensive validation and RTT debugging
 
 ## Build Systems and Commands
@@ -164,7 +164,10 @@ This repository is specifically designed for **UAV flight controller boards** wi
 - `STM32RTC` - Real-time clock functionality
 - `LittleFS` - SPI flash filesystem with wear leveling (configuration, firmware)
 - `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
-- `libPrintf` - Embedded printf library (eyalroz/printf v6.2.0) - eliminates nanofp confusion, 20% binary reduction
+- `Storage` - Generic storage abstraction providing unified interface for LittleFS and SDFS
+- `minIniStorage` - INI configuration management with automatic storage backend selection
+- `ICM42688P` - 6-axis IMU library with TDK InvenSense drivers and manufacturer self-test
+- `libPrintf` - Optional embedded printf library (eyalroz/printf v6.2.0) - eliminates nanofp confusion, 20% binary reduction
 - `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
 
 ### Hardware Abstraction
@@ -254,7 +257,7 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 
 **Key Features**:
 - **Complete Integration**: `aunit_hil.h` wrapper with RTT/Serial abstraction
-- **15 Total Tests**: LittleFS (8 tests), SDFS (7 tests), framework validation (3 tests)
+- **22 Total Tests**: LittleFS (8 tests), SDFS (7 tests), minIniStorage (6 tests), framework validation (1 test)
 - **Hardware Validation**: Real SPI flash and SD card testing on STM32F411RE
 - **Dual-Mode Support**: Same tests work with RTT (HIL) and Serial (IDE)
 - **Type Safety**: Established AUnit assertion patterns for embedded types
@@ -263,6 +266,7 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 ```bash
 ./scripts/aflash.sh tests/LittleFS_Unit_Tests --use-rtt --build-id
 ./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
+./scripts/aflash.sh tests/minIniStorage_Unit_Tests --use-rtt --build-id
 ```
 
 ### Board Configuration System ✅ **COMPLETED**
@@ -342,21 +346,24 @@ void setup() {
 
 ### libPrintf Embedded Printf Library ✅ **COMPLETED**
 
-Arduino library wrapper for eyalroz/printf v6.2.0 that eliminates nanofp confusion and provides reliable float formatting for STM32 Arduino projects.
+Optional Arduino library wrapper for eyalroz/printf v6.2.0 that eliminates nanofp confusion and provides reliable float formatting for STM32 Arduino projects.
 
 **Key Features**:
+- **Optional Integration**: Include `#include <libPrintf.h>` when printf functionality is needed
 - **Eliminates nanofp confusion**: No more complex FQBN configurations or rtlib settings
 - **Binary size reduction**: ~20% smaller than nanofp (typically 8KB+ savings)
 - **Reliable float formatting**: Works without build configuration complexity
 - **Factory code compatible**: Seamless integration with existing printf/fprintf calls
 - **Thread-safe**: Suitable for embedded real-time applications
-- **One-line integration**: `#include <libPrintf.h>` replaces complex setup
+- **Custom putchar_() Support**: Easy output redirection for RTT, Serial1, etc.
 
 **Production Usage**:
 ```cpp
 #include <libPrintf.h>
 
 void setup() {
+  Serial.begin(115200);  // Required for default output
+
   // All standard printf functions now work with float support
   printf("Pi = %.6f\n", 3.14159265);  // No nanofp needed!
   printf("Mixed: %s has %d chars\n", "libPrintf", 9);
@@ -364,7 +371,24 @@ void setup() {
   // Works with sprintf, fprintf, etc.
   char buffer[64];
   sprintf(buffer, "Formatted: %.2f%%", 85.75);
-  fprintf(stderr, "Error: %s\n", "example error");
+  printf("Buffer: %s\n", buffer);
+}
+```
+
+**RTT Integration Example**:
+```cpp
+#include <libPrintf.h>
+#include <SEGGER_RTT.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
+
+extern "C" void putchar_(char c) {
+  char buf[2] = {c, '\0'};
+  SEGGER_RTT_WriteString(0, buf);
+}
+
+void setup() {
+  SEGGER_RTT_Init();
+  printf("RTT output: %.2f\n", 3.14159);  // Routes to RTT
 }
 ```
 
@@ -379,15 +403,22 @@ arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
 ```
 libraries/libPrintf/
 ├── library.properties          # Arduino IDE integration
-├── README.md                   # Complete documentation
+├── README.md                   # Complete user documentation
+├── PRINTF.md                   # Technical implementation details and customization
 ├── src/
-│   ├── libPrintf.h            # Main wrapper with auto-aliasing
+│   ├── libPrintf.h            # Main wrapper with function aliasing (SOFT mode)
 │   ├── printf.c               # eyalroz/printf v6.2.0 implementation
 │   └── printf.h               # eyalroz printf header
 └── examples/
     └── BasicUsage/
         └── BasicUsage.ino     # Demonstration example
 ```
+
+**Integration Notes**:
+- libPrintf is an **optional Arduino library**, not core-integrated
+- Requires explicit `#include <libPrintf.h>` for activation
+- Uses soft function aliasing for transparent printf replacement
+- Supports custom putchar_() for flexible output routing (Serial, RTT, etc.)
 
 ## Active Projects
 
@@ -474,53 +505,6 @@ void setup() {
 3. **✅ HIL Integration**: Automated testing with RTT and exit wildcards
 4. **✅ Build Traceability**: Git SHA and timestamp integration
 
-### libPrintf Integration ✅ **COMPLETED**
-
-Complete system-wide printf replacement using eyalroz/printf v6.2.0 embedded implementation, eliminating nanofp confusion and reducing binary size by 20KB+ across all STM32 Arduino projects.
-
-**Goal**: System-wide printf replacement providing reliable float formatting without FQBN complexity ✅ **ACHIEVED**
-**Status**: Core integration complete with optional libPrintf library for advanced features
-**Results**: Eliminated `rtlib=nanofp` requirement with 20KB+ binary savings
-
-**Key Features**:
-- **✅ Automatic Operation**: All STM32 Arduino sketches use embedded printf by default
-- **✅ No Configuration**: Works regardless of rtlib setting (nano/nanofp/full)
-- **✅ Binary Savings**: 20KB+ reduction vs nanofp approach
-- **✅ Factory Code Preserved**: ICM42688P manufacturer drivers work unchanged
-- **✅ Float Formatting**: Reliable float display without build complexity
-
-**Core Integration Architecture**:
-- **Arduino.h Integration**: Early `arduino_printf.h` inclusion overrides system printf
-- **Hard Aliasing**: `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD` ensures complete replacement
-- **Output Routing**: `putchar_()` implementation in syscalls.c for Arduino Serial integration
-- **Directory Structure**: `cores/arduino/libraries/printf/` with organized source files
-
-**Optional libPrintf Library**:
-- **Advanced Features**: Custom output routing, format validation, safe snprintf
-- **Arduino Library**: Proper library.properties structure with examples
-- **C++ Wrapper**: PrintfRouter class for object-oriented usage
-- **Location**: `libraries/libPrintf/` for specialized use cases
-
-**Before/After Comparison**:
-```bash
-# Before (nanofp requirement)
-Binary: 41,916 bytes with complex FQBN: rtlib=nanofp
-
-# After (automatic embedded printf)
-Binary: 34,304 bytes with standard FQBN
-Savings: 7,612 bytes (18% reduction)
-```
-
-**Implementation Files**:
-- **cores/arduino/Arduino.h**: Early printf inclusion
-- **cores/arduino/libraries/printf/**: eyalroz/printf v6.2.0 source
-- **cores/arduino/syscalls.c**: putchar_() implementation
-- **libraries/libPrintf/**: Optional advanced features library
-
-**Validation Results**:
-- **✅ ICM42688P Integration**: Working bias values without nanofp
-- **✅ System-wide Operation**: Basic printf test compiles to 13,760 bytes
-- **✅ Factory Compatibility**: Manufacturer drivers preserved unchanged
 
 ## Future Projects
 

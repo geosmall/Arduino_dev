@@ -1,10 +1,10 @@
-# Printf Integration for STM32 Arduino Core
+# libPrintf Documentation for STM32 Arduino Core
 
-This document explains the embedded printf implementation that provides automatic, system-wide printf functionality for all STM32 Arduino sketches.
+This document provides detailed technical information about the libPrintf library, an optional embedded printf implementation for STM32 Arduino sketches.
 
 ## Table of Contents
 - [Overview](#overview)
-- [Integration Architecture](#integration-architecture)
+- [Library Architecture](#library-architecture)
 - [Output Routing](#output-routing)
 - [Customization](#customization)
 - [Advanced Configuration](#advanced-configuration)
@@ -16,257 +16,148 @@ This document explains the embedded printf implementation that provides automati
 
 ## Overview
 
-The STM32 Arduino Core includes **eyalroz/printf v6.2.0** embedded printf library, which replaces the problematic newlib printf system. This provides:
+libPrintf is an **optional Arduino library** based on eyalroz/printf v6.2.0 that provides embedded printf functionality for STM32 Arduino sketches. This library eliminates nanofp configuration complexity and provides reliable float formatting.
 
-- **✅ Automatic Operation**: Works in all sketches without configuration
-- **✅ No FQBN Dependency**: Works regardless of rtlib setting (nano/nanofp/full)
-- **✅ Binary Savings**: 20KB+ reduction vs nanofp approach
+**Key Features:**
+- **✅ Optional Integration**: Include `<libPrintf.h>` when you need enhanced printf functionality
+- **✅ No FQBN Dependency**: Works with standard Arduino CLI commands without rtlib settings
+- **✅ Binary Savings**: ~20% reduction compared to nanofp approach (typically 8KB+ savings)
 - **✅ Reliable Float Formatting**: Consistent float display without build complexity
-- **✅ Factory Code Compatibility**: Preserves existing manufacturer drivers
+- **✅ Factory Code Compatibility**: Seamless integration with existing printf/fprintf calls
+- **✅ Thread-Safe**: Suitable for embedded real-time applications
 
-## Integration Architecture
+## Library Architecture
 
-### Core Files
-- **`arduino_printf.h`**: Main integration header with hard aliasing
-- **`printf.c`**: eyalroz/printf v6.2.0 implementation
-- **`printf.h`**: Function declarations and configuration
-- **`../syscalls.c`**: putchar_() implementation for output routing
+### Library Files
+- **`src/libPrintf.h`**: Main library header with function aliasing
+- **`src/printf.c`**: eyalroz/printf v6.2.0 implementation
+- **`src/printf.h`**: Function declarations and configuration
+- **`library.properties`**: Arduino library metadata
+- **`examples/BasicUsage/`**: Demonstration sketch
 
-### Automatic Activation
+### Manual Activation
+Include the library header in your sketch:
 ```cpp
-// Arduino.h automatically includes:
-#include "libraries/printf/arduino_printf.h"
+#include <libPrintf.h>
 
-// Which enables hard aliasing:
-#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD 1
+void setup() {
+  // printf functions now use embedded implementation
+  printf("Float: %.2f\n", 3.14159);
+}
 ```
 
-All standard printf functions are automatically replaced:
+### Function Replacement
+libPrintf uses soft aliasing to replace standard printf functions:
 - `printf()` → `printf_()`
 - `sprintf()` → `sprintf_()`
 - `snprintf()` → `snprintf_()`
-- `vprintf()` → `vprintf_()`
+- `fprintf()` → `fprintf_()`
+- All variants work transparently
 
 ## Output Routing
 
 ### Default Flow Path
-Printf output routes through multiple layers to reach hardware:
+When using libPrintf, output routes through the embedded printf implementation to the default Arduino Serial:
 
 ```
-printf() → printf_() → putchar_() → uart_debug_write() → HAL_UART_Transmit() → Hardware
+printf() → printf_() → putchar_() → Serial.print() → Hardware UART
 ```
 
-### Core Files and Functions
+### Library Implementation
 
 #### 1. **printf.c** - Entry Point
-- **Location**: `cores/arduino/libraries/printf/printf.c`
+- **Location**: `libraries/libPrintf/src/printf.c`
 - **Function**: `int printf_(const char* format, ...)`
-- **Role**: Main printf implementation, processes format string and arguments
+- **Role**: Main printf implementation from eyalroz/printf v6.2.0
 - **Calls**: `putchar_(char c)` for each output character
 
-#### 2. **syscalls.c** - Output Routing
-- **Location**: `cores/arduino/syscalls.c`
-- **Function**: `void putchar_(char c)`
-- **Role**: Routes characters to hardware output system
-- **Default Implementation**:
+#### 2. **Default putchar_() Implementation**
+By default, libPrintf provides a basic `putchar_()` implementation that outputs to Arduino's default Serial:
+
 ```cpp
-void putchar_(char c) {
-#if defined(HAL_UART_MODULE_ENABLED) && !defined(HAL_UART_MODULE_ONLY)
-    uart_debug_write((uint8_t *)&c, 1);
-#else
-    (void)c;  // Discard if no UART available
-#endif
+#ifndef LIBPRINTF_CUSTOM_PUTCHAR
+extern "C" void putchar_(char c) {
+  Serial.print(c);
 }
-```
-
-#### 3. **stm32/uart.c** - Hardware Interface
-- **Location**: `cores/arduino/stm32/uart.c`
-- **Function**: `size_t uart_debug_write(uint8_t *data, uint32_t size)`
-- **Role**: Manages debug UART and transmits data via STM32 HAL
-- **Key Operations**:
-  - Auto-detects and initializes debug UART
-  - Routes to `HAL_UART_Transmit()`
-
-#### 4. **Board Variant** - Pin Configuration
-- **Location**: `variants/STM32F4xx/F411R(C-E)T/variant_NUCLEO_F411RE.h`
-- **Defines**: Pin mappings for debug UART
-- **Location**: `variants/STM32F4xx/F411R(C-E)T/PeripheralPins.c`
-- **Mapping**: Pin to UART peripheral relationships
-
-### Default Configuration Chain
-
-#### Debug UART Detection (uart.c)
-```cpp
-// Default DEBUG_UART selection
-#if !defined(DEBUG_UART)
-  #if defined(PIN_SERIAL_TX)
-    #define DEBUG_UART pinmap_peripheral(digitalPinToPinName(PIN_SERIAL_TX), PinMap_UART_TX)
-  #else
-    #define DEBUG_UART NP  // No peripheral
-  #endif
 #endif
 ```
 
-#### Board Pin Definitions (variant_NUCLEO_F411RE.h)
-```cpp
-#ifndef PIN_SERIAL_TX
-  #define PIN_SERIAL_TX         PA2    // USART2 TX pin
-#endif
-#ifndef PIN_SERIAL_RX
-  #define PIN_SERIAL_RX         PA3    // USART2 RX pin
-#endif
-```
+#### 3. **Arduino Serial Integration**
+- **Default Output**: Routes through Arduino's `Serial` object
+- **Hardware**: Uses the board's default Serial pins (typically ST-Link virtual COM port)
+- **Initialization**: Requires `Serial.begin()` in setup()
 
-#### Pin-to-Peripheral Mapping (PeripheralPins.c)
-```cpp
-WEAK const PinMap PinMap_UART_TX[] = {
-  {PA_2,  USART2, STM_PIN_DATA(STM_MODE_AF_PP, GPIO_PULLUP, GPIO_AF7_USART2)},
-  {PA_9,  USART1, STM_PIN_DATA(STM_MODE_AF_PP, GPIO_PULLUP, GPIO_AF7_USART1)},
-  // ...
-};
-```
+### Basic Usage Flow
 
-#### UART Configuration (uart.c)
-```cpp
-#if !defined(DEBUG_UART_BAUDRATE)
-#define DEBUG_UART_BAUDRATE 9600
-#endif
+1. **Include libPrintf**: `#include <libPrintf.h>`
+2. **Initialize Serial**: `Serial.begin(115200);` in setup()
+3. **Use printf**: `printf("Hello %.2f\n", 3.14);`
+4. **Output path**: printf_() → putchar_() → Serial.print() → Hardware UART
 
-// In uart_debug_init():
-uart_init(&serial_debug, DEBUG_UART_BAUDRATE, UART_WORDLENGTH_8B, UART_PARITY_NONE, UART_STOPBITS_1);
-```
+### NUCLEO_F411RE Default Configuration
 
-### Complete Default Flow for NUCLEO_F411RE
-
-1. **PIN_SERIAL_TX** = PA2 (variant header)
-2. **DEBUG_UART** = pinmap_peripheral(PA2) = **USART2** (uart.c + PeripheralPins.c)
-3. **DEBUG_UART_BAUDRATE** = **9600** (uart.c)
-4. **printf()** → **putchar_()** → **uart_debug_write()** → **USART2 @ 9600 baud**
-5. **PA2 pin** → **ST-Link** → **USB Virtual COM Port**
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Default Serial** | USART2 | Arduino Serial object |
+| **TX Pin** | PA2 | ST-Link virtual COM port |
+| **RX Pin** | PA3 | ST-Link virtual COM port |
+| **Initialization** | `Serial.begin()` | Required in sketch setup() |
 
 ## Customization
 
-### Customization Hierarchy
+### Custom Output Routing
 
-The printf output can be customized at four different levels, from simple sketch overrides to deep hardware modifications:
+libPrintf allows you to redirect printf output by providing your own `putchar_()` implementation. This is the primary method for customizing output behavior.
 
-#### Level 1: Override putchar_() (Sketch Level)
-**Recommended for most use cases**
-
-⚠️ **Important**: Always ensure your target output is properly initialized before printf usage.
+#### Method 1: Override putchar_() (Recommended)
+Define `LIBPRINTF_CUSTOM_PUTCHAR` to disable the default implementation, then provide your own:
 
 ```cpp
+#include <libPrintf.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
+
 extern "C" void putchar_(char c) {
     Serial1.write(c);  // Route to different Serial port
 }
 
 void setup() {
     Serial1.begin(115200);  // Initialize before using printf
-    printf("Safe to use printf now\n");
-}
-```
-
-#### Level 2: Redefine DEBUG_UART (Sketch Level)
-**For changing UART peripheral and configuration**
-```cpp
-#define DEBUG_UART USART1
-#define DEBUG_PINNAME_TX PA9
-#define DEBUG_PINNAME_RX PA10
-#define DEBUG_UART_BAUDRATE 115200
-#include <Arduino.h>
-```
-
-#### Level 3: Modify Board Variant (Board Level)
-**For permanent board-wide changes**
-```cpp
-// In variant_BOARD.h
-#define PIN_SERIAL_TX         PA9   // Use USART1 instead of USART2
-#define PIN_SERIAL_RX         PA10
-```
-
-#### Level 4: Custom PeripheralPins.c (Hardware Level)
-**For custom hardware or non-standard pin assignments**
-```cpp
-// Modify pin-to-peripheral mappings
-WEAK const PinMap PinMap_UART_TX[] = {
-  {PA_9,  USART1, STM_PIN_DATA(STM_MODE_AF_PP, GPIO_PULLUP, GPIO_AF7_USART1)},
-  // Custom pin assignments
-};
-```
-
-### File Dependencies
-
-The printf integration follows this dependency chain:
-
-```
-Arduino.h
-  ↓ includes
-arduino_printf.h
-  ↓ includes
-printf.h (function declarations)
-printf.c (implementation)
-  ↓ calls
-putchar_() in syscalls.c
-  ↓ calls
-uart_debug_write() in stm32/uart.c
-  ↓ uses
-DEBUG_UART from variant header + PeripheralPins.c
-  ↓ transmits via
-HAL_UART_Transmit() to hardware UART
-```
-
-#### NUCLEO_F411RE Default Configuration
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| **Debug UART** | USART2 | PeripheralPins.c mapping |
-| **TX Pin** | PA2 | variant_NUCLEO_F411RE.h |
-| **RX Pin** | PA3 | variant_NUCLEO_F411RE.h |
-| **Baud Rate** | 9600 | DEBUG_UART_BAUDRATE |
-| **Format** | 8N1 | uart_debug_init() |
-| **Output** | ST-Link Virtual COM | Hardware routing |
-
-### Custom Output Routing Examples
-
-Override `putchar_()` in your sketch to redirect printf output:
-
-#### Route to Different Serial Port
-```cpp
-extern "C" void putchar_(char c) {
-    Serial1.write(c);  // Route to USART1
-}
-
-void setup() {
-    Serial1.begin(115200);
     printf("Output goes to Serial1\n");
 }
 ```
 
-#### Route to RTT (Real-Time Transfer)
+#### Method 2: Conditional Output Routing
+Use compile-time flags to select output destination:
+
 ```cpp
-#include <SEGGER_RTT.h>
+#include <libPrintf.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
 
 extern "C" void putchar_(char c) {
+#ifdef USE_RTT_OUTPUT
     char buf[2] = {c, '\0'};
     SEGGER_RTT_WriteString(0, buf);
-}
-
-void setup() {
-    SEGGER_RTT_Init();
-    printf("Output goes to RTT\n");
+#elif defined(USE_SERIAL1)
+    Serial1.write(c);
+#else
+    Serial.write(c);  // Default Arduino Serial
+#endif
 }
 ```
 
-#### Runtime Selection
+#### Method 3: Runtime Selection
+Switch output destinations at runtime:
+
 ```cpp
-enum PrintfDest { UART_DEBUG, UART1, RTT };
-static PrintfDest dest = UART_DEBUG;
+enum PrintfDest { SERIAL_DEFAULT, SERIAL1, RTT };
+static PrintfDest printf_dest = SERIAL_DEFAULT;
 
 extern "C" void putchar_(char c) {
-    switch(dest) {
-        case UART_DEBUG:
-            uart_debug_write((uint8_t*)&c, 1);
+    switch(printf_dest) {
+        case SERIAL_DEFAULT:
+            Serial.write(c);
             break;
-        case UART1:
+        case SERIAL1:
             Serial1.write(c);
             break;
         case RTT: {
@@ -277,99 +168,144 @@ extern "C" void putchar_(char c) {
     }
 }
 
-void setPrintfDestination(PrintfDest d) { dest = d; }
+void setPrintfDestination(PrintfDest dest) {
+    printf_dest = dest;
+}
+```
+
+### Library Dependencies
+
+libPrintf follows this simple dependency chain:
+
+```
+Sketch
+  ↓ includes
+<libPrintf.h>
+  ↓ includes
+printf.h (function declarations)
+printf.c (implementation)
+  ↓ calls
+putchar_() (user-defined or default)
+  ↓ routes to
+Serial.print() or custom output
 ```
 
 ## Advanced Configuration
 
-### Custom Debug UART
-Define before including Arduino.h:
+### Disabling Default putchar_()
+To use a completely custom output implementation:
+
 ```cpp
-#define DEBUG_UART USART1
-#define DEBUG_PINNAME_TX PA9
-#define DEBUG_PINNAME_RX PA10
-#define DEBUG_UART_BAUDRATE 115200
-#include <Arduino.h>
+#include <libPrintf.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR  // Disables default implementation
+
+extern "C" void putchar_(char c) {
+    // Your custom implementation
+    myCustomOutput(c);
+}
 ```
 
-### Board Variant Modification
-Modify `PIN_SERIAL_TX`/`PIN_SERIAL_RX` in variant header:
+### Format String Validation
+Enable compile-time format string checking:
+
 ```cpp
-// In variant_BOARD.h
-#define PIN_SERIAL_TX         PA9   // USART1 instead of USART2
-#define PIN_SERIAL_RX         PA10
+#define PRINTF_SUPPORT_RUNTIME_EVALUATION 0  // Disable for smaller code size
+#define PRINTF_CHECK_FOR_NULL_POINTERS 1     // Enable null pointer checks
+```
+
+### Memory Optimization
+Configure printf features to reduce binary size:
+
+```cpp
+#define PRINTF_SUPPORT_LONG_LONG 0           // Disable long long support
+#define PRINTF_SUPPORT_DECIMAL_SPECIFIERS 1   // Keep %d, %i, %u
+#define PRINTF_SUPPORT_EXPONENTIAL_SPECIFIERS 0  // Disable %e, %E, %g, %G
 ```
 
 ## Comparison with Standard Printf
 
-| Feature | Standard (nano) | Standard (nanofp) | Embedded Printf |
-|---------|----------------|-------------------|-----------------|
+| Feature | Standard (nano) | Standard (nanofp) | libPrintf |
+|---------|----------------|-------------------|-----------|
 | **Float Support** | ❌ None | ✅ Full | ✅ Full |
-| **Binary Size** | Small | +10KB bloat | Optimized |
-| **FQBN Dependency** | N/A | Required | ❌ None |
-| **Output Routing** | None | _write() only | Flexible putchar_() |
-| **Configuration** | N/A | Complex | Simple override |
+| **Binary Size** | Small (~2KB) | Large (~16KB) | Optimized (~6KB) |
+| **FQBN Dependency** | N/A | `:rtlib=nanofp` required | ❌ None |
+| **Include Required** | None | None | `#include <libPrintf.h>` |
+| **Output Routing** | Serial only | Serial only | Flexible putchar_() |
+| **Configuration** | N/A | Complex FQBN | Simple include |
 
 ## Implementation Details
 
 ### Function Override Method
-- **Hard Aliasing**: `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD` replaces all standard printf functions
-- **Early Inclusion**: Arduino.h includes printf headers before system headers to ensure override
-- **Weak Functions**: `putchar_()` uses weak linkage allowing user override without conflicts
+- **Soft Aliasing**: `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT` replaces standard printf functions when library is included
+- **Library-Level**: Integration happens when `<libPrintf.h>` is included in sketch
+- **User putchar_()**: Allows easy output redirection through custom putchar_() implementation
 - **No Runtime Overhead**: Function replacement happens at compile/link time
 
 ### Output Flow
-1. **printf()** calls embedded printf implementation
-2. **Embedded printf** calls `putchar_(char c)` for each character
-3. **putchar_()** routes to uart_debug_write() by default
-4. **uart_debug_write()** transmits via STM32 HAL to hardware UART
-5. **Hardware UART** outputs to ST-Link virtual COM port
+1. **printf()** calls embedded printf_() implementation (via aliasing)
+2. **Embedded printf_()** calls `putchar_(char c)` for each character
+3. **putchar_()** routes to Serial.print() by default or user-defined function
+4. **Serial.print()** transmits via Arduino's Serial implementation
 
 ### Memory Usage
 
-| Metric | nano | nanofp | Embedded Printf | Savings |
-|--------|------|--------|-----------------|----------|
+| Metric | nano | nanofp | libPrintf | Savings |
+|--------|------|--------|-----------|----------|
 | **Code Size** | ~2KB | ~16KB | ~6KB | 10KB vs nanofp |
-| **Float Support** | None | Full | Full | - |
+| **Float Support** | None | Full | Full | Same as nanofp |
 | **RAM Usage** | Minimal | Minimal | Minimal | No impact |
-| **Total Savings** | N/A | +14KB | Baseline | 20KB+ vs nanofp |
+| **FQBN Complexity** | None | High | None | Simplified builds |
 
-*Note: Savings vary by sketch complexity and printf usage*
+*Note: Savings vary by sketch complexity and printf usage. libPrintf provides the same float support as nanofp with 60% smaller binary size.*
 
 ## Troubleshooting
 
 ### Printf Not Appearing
 | Symptom | Possible Cause | Solution |
 |---------|----------------|----------|
-| No output in Serial Monitor | Wrong COM port selected | Check Arduino IDE port selection |
-| Output to wrong destination | Custom putchar_() not initialized | Ensure Serial.begin() called before printf |
-| Partial output | UART buffer overflow | Add delays or increase baud rate |
-| Garbled output | Wrong baud rate | Match Serial Monitor baud to UART config |
+| No output in Serial Monitor | Serial not initialized | Add `Serial.begin(115200);` in setup() |
+| No output with custom putchar_() | Target not initialized | Initialize Serial1, RTT, etc. before printf |
+| `'printf' was not declared` | Library not included | Add `#include <libPrintf.h>` |
+| Float shows as "0.000000" | libPrintf not active | Verify library is included correctly |
 
 ### Compilation Errors
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `'printf' was not declared` | Arduino.h not included first | Move `#include <Arduino.h>` to top |
 | `multiple definition of printf` | Conflicting printf definitions | Remove custom printf declarations |
-| `putchar_ conflicts` | Non-weak putchar_() declaration | Use `extern "C" void putchar_(char c)` |
+| `putchar_ conflicts` | Multiple putchar_() definitions | Use `extern "C"` and check for duplicates |
+| Library not found | libPrintf not in library path | Copy library to Arduino/libraries/ folder |
 
 ### Debug Steps
-1. **Verify Integration**: Check that printf output works with default settings
-2. **Test Custom Routing**: Start with simple Serial.write() override
-3. **Check Initialization**: Ensure target Serial port is initialized with begin()
-4. **Validate Hardware**: Confirm UART pins and connections are correct
+1. **Verify Library**: Include `<libPrintf.h>` and test basic printf
+2. **Check Initialization**: Ensure Serial.begin() called before printf usage
+3. **Test Float Support**: `printf("%.2f", 3.14)` should show "3.14", not "0.00"
+4. **Custom putchar_()**: Start with simple Serial1.write(c) test
 
-### Float Formatting Issues
-- **Not a Problem**: Embedded printf handles floats correctly regardless of rtlib setting
-- **No FQBN Changes**: Standard builds work automatically
-- **Consistent Output**: Same formatting across Serial and RTT output
+### Float Formatting Verification
+To verify libPrintf is working correctly:
+
+```cpp
+#include <libPrintf.h>
+
+void setup() {
+    Serial.begin(115200);
+    delay(1000);
+
+    printf("Test float: %.6f\n", 3.14159265);
+    // Should show: Test float: 3.141593
+    // If shows: Test float: 0.000000, libPrintf is not active
+}
+```
 
 ## Examples
 
 ### Basic Usage
 ```cpp
+#include <libPrintf.h>
+
 void setup() {
-    // No initialization required - printf works immediately
+    Serial.begin(115200);  // Required for default output
+
     printf("Integer: %d\n", 42);
     printf("Float: %.2f\n", 3.14159);
     printf("String: %s\n", "Hello World");
@@ -383,40 +319,78 @@ void setup() {
 
 void loop() {
     // Printf output appears in Arduino Serial Monitor
-    // or your configured output destination
 }
 ```
 
-### Custom Output with Fallback
+### RTT Output for HIL Testing
 ```cpp
-extern "C" void putchar_(char c) {
-    if (Serial1.availableForWrite()) {
-        Serial1.write(c);
-    } else {
-        // Fallback to debug UART
-        uart_debug_write((uint8_t*)&c, 1);
-    }
-}
-```
+#include <libPrintf.h>
+#include <SEGGER_RTT.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
 
-### Conditional Routing
-```cpp
 extern "C" void putchar_(char c) {
-#ifdef USE_RTT_OUTPUT
     char buf[2] = {c, '\0'};
     SEGGER_RTT_WriteString(0, buf);
-#elif defined(USE_SERIAL1)
-    Serial1.write(c);
-#else
-    // Default to debug UART
-    uart_debug_write((uint8_t*)&c, 1);
-#endif
+}
+
+void setup() {
+    SEGGER_RTT_Init();
+    printf("RTT output: %.2f\n", 3.14159);
+}
+```
+
+### Dual Output (Serial + RTT)
+```cpp
+#include <libPrintf.h>
+#include <SEGGER_RTT.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
+
+extern "C" void putchar_(char c) {
+    Serial.write(c);           // Arduino IDE Serial Monitor
+    char buf[2] = {c, '\0'};
+    SEGGER_RTT_WriteString(0, buf);  // HIL testing via RTT
+}
+
+void setup() {
+    Serial.begin(115200);
+    SEGGER_RTT_Init();
+    printf("Dual output: %.2f\n", 3.14159);
 }
 ```
 
 ## Version Information
-- **eyalroz/printf Library**: v6.2.0
-- **Integration Version**: STM32 Arduino Core 2.7.1+
+- **libPrintf Library**: v1.0.0 (Arduino wrapper)
+- **eyalroz/printf**: v6.2.0 (embedded implementation)
+- **Compatible STM32 Core**: 2.7.1+ (no specific version required)
 - **Upstream Repository**: [github.com/eyalroz/printf](https://github.com/eyalroz/printf)
-- **License**: MIT (eyalroz/printf) + LGPL 2.1 (Arduino Core)
-- **Documentation**: This implementation follows eyalroz/printf API with Arduino-specific integration
+- **License**: MIT (eyalroz/printf)
+- **Documentation**: This library provides Arduino-compatible interface for eyalroz/printf
+
+## Usage in Production
+
+### ICM42688P Integration Example
+The ICM42688P IMU library demonstrates libPrintf integration with factory code:
+
+```bash
+# Build with standard FQBN (no rtlib needed)
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE \
+  libraries/ICM42688P/examples/example-selftest
+
+# HIL testing with RTT output
+./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest --use-rtt
+```
+
+### Build Integration
+libPrintf works with all standard STM32 Arduino build workflows:
+
+```bash
+# Arduino CLI
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch>
+
+# Project scripts
+./scripts/build.sh <sketch> --build-id
+./scripts/aflash.sh <sketch> --use-rtt
+
+# CMake builds
+cmake -S <sketch> -B build && cmake --build build
+```
