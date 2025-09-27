@@ -346,7 +346,7 @@ void setup() {
 Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL testing integration.
 
 **Goal**: Port manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface
-**Status**: Phase 1 Complete ✅ | Phase 2 - Advanced functionality in progress
+**Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 - Data acquisition in progress
 **Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI
 
 **Phase 1 Complete ✅**: Minimal SPI Communication
@@ -356,8 +356,17 @@ Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL tes
 - **✅ Pin Configuration**: NUCLEO_F411RE pins verified (PA4=CS, PA7=MOSI, PA6=MISO, PA5=SCLK)
 - **✅ Build Integration**: Complete `./scripts/build.sh` and `./scripts/aflash.sh` support
 
+**Phase 2 Complete ✅**: Manufacturer Self-Test Integration
+- **✅ Factory Code Integration**: Complete TDK InvenSense driver suite (2,421 lines)
+- **✅ Self-Test Execution**: Gyro and accelerometer self-tests passing
+- **✅ Bias Calculation**: Float printf integration with bias value display
+- **✅ CI/HIL Integration**: Deterministic testing with `*STOP*` wildcard
+- **✅ Dual-Mode Support**: Same code works with RTT (HIL) and Serial (IDE)
+- **✅ Documentation**: ICM42688P datasheet included for reference
+
 **Production Integration**:
 ```cpp
+// Basic SPI Communication (Phase 1)
 #include <ICM42688P_Simple.h>
 #include <SPI.h>
 #include "../../../../ci_log.h"
@@ -371,20 +380,32 @@ void setup() {
     CI_LOG("✓ ICM42688P connected and responding\n");
   }
 }
+
+// Manufacturer Self-Test (Phase 2) - REQUIRES Float Printf
+// Build with: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp
+./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp" --use-rtt
+```
+
+**Self-Test Results**:
+```
+[I] Gyro Selftest PASS
+[I] Accel Selftest PASS
+[I] GYR LN bias (dps): x=0.358582, y=-0.778198, z=0.251770
+[I] ACC LN bias (g): x=-0.010132, y=0.044250, z=0.039490
 ```
 
 **Current Development Plan**:
 
-**Phase 2: Advanced IMU Functionality** (In Progress)
+**Phase 3: Data Acquisition and Configuration** (Next)
 1. **Sensor Data Reading** - Accelerometer and gyroscope data acquisition
 2. **Configuration Management** - Sample rates, ranges, filters
 3. **Interrupt Handling** - Data ready and threshold interrupts
 4. **Calibration Support** - Zero-offset and sensitivity calibration
 
-**Phase 3: Manufacturer Integration**
-5. **Port manufacturer drivers** - Integrate TDK InvenSense drivers from `src/Invn/`
-6. **Self-test integration** - Port manufacturer self-test routines
-7. **Advanced features** - Motion detection, FIFO management
+**Phase 4: Advanced Features** (Future)
+5. **FIFO Management** - Buffered data acquisition
+6. **Motion Detection** - Wake-on-motion and threshold detection
+7. **Power Management** - Low-power modes and sleep states
 
 **Technical Architecture**:
 - **Minimal Layer**: `ICM42688P_Simple` for basic register access

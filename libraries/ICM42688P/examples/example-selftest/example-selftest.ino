@@ -1,3 +1,35 @@
+/*
+ * ICM42688P Manufacturer Self-Test Integration
+ *
+ * This example integrates TDK InvenSense factory self-test code with STM32 Arduino Core
+ * and CI/HIL testing framework. It demonstrates complete manufacturer driver integration
+ * while preserving factory code integrity.
+ *
+ * HARDWARE VERIFICATION:
+ * - Target: NUCLEO-F411RE development board
+ * - IMU: ICM42688P 6-axis IMU sensor
+ * - Connection: SPI with jumper wires (1MHz for reliability)
+ * - Pin mapping: CS=PA4, MOSI=PA7, MISO=PA6, SCLK=PA5
+ *
+ * VERIFICATION RESULTS (2025-09-27):
+ * - WHO_AM_I: 0x47 (confirmed ICM42688P device ID)
+ * - Gyro Self-Test: PASS
+ * - Accel Self-Test: PASS
+ * - Gyro Bias (dps): x=0.358582, y=-0.778198, z=0.251770
+ * - Accel Bias (g): x=-0.010132, y=0.044250, z=0.039490
+ *
+ * BUILD REQUIREMENTS:
+ * - FQBN: STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp
+ * - Build command: ./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest \
+ *                  "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp" --use-rtt
+ *
+ * CI/HIL INTEGRATION:
+ * - RTT output for automated testing
+ * - Serial output for Arduino IDE
+ * - Deterministic exit with "*STOP*" wildcard
+ * - Build traceability with git SHA and timestamp
+ */
+
 #include "icm42688p.h"
 #include "../../../../ci_log.h"
 #include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
@@ -38,12 +70,16 @@ void setup() {
 
     CI_LOG("Initializing Example SelfTest...\n");
     CI_BUILD_INFO();
+    CI_READY_TOKEN();
 
     // Give ICM-42688P some time to stabilize
     delay(5);
 
     // Call the main function of the Invensense example
     inv_main();
+
+    // Add completion message for HIL testing
+    CI_LOG("*STOP*\n");
 }
 
 // Infinite loop
@@ -79,7 +115,14 @@ void inv_enable_irq(void)
 
 int inv_uart_mngr_puts(inv_uart_num_t uart_num, const char* s, unsigned short l)
 {
-    Serial.printf("%.*s", static_cast<int>(l), s);
+    // Create a null-terminated string from the length-specified string
+    static char temp_buf[256];
+    int copy_len = (l < sizeof(temp_buf) - 1) ? l : sizeof(temp_buf) - 1;
+    memcpy(temp_buf, s, copy_len);
+    temp_buf[copy_len] = '\0';
+
+    // Use CI_LOG for both RTT and Serial output
+    CI_LOG(temp_buf);
     return 1;
 }
 
