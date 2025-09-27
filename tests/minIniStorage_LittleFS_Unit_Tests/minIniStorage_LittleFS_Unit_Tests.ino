@@ -1,6 +1,6 @@
 #include <minIniStorage.h>
 #include "../../targets/NUCLEO_F411RE_LITTLEFS.h"
-#include "../../ci_log.h"
+#include <ci_log.h>
 
 minIniStorage config("config.ini");
 

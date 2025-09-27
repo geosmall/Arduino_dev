@@ -3,7 +3,7 @@
 
 #include <Storage.h>
 #include <BoardStorage.h>
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 
 // Include board configuration for StorageBackend enum
 #if defined(ARDUINO_BLACKPILL_F411CE)

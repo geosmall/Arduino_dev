@@ -15,7 +15,7 @@
  */
 
 #include <SDFS.h>
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 
 // Pin definitions based on board type
 #if defined(ARDUINO_BLACKPILL_F411CE)

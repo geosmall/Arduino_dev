@@ -1,4 +1,4 @@
-#include "../../aunit_hil.h"
+#include <aunit_hil.h>
 #include <SPI.h>
 
 // Include board configuration (automatically selects based on ARDUINO_* defines)

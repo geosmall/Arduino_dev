@@ -19,7 +19,7 @@
  */
 
 #include <minIniStorage.h>
-#include "../../../../../ci_log.h"
+#include <ci_log.h>
 
 // Board target configuration - update to match your hardware setup:
 // For SDFS (SD Card): NUCLEO_F411RE_SDFS.h

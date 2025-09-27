@@ -2,7 +2,7 @@
 // Integrates AUnit v1.7.1 with existing ci_log.h RTT/Serial abstraction and HIL workflow
 #pragma once
 
-#include "ci_log.h"
+#include <ci_log.h>
 #include <AUnit.h>
 
 // Custom printer that redirects AUnit output to ci_log system

@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include <LittleFS.h>
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 
 void Local_Error_Handler()
 {

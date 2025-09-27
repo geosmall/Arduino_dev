@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include "LittleFS.h"
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 
 // w25qxx_interface_t interface = W25QXX_INTERFACE_SPI;
 // w25qxx_type_t chip_type = W25Q128;

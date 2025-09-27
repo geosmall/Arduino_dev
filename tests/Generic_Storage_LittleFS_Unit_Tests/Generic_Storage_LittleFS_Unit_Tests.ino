@@ -4,7 +4,7 @@
 #include <Storage.h>
 #include <BoardStorage.h>
 #include "../../targets/NUCLEO_F411RE_LITTLEFS.h"
-#include "../../ci_log.h"
+#include <ci_log.h>
 
 void setup() {
 #ifndef USE_RTT

@@ -1,4 +1,4 @@
-#include "../../aunit_hil.h"
+#include <aunit_hil.h>
 
 /*
  * AUnit Pilot Test - Single sketch supporting both Arduino IDE (Serial) and J-Run/RTT modes
