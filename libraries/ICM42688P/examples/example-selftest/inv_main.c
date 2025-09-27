@@ -17,6 +17,10 @@
 /* std */
 #include <stdio.h>
 
+/* Embedded printf integration - override standard functions */
+#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT 1
+#include "printf.h"
+
 /* --------------------------------------------------------------------------------------
  *  Example configuration
  * -------------------------------------------------------------------------------------- */

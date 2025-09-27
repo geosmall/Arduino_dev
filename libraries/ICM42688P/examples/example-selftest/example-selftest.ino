@@ -40,6 +40,10 @@
 
 #include <cstring>
 
+// Embedded printf integration - enable automatic aliasing
+#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT 1
+#include "printf.h"
+
 // Uncomment to use software driven NSS
 #define USE_SOFT_NSS
 #define DESIRED_SPI_FREQ 1000000
@@ -113,9 +117,20 @@ void inv_enable_irq(void)
     }
 }
 
+// Embedded printf putchar implementation for output routing
+void putchar_(char c) {
+#ifdef USE_RTT
+    char buf[2] = {c, '\0'};
+    SEGGER_RTT_WriteString(0, buf);
+#else
+    Serial.print(c);
+#endif
+}
+
 int inv_uart_mngr_puts(inv_uart_num_t uart_num, const char* s, unsigned short l)
 {
-    // Create a null-terminated string from the length-specified string
+    // The string 's' is already formatted by embedded printf with proper float support!
+    // Just output it directly through our CI_LOG system
     static char temp_buf[256];
     int copy_len = (l < sizeof(temp_buf) - 1) ? l : sizeof(temp_buf) - 1;
     memcpy(temp_buf, s, copy_len);
