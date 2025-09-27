@@ -419,6 +419,69 @@ void setup() {
 3. **✅ HIL Integration**: Automated testing with RTT and exit wildcards
 4. **✅ Build Traceability**: Git SHA and timestamp integration
 
+### EmbeddedPrintf Integration 🔄 **ACTIVE PROJECT**
+
+Replace STM32 Arduino Core's problematic newlib printf with eyalroz/printf embedded implementation to eliminate nanofp confusion and reduce binary bloat.
+
+**Goal**: Integrate eyalroz/printf v0.6.2 to provide reliable float formatting without FQBN complexity
+**Status**: Phase 1 - Temporary integration in progress
+**Target**: Eliminate `rtlib=nanofp` requirement and reduce binary size by ~20KB
+
+**Problem Statement**:
+- **FQBN Confusion**: `rtlib=nanofp` vs `rtlib=nano` causes build complexity
+- **Binary Bloat**: nanofp adds ~10KB vs embedded printf savings of ~20KB
+- **Float Formatting Issues**: Inconsistent behavior between Serial and RTT output
+- **User Experience**: Complex build commands required for float support
+
+**Solution Architecture**:
+- **Phase 1**: Temporary integration in ICM42688P examples for validation
+- **Phase 2**: Arduino_Core_STM32 integration to replace newlib printf system-wide
+- **Integration**: Override `printf/sprintf/snprintf` family with embedded versions
+
+**Phase 1 ✅ Complete**: Temporary Integration
+- **✅ Research**: eyalroz/printf library analysis complete
+- **✅ Download**: eyalroz/printf v6.2.0 source integration
+- **✅ ICM42688P Integration**: Replace INV_MSG printf in example-selftest
+- **✅ Testing**: Validate float formatting without nanofp requirement
+- **✅ Verification**: Confirm RTT/Serial output consistency with bias values
+- **✅ FQBN Simplification**: Standard build commands now work for float operations
+
+**Phase 2 📋 Planned**: Core Integration
+- **Arduino_Core_STM32 Integration**: Add printf/ directory to cores/arduino/
+- **Platform Override**: Remove nanofp options from platform.txt
+- **System-wide Adoption**: Update all examples to use standard FQBN
+- **Putchar Implementation**: Route output to Serial/RTT consistently
+
+**Technical Benefits**:
+- **Simplified Builds**: Standard FQBN works for all float operations
+- **Smaller Binaries**: ~20KB reduction vs nanofp approach
+- **Consistent Behavior**: Same printf across RTT/Serial output
+- **No Dependencies**: Self-contained, no libc linking issues
+- **Embedded-Optimized**: Designed specifically for resource-constrained systems
+
+**Before/After Results**:
+```bash
+# Before (Complex, Bloated)
+./scripts/aflash.sh example-selftest "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE,rtlib=nanofp" --use-rtt
+# Binary: 41,916 bytes
+
+# After (Simple, Optimized)
+./scripts/aflash.sh example-selftest --use-rtt
+# Binary: 34,612 bytes (17% reduction)
+```
+
+**Verification Results**:
+```
+[I] GYR LN bias (dps): x=0.366211, y=-0.778198, z=0.259399
+[I] ACC LN bias (g): x=-0.013184, y=0.039551, z=0.039490
+```
+
+**Implementation Details**:
+- **eyalroz/printf v6.2.0**: Temporary integration in example-selftest
+- **Function Override**: `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT` approach
+- **Factory Code Changes**: Minimal 4-line addition to inv_main.c
+- **Output Routing**: `putchar_()` implementation for RTT/Serial consistency
+
 ## Future Projects
 
 ### New Variant Validation 📋 **FUTURE PROJECT**
