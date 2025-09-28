@@ -463,8 +463,8 @@ Comprehensive cleanup of include paths across the entire HIL testing ecosystem f
 Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL testing integration.
 
 **Goal**: Port manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface
-**Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 - Data acquisition in progress
-**Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI
+**Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 - Planning interrupt-driven examples
+**Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI with PC4 interrupt (EXTI4)
 
 **Phase 1 Complete ✅**: Minimal SPI Communication
 - **✅ Minimal Arduino Library**: `ICM42688P_Simple` class with software CS control
@@ -516,24 +516,31 @@ void setup() {
 [I] ACC LN bias (g): x=-0.010132, y=0.044250, z=0.039490
 ```
 
-**Current Development Plan**:
+**Phase 3: Interrupt-Driven Examples** (In Planning)
+- **EXTI Analysis Complete**: PC4 optimal pin selection (individual EXTI4 line)
+- **Architecture Decision**: Dedicated IMUConfig structure for interrupt pin integration
+- **Development Branch**: `icm42688p-dev` branch created for iterative development
+- **Fresh UVOS Codebase**: Ready to copy working example-raw-data-registers from UVOS
 
-**Phase 3: Data Acquisition and Configuration** (Next)
-1. **Sensor Data Reading** - Accelerometer and gyroscope data acquisition
-2. **Configuration Management** - Sample rates, ranges, filters
-3. **Interrupt Handling** - Data ready and threshold interrupts
-4. **Calibration Support** - Zero-offset and sensitivity calibration
-
-**Phase 4: Advanced Features** (Future)
-5. **FIFO Management** - Buffered data acquisition
-6. **Motion Detection** - Wake-on-motion and threshold detection
-7. **Power Management** - Low-power modes and sleep states
+**Planned Implementation Phases**:
+1. **Minimal Compilation**: UVOS → Arduino basic conversion (main→setup/loop)
+2. **BoardConfig Integration**: Implement dedicated IMUConfig with PC4 interrupt pin
+3. **Basic SPI Communication**: Verify sensor communication without interrupts
+4. **Interrupt Infrastructure**: Arduino attachInterrupt → InvenSense bridge
+5. **HIL Integration**: ci_log.h + RTT for deterministic testing
+6. **Data Acquisition**: Complete interrupt-driven sensor data reading
 
 **Technical Architecture**:
-- **Minimal Layer**: `ICM42688P_Simple` for basic register access
-- **Advanced Layer**: Full manufacturer driver integration
-- **Software CS Control**: Required for reliable IMU communication
-- **HIL Testing**: Deterministic validation at each layer
+- **Dedicated IMUConfig**: Clean separation from generic SPI configuration
+- **PC4 Integration**: Optimal EXTI4 individual line for high-performance interrupts
+- **Incremental Development**: Compile-as-you-go approach to avoid error cascades
+- **Factory Code Preservation**: Minimal changes to InvenSense algorithms
+
+**Documentation Added**:
+- **EXTI.md**: Complete STM32 EXTI interrupt reference for embedded programmers
+- **Pin Analysis**: PC4 = EXTI4 individual line recommended for optimal performance
+- **Performance Data**: ~1-2μs interrupt latency for individual EXTI lines
+- **Integration Guidelines**: Arduino attachInterrupt() + InvenSense callback bridging
 
 **Key Success Factors**:
 1. **✅ Software CS Control**: Essential for IMU communication reliability
