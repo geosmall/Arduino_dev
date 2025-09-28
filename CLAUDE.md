@@ -69,6 +69,7 @@ Enhanced build workflow with environment validation and device auto-detection:
 ./scripts/env_check_quick.sh         # Fast environment validation
 ./scripts/detect_device.sh           # Auto-detect STM32 via J-Link
 ./scripts/flash_auto.sh <binary>     # Program with auto-detected device
+./scripts/cleanup_repo.sh            # Clean build artifacts before commit
 ```
 
 **Key Features**:
@@ -456,6 +457,75 @@ Comprehensive cleanup of include paths across the entire HIL testing ecosystem f
 - ✅ **ICM42688P Integration**: Both minimal and self-test examples validated
 - ✅ **Framework Stability**: All exit wildcard detection and build traceability maintained
 
+### Board Configuration System ✅ **COMPLETED**
+
+Comprehensive redesign of board configuration architecture supporting flexible IMU integration with composable design patterns.
+
+**Key Features**:
+- **Composable Architecture**: Uses existing `SPIConfig` as building blocks for `IMUConfig`
+- **Transport Abstraction**: Union-based pattern supporting both SPI and I2C IMU connections
+- **Chip Select Modes**: Hardware vs software CS control for different connection types
+- **Optional Interrupt Support**: Configurable interrupt pins for sensor event handling
+- **Frequency Optimization**: 1MHz for jumper connections, 8MHz for hardwired setups
+- **Factory Methods**: Clean configuration instantiation with type safety
+
+**Production Usage**:
+```cpp
+#include "targets/NUCLEO_F411RE_SDFS.h"
+
+// Automatic board detection and configuration
+SPIClass storage_spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
+                     BoardConfig::storage.sclk_pin);
+SPIClass imu_spi(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
+                 BoardConfig::imu.spi.sclk_pin);
+
+void setup() {
+  // Storage at 1MHz (jumper wires)
+  if (storage_spi.begin()) {
+    // IMU with interrupt support at 1MHz
+    if (imu_spi.begin() && BoardConfig::imu.int_pin != 0) {
+      attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), imu_handler, RISING);
+    }
+  }
+}
+```
+
+**Configuration Architecture**:
+```cpp
+// Enhanced configuration types
+enum class IMUTransport { SPI, I2C };
+enum class CS_Mode { SOFTWARE, HARDWARE };
+
+struct SPIConfig {
+  uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
+  uint32_t freq_hz;
+  CS_Mode cs_mode = CS_Mode::SOFTWARE;
+};
+
+struct IMUConfig {
+  IMUTransport transport;
+  uint32_t int_pin;              // 0 = no interrupt
+  uint32_t freq_override_hz;     // 0 = use bus default
+  uint8_t i2c_address;           // For I2C transport
+
+  union {
+    SPIConfig spi;
+    I2CConfig i2c;
+  };
+
+  static constexpr IMUConfig spi_imu(const SPIConfig& spi_config,
+                                    uint32_t freq_override = 0,
+                                    uint32_t interrupt_pin = 0);
+};
+```
+
+**Validation Results**:
+- ✅ **Complete Migration**: All 4 board targets updated (NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3)
+- ✅ **Dual HIL Testing**: Full validation on both LittleFS and SDFS hardware rigs
+- ✅ **10 Test Suites**: Comprehensive validation across storage, IMU, and configuration management
+- ✅ **Frequency Optimization**: 1MHz for HIL jumper connections, 8MHz for production hardwired
+- ✅ **Backward Compatibility**: Clean break migration with systematic file updates
+
 ## Active Projects
 
 ### ICM-42688-P IMU Library Integration 🔄 **ACTIVE PROJECT**
@@ -583,14 +653,21 @@ AVOID documentation duplication across files. Before adding content, check if it
 
 **Cleanup Methods**:
 ```bash
-# Complete cleanup (all build artifacts)
+# Recommended: Use the cleanup script
+./scripts/cleanup_repo.sh
+
+# Manual cleanup (if needed)
 find tests/ libraries/ cmake/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
 find . -name "build_id.h" -delete 2>/dev/null || true
 find . -name "*.bin" -o -name "*.hex" -o -name "*.elf" -delete 2>/dev/null || true
 
-# Manual verification
+# Verification
 git status    # Review changes before commit
 ```
+
+**Claude Code Integration**:
+- Use the command **"cleanup repo"** for automatic repository cleanup
+- Claude will execute `./scripts/cleanup_repo.sh` and show clean git status
 
 **Pre-Commit Verification**:
 ```bash
