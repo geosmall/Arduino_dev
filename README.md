@@ -19,7 +19,10 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 - **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability
 - **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
 - **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved)
-- **Dual Storage Systems**: LittleFS (SPI flash) and SDFS v1.0.0 (SD card filesystem with compatible configuration)
+- **Unified Storage Systems**: LittleFS (SPI flash), SDFS (SD card), and Generic Storage abstraction with minIni configuration management
+- **ICM42688P IMU Integration**: Complete 6-axis IMU library with manufacturer self-test and data acquisition
+- **libPrintf Integration**: Embedded printf library eliminating nanofp complexity with 20KB+ binary savings
+- **AUnit Testing Framework**: Comprehensive unit testing with HIL integration (22 tests across storage systems)
 - **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
 - **Flight Controller Focus**: Optimized for UAV applications with deterministic testing
 
@@ -76,19 +79,35 @@ make upload         # Compile and upload
 make check          # Verify environment
 ```
 
-## Storage Libraries
+## Libraries
 
+### Storage and Configuration
 - **LittleFS**: SPI flash storage for configuration and firmware
 - **SDFS v1.0.0**: SD card filesystem via SPI with LittleFS-compatible configuration
+- **Storage**: Generic storage abstraction providing unified interface for LittleFS and SDFS
+- **minIniStorage v1.5.0**: INI file configuration management with automatic storage backend selection
+
+### Sensors and Hardware
+- **ICM42688P v1.0.0**: 6-axis IMU library with TDK InvenSense drivers, self-test, and data acquisition
+- **STM32RTC**: Real-time clock functionality
+
+### Development and Testing
+- **libPrintf v6.2.0**: Embedded printf library eliminating nanofp complexity (20KB+ binary savings)
+- **AUnit v1.7.1**: Arduino unit testing framework with HIL integration (22 comprehensive tests)
 
 ## Project Structure
 
 ```
 ├── Arduino_Core_STM32/    # STM32 Arduino core (fork of stm32duino/Arduino_Core_STM32)
-├── libraries/             # Storage and utility libraries
+├── libraries/             # Storage, sensor, and utility libraries
+│   ├── AUnit-1.7.1/       # Arduino unit testing framework with HIL integration
+│   ├── ICM42688P/         # 6-axis IMU library with manufacturer drivers and self-test
+│   ├── libPrintf/         # Embedded printf library (eyalroz/printf v6.2.0 wrapper)
 │   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
+│   ├── minIniStorage/     # Configuration management with unified storage backend
+│   ├── SDFS/              # SD filesystem v1.0.0 with LittleFS-compatible API
 │   ├── STM32RTC/          # Real-time clock library
-│   └── SDFS/              # SD filesystem v1.0.0
+│   └── Storage/           # Generic storage abstraction for LittleFS/SDFS
 ├── scripts/               # Build and test automation
 ├── HIL_RTT_Test/          # Hardware-in-loop test framework
 └── test_logs/             # Test execution logs and artifacts
@@ -102,16 +121,29 @@ make check          # Verify environment
 ## Production Development Workflow
 
 ### Arduino IDE Development
-1. **Build for Serial**: `./scripts/build.sh libraries/SDFS/examples/SDFS_Test`
+1. **Build for Serial**: `./scripts/build.sh libraries/ICM42688P/examples/example-selftest`
 2. **Upload via Arduino IDE**: Standard Arduino workflow with Serial monitoring
 
-### CI/HIL Testing  
+### CI/HIL Testing
 1. **Environment Check**: `./scripts/env_check_quick.sh true` (~100ms validation)
 2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect any STM32 via J-Link)
 3. **Unified Build**: `./scripts/build.sh <sketch> --use-rtt --build-id --env-check` (RTT mode with traceability)
 4. **HIL Testing**: `./scripts/aflash.sh <sketch> --use-rtt --build-id --env-check` (complete workflow)
 5. **Traceability Verification**: `./scripts/await_ready.sh` (enhanced parsing, 5.2ms latency achieved)
 6. **Real-time Debug**: SEGGER RTT v8.62 with `JLinkRTTClient` for printf output
+
+### Example Workflows
+```bash
+# IMU sensor testing with self-test validation
+./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest --use-rtt --build-id
+
+# Storage system unit testing
+./scripts/aflash.sh tests/LittleFS_Unit_Tests --use-rtt --build-id
+./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
+
+# Configuration management testing
+./scripts/aflash.sh tests/minIniStorage_Unit_Tests --use-rtt --build-id
+```
 
 ### Build Traceability Example
 ```
@@ -138,6 +170,13 @@ void setup() {
 - Automatic Serial ↔ RTT switching via `USE_RTT` compile flag
 - Build traceability integration for CI/CD workflows
 - Deterministic exit tokens for automated testing
+
+## Current Development Status
+
+- **✅ Complete**: Storage systems (LittleFS, SDFS, Storage abstraction), configuration management (minIni), build/HIL framework, libPrintf integration
+- **✅ Complete**: ICM42688P Phase 1 (SPI communication) and Phase 2 (manufacturer self-test)
+- **🔄 Active**: ICM42688P Phase 3 (data acquisition and configuration management)
+- **📋 Planned**: ICM42688P Phase 4 (FIFO, motion detection, power management)
 
 ## Documentation
 

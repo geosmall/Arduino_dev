@@ -19,7 +19,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `libraries/` - Core STM32 libraries (SPI, Wire, SoftwareSerial, etc.)
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
-- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, etc.)
+- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, ICM42688P, libPrintf, minIniStorage, Storage, AUnit, etc.)
 - `HIL_RTT_Test/` - HIL test framework with comprehensive validation and RTT debugging
 
 ## Build Systems and Commands
@@ -146,16 +146,10 @@ This repository is specifically designed for **UAV flight controller boards** wi
 - **Real-time Data Logging** - Flight data, telemetry, and configuration storage
 - **Sensor Data Management** - IMU, GPS, and other sensor data processing
 
-### Storage Libraries Focus
-The repository includes multiple storage libraries designed for embedded systems applications:
-
-**Primary Storage Libraries**:
-- **LittleFS** - SPI flash storage for configuration, firmware, and small data files
-  - **Examples**: ListFiles, LittleFS_ChipID, LittleFS_Usage (all integrated with ci_log.h for HIL testing)
-  - **Hardware Support**: 20+ SPI flash chips (512KB-128MB) from multiple manufacturers
-- **SDFS** - Custom SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
-
-Both LittleFS and SDFS provide identical APIs for seamless switching between storage types.
+### Storage Libraries
+- **LittleFS** - SPI flash storage (configuration, firmware, small data files)
+- **SDFS** - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
+- **Generic Storage Abstraction** - Unified interface for seamless backend switching
 
 ### Key Libraries
 
@@ -170,6 +164,10 @@ Both LittleFS and SDFS provide identical APIs for seamless switching between sto
 - `STM32RTC` - Real-time clock functionality
 - `LittleFS` - SPI flash filesystem with wear leveling (configuration, firmware)
 - `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
+- `Storage` - Generic storage abstraction providing unified interface for LittleFS and SDFS
+- `minIniStorage` - INI configuration management with automatic storage backend selection
+- `ICM42688P` - 6-axis IMU library with TDK InvenSense drivers and manufacturer self-test
+- `libPrintf` - Optional embedded printf library (eyalroz/printf v6.2.0) - eliminates nanofp confusion, 20% binary reduction
 - `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
 
 ### Hardware Abstraction
@@ -207,10 +205,11 @@ Single-sketch development supporting both Arduino IDE and CI/HIL workflows via `
 - **Dual-Mode Support**: Same sketch works with Serial (IDE) or RTT (HIL)
 - **Build Integration**: `--use-rtt` and `--build-id` flag support
 - **Single Codebase**: Eliminates duplicate test files
+- **Clean Include Paths**: Arduino core integration for system-wide availability
 
 **Integration Pattern**:
 ```cpp
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 void setup() {
   CI_LOG("Test starting\n");
   CI_BUILD_INFO();    // RTT: shows build details, Serial: no-op
@@ -259,7 +258,7 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 
 **Key Features**:
 - **Complete Integration**: `aunit_hil.h` wrapper with RTT/Serial abstraction
-- **15 Total Tests**: LittleFS (8 tests), SDFS (7 tests), framework validation (3 tests)
+- **22 Total Tests**: LittleFS (8 tests), SDFS (7 tests), minIniStorage (6 tests), framework validation (1 test)
 - **Hardware Validation**: Real SPI flash and SD card testing on STM32F411RE
 - **Dual-Mode Support**: Same tests work with RTT (HIL) and Serial (IDE)
 - **Type Safety**: Established AUnit assertion patterns for embedded types
@@ -268,6 +267,7 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 ```bash
 ./scripts/aflash.sh tests/LittleFS_Unit_Tests --use-rtt --build-id
 ./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
+./scripts/aflash.sh tests/minIniStorage_Unit_Tests --use-rtt --build-id
 ```
 
 ### Board Configuration System ✅ **COMPLETED**
@@ -294,35 +294,22 @@ SPIClass SPIbus(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin, Bo
 
 ### Generic Storage Abstraction ✅ **COMPLETED**
 
-**Goal**: Create unified storage interface that abstracts SDFS and LittleFS behind common API, with BoardConfig handling all hardware-specific details
+Unified storage interface abstracting SDFS and LittleFS with automatic backend selection.
 
-**Status**: Complete unified storage abstraction with automatic backend selection
-**Completion**: September 21, 2025
-
-**Key Achievements**:
-- ✅ **Unified Storage Interface**: `Storage.h` provides seamless abstraction over SDFS and LittleFS
-- ✅ **Board Configuration Integration**: `BoardStorage::begin(config)` with explicit configuration passing
-- ✅ **Runtime Backend Selection**: Factory pattern selects storage backend based on board configuration
-- ✅ **Target Configuration Fix**: Resolved library compilation mismatch for preprocessor defines
-- ✅ **Clean API Design**: Single `BOARD_STORAGE` macro provides access to configured storage
-
-**Technical Implementation**:
-- **Storage.cpp**: Delegation pattern with backend-specific initialization
-- **BoardStorage.cpp**: Factory with explicit configuration to avoid compilation issues
-- **Storage_Demo**: Complete demonstration example with HIL integration
-- **Error Handling**: Comprehensive error reporting and graceful failure handling
+**Key Features**:
+- **Unified API**: Single interface for both storage backends
+- **Board Integration**: Automatic backend selection via BoardConfig
+- **Runtime Safety**: Factory pattern with comprehensive error handling
 
 **Production Usage**:
 ```cpp
 #include <Storage.h>
 #include <BoardStorage.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"  // or appropriate target
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
 
 void setup() {
-  // Initialize with explicit configuration (resolves library compilation issues)
   if (BoardStorage::begin(BoardConfig::storage)) {
     Storage& fs = BOARD_STORAGE;
-
     File log = fs.open("/flight.log", FILE_WRITE);
     log.println("Unified storage working!");
     log.close();
@@ -330,75 +317,234 @@ void setup() {
 }
 ```
 
-**Architecture Benefits**:
-- **Single Codebase**: Applications work with both storage types without modification
-- **Board-Specific**: Storage type automatically selected based on hardware configuration
-- **Type Safety**: Compile-time backend selection with runtime validation
-- **HIL Integration**: Seamless integration with existing test framework
-
 ### minIni Configuration Management System ✅ **COMPLETED**
 
-Unified INI file configuration management system integrated with Generic Storage Abstraction supporting both LittleFS and SDFS backends.
+INI file configuration management integrated with Generic Storage Abstraction for both LittleFS and SDFS backends.
 
-**Goal**: minIni-based key-value configuration system with seamless storage backend switching for UAV flight controller applications
-
-**Status**: Complete integration with minIni v1.5 upgrade and dual backend validation
-**Completion**: September 22, 2025
-
-**Key Achievements**:
-- ✅ **minIni v1.5 Upgrade**: Updated from legacy version to latest minIni v1.5 with enhanced functionality
-- ✅ **Complete minIniStorage Library**: `libraries/minIniStorage/` with StorageGlue.h abstraction layer
-- ✅ **Storage Integration**: minIni operates through Generic Storage Abstraction instead of custom SD implementation
-- ✅ **Dual Backend Support**: Full validation on both LittleFS (16MB SPI Flash) and SDFS (30GB SD Card)
-- ✅ **Split Test Architecture**: Separate unit tests for each backend without manual switching
-- ✅ **Complete Data Type Support**: Strings, integers, floats, booleans, section/key enumeration
-- ✅ **minIni v1.5 Features**: New hassection() and haskey() validation methods
-- ✅ **HIL Integration**: Deterministic testing with exit wildcard detection and build traceability
-- ✅ **Production Example**: Complete minIniStorage_Example with ci_log.h integration
-
-**Technical Implementation**:
-- **StorageGlue.h**: Complete glue layer replacing minGlue.h, bridges minIni to Storage.h API
-- **minIniStorage.h**: High-level wrapper class providing clean initialization and configuration management
-- **Backend Abstraction**: Automatic storage selection via BoardConfig with no code changes required
-- **Filename Compatibility**: Resolved FAT filesystem limitations for reliable INI file operations
+**Key Features**:
+- **minIni v1.5**: Latest version with enhanced validation (hassection/haskey)
+- **Storage Integration**: Works with both LittleFS and SDFS via unified interface
+- **Data Types**: Strings, integers, floats, booleans with section/key enumeration
+- **HIL Testing**: Full deterministic validation with 6 test suites
 
 **Production Usage**:
 ```cpp
 #include <minIniStorage.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"  // or SDFS variant
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
 
 minIniStorage config("config.ini");
 
 void setup() {
   if (config.begin(BoardConfig::storage)) {
-    // Write configuration
     config.put("network", "ip_address", "192.168.1.100");
     config.put("system", "sample_rate", 1000);
-    config.put("debug", "enabled", true);
 
-    // Read configuration
     std::string ip = config.gets("network", "ip_address", "192.168.1.1");
     int rate = config.geti("system", "sample_rate", 100);
-    bool debug = config.getbool("debug", "enabled", false);
-
-    // minIni v1.5 features
-    if (config.hassection("network")) {
-      if (config.haskey("network", "ip_address")) {
-        // Key exists, safe to read
-      }
-    }
   }
 }
 ```
 
+### libPrintf Embedded Printf Library ✅ **COMPLETED**
+
+Optional Arduino library wrapper for eyalroz/printf v6.2.0 that eliminates nanofp confusion and provides reliable float formatting for STM32 Arduino projects.
+
+**Key Features**:
+- **Optional Integration**: Include `#include <libPrintf.h>` when printf functionality is needed
+- **Eliminates nanofp confusion**: No more complex FQBN configurations or rtlib settings
+- **Binary size reduction**: ~20% smaller than nanofp (typically 8KB+ savings)
+- **Reliable float formatting**: Works without build configuration complexity
+- **Factory code compatible**: Seamless integration with existing printf/fprintf calls
+- **Thread-safe**: Suitable for embedded real-time applications
+- **Custom putchar_() Support**: Easy output redirection for RTT, Serial1, etc.
+
+**Production Usage**:
+```cpp
+#include <libPrintf.h>
+
+void setup() {
+  Serial.begin(115200);  // Required for default output
+
+  // All standard printf functions now work with float support
+  printf("Pi = %.6f\n", 3.14159265);  // No nanofp needed!
+  printf("Mixed: %s has %d chars\n", "libPrintf", 9);
+
+  // Works with sprintf, fprintf, etc.
+  char buffer[64];
+  sprintf(buffer, "Formatted: %.2f%%", 85.75);
+  printf("Buffer: %s\n", buffer);
+}
+```
+
+**RTT Integration Example**:
+```cpp
+#include <libPrintf.h>
+#include <SEGGER_RTT.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
+
+extern "C" void putchar_(char c) {
+  char buf[2] = {c, '\0'};
+  SEGGER_RTT_WriteString(0, buf);
+}
+
+void setup() {
+  SEGGER_RTT_Init();
+  printf("RTT output: %.2f\n", 3.14159);  // Routes to RTT
+}
+```
+
+**Build Integration**:
+```bash
+# Standard FQBN - no rtlib complexity!
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch>
+./scripts/aflash.sh <sketch> --use-rtt
+```
+
+**Library Structure**:
+```
+libraries/libPrintf/
+├── library.properties          # Arduino IDE integration
+├── README.md                   # Complete user documentation
+├── PRINTF.md                   # Technical implementation details and customization
+├── src/
+│   ├── libPrintf.h            # Main wrapper with function aliasing (SOFT mode)
+│   ├── printf.c               # eyalroz/printf v6.2.0 implementation
+│   └── printf.h               # eyalroz printf header
+└── examples/
+    └── BasicUsage/
+        └── BasicUsage.ino     # Demonstration example
+```
+
+**Integration Notes**:
+- libPrintf is an **optional Arduino library**, not core-integrated
+- Requires explicit `#include <libPrintf.h>` for activation
+- Uses soft function aliasing for transparent printf replacement
+- Supports custom putchar_() for flexible output routing (Serial, RTT, etc.)
+
+### Include Path Infrastructure ✅ **COMPLETED**
+
+Comprehensive cleanup of include paths across the entire HIL testing ecosystem for improved maintainability.
+
+**Key Features**:
+- **Clean Arduino Syntax**: Eliminated ugly relative paths like `../../../../ci_log.h`
+- **Core Integration**: Moved `ci_log.h` to Arduino core for system-wide availability
+- **Library Architecture**: Moved `aunit_hil.h` to AUnit library for proper separation
+- **17 Files Updated**: Complete migration across tests, examples, and libraries
+- **Comprehensive Validation**: Full testing across dual storage backends (LittleFS + SDFS)
+
+**Migration Summary**:
+```cpp
+// Before: Ugly relative paths
+#include "../../../../ci_log.h"
+#include "../../aunit_hil.h"
+
+// After: Clean Arduino library syntax
+#include <ci_log.h>
+#include <aunit_hil.h>
+```
+
+**Infrastructure Changes**:
+- **ci_log.h**: Arduino_Core_STM32/cores/arduino/ci_log.h (system-wide HIL logging)
+- **aunit_hil.h**: libraries/AUnit-1.7.1/src/aunit_hil.h (testing framework integration)
+- **Build System**: No configuration changes needed - includes work automatically
+- **Backward Compatibility**: Maintained while improving maintainability
+
 **Validation Results**:
-- **LittleFS Backend**: All 3 unit tests passed (8/8 core tests, storage abstraction, minIni integration)
-- **SDFS Backend**: All 3 unit tests passed (7/7 core tests, storage abstraction, minIni integration)
-- **Cross-Platform**: Same minIniStorage code works seamlessly with both storage types
-- **HIL Testing**: Complete deterministic validation with 6 comprehensive test suites
+- ✅ **21 Components Tested**: Complete ecosystem validation across both HIL rigs
+- ✅ **SDFS Backend**: 12/12 components passed (SD card storage)
+- ✅ **LittleFS Backend**: 9/9 components passed (SPI flash storage)
+- ✅ **ICM42688P Integration**: Both minimal and self-test examples validated
+- ✅ **Framework Stability**: All exit wildcard detection and build traceability maintained
+
+## Active Projects
+
+### ICM-42688-P IMU Library Integration 🔄 **ACTIVE PROJECT**
+
+Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL testing integration.
+
+**Goal**: Port manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface
+**Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 - Data acquisition in progress
+**Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI
+
+**Phase 1 Complete ✅**: Minimal SPI Communication
+- **✅ Minimal Arduino Library**: `ICM42688P_Simple` class with software CS control
+- **✅ SPI Communication**: Successfully reading WHO_AM_I register (0x47)
+- **✅ HIL Integration**: Full `ci_log.h` integration with deterministic testing
+- **✅ Pin Configuration**: NUCLEO_F411RE pins verified (PA4=CS, PA7=MOSI, PA6=MISO, PA5=SCLK)
+- **✅ Build Integration**: Complete `./scripts/build.sh` and `./scripts/aflash.sh` support
+
+**Phase 2 Complete ✅**: Manufacturer Self-Test Integration
+- **✅ Factory Code Integration**: Complete TDK InvenSense driver suite (2,421 lines)
+- **✅ Self-Test Execution**: Gyro and accelerometer self-tests passing
+- **✅ libPrintf Integration**: Embedded printf with float formatting (17% binary reduction)
+- **✅ Bias Calculation**: Reliable float display without nanofp complexity
+- **✅ CI/HIL Integration**: Deterministic testing with `*STOP*` wildcard
+- **✅ Dual-Mode Support**: Same code works with RTT (HIL) and Serial (IDE)
+- **✅ Documentation**: ICM42688P datasheet included for reference
+
+**Production Integration**:
+```cpp
+// Basic SPI Communication (Phase 1)
+#include <ICM42688P_Simple.h>
+#include <SPI.h>
+#include <ci_log.h>
+
+SPIClass spi(PA7, PA6, PA5);  // MOSI, MISO, SCLK (software CS)
+ICM42688P_Simple imu;
+
+void setup() {
+  if (imu.begin(spi, PA4, 1000000)) {  // CS=PA4, 1MHz
+    uint8_t device_id = imu.readWhoAmI();  // Returns 0x47
+    CI_LOG("✓ ICM42688P connected and responding\n");
+  }
+}
+
+// Manufacturer Self-Test (Phase 2) with libPrintf
+#include <libPrintf.h>  // Automatic float formatting, no nanofp needed!
+#include "icm42688p.h"
+#include <ci_log.h>
+
+// Standard build - no rtlib complexity!
+./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest --use-rtt
+```
+
+**Self-Test Results**:
+```
+[I] Gyro Selftest PASS
+[I] Accel Selftest PASS
+[I] GYR LN bias (dps): x=0.358582, y=-0.778198, z=0.251770
+[I] ACC LN bias (g): x=-0.010132, y=0.044250, z=0.039490
+```
+
+**Current Development Plan**:
+
+**Phase 3: Data Acquisition and Configuration** (Next)
+1. **Sensor Data Reading** - Accelerometer and gyroscope data acquisition
+2. **Configuration Management** - Sample rates, ranges, filters
+3. **Interrupt Handling** - Data ready and threshold interrupts
+4. **Calibration Support** - Zero-offset and sensitivity calibration
+
+**Phase 4: Advanced Features** (Future)
+5. **FIFO Management** - Buffered data acquisition
+6. **Motion Detection** - Wake-on-motion and threshold detection
+7. **Power Management** - Low-power modes and sleep states
+
+**Technical Architecture**:
+- **Minimal Layer**: `ICM42688P_Simple` for basic register access
+- **Advanced Layer**: Full manufacturer driver integration
+- **Software CS Control**: Required for reliable IMU communication
+- **HIL Testing**: Deterministic validation at each layer
+
+**Key Success Factors**:
+1. **✅ Software CS Control**: Essential for IMU communication reliability
+2. **✅ Pin Configuration**: Proper Arduino pin mapping without integer arithmetic
+3. **✅ HIL Integration**: Automated testing with RTT and exit wildcards
+4. **✅ Build Traceability**: Git SHA and timestamp integration
+5. **✅ Clean Include Paths**: Maintainable Arduino library syntax throughout
+6. **✅ Dual HIL Validation**: Tested on both LittleFS and SDFS hardware rigs
+
 
 ## Future Projects
-
 
 ### New Variant Validation 📋 **FUTURE PROJECT**
 
@@ -409,10 +555,6 @@ Establish automated validation methodology for new STM32 board variants in custo
 - **Serial Communication**: Validation patterns for `Serial.print()` functionality
 - **HIL Integration**: Integration with existing framework for deterministic testing
 - **Multi-Family Support**: STM32F4xx, F7xx, H7xx variant validation
-
-## Active Projects
-
-*No active projects currently - all major framework components completed.*
 
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
