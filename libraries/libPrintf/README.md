@@ -4,7 +4,7 @@ A lightweight, embedded-friendly printf implementation that eliminates nanofp co
 
 ## Overview
 
-libPrintf is based on [eyalroz/printf v6.2.0](https://github.com/eyalroz/printf) and provides a complete replacement for the standard printf family of functions. It's specifically designed to solve the common nanofp/nano library confusion in STM32 Arduino development while providing significant binary size reductions.
+libPrintf is an **optional Arduino library** based on [eyalroz/printf v6.2.0](https://github.com/eyalroz/printf) that provides embedded printf functionality for STM32 Arduino sketches. This library eliminates nanofp configuration complexity and provides reliable float formatting with significant binary size reductions.
 
 ## Key Benefits
 
@@ -14,6 +14,7 @@ libPrintf is based on [eyalroz/printf v6.2.0](https://github.com/eyalroz/printf)
 - ✅ **Factory code compatible**: Seamless integration with existing printf/fprintf calls
 - ✅ **Thread-safe**: Suitable for embedded real-time applications
 - ✅ **Complete printf family**: Supports printf, sprintf, fprintf, snprintf, vprintf, etc.
+- ✅ **Flexible output routing**: Custom putchar_() implementation for Serial, RTT, etc.
 
 ## Quick Start
 
@@ -21,7 +22,7 @@ libPrintf is based on [eyalroz/printf v6.2.0](https://github.com/eyalroz/printf)
 
 Copy the `libPrintf` directory to your Arduino `libraries/` folder, or place it in your project's libraries directory.
 
-### Usage
+### Basic Usage
 
 ```cpp
 #include <libPrintf.h>
@@ -40,28 +41,20 @@ void setup() {
 }
 ```
 
-### RTT Integration
+### Build Requirements
 
-For HIL testing with RTT, implement a custom `putchar_()` function:
-
-```cpp
-#include <libPrintf.h>
-
-extern "C" void putchar_(char c) {
-#ifdef USE_RTT
-  char buf[2] = {c, '\0'};
-  SEGGER_RTT_WriteString(0, buf);
-#else
-  Serial.print(c);
-#endif
-}
-```
+- **Arduino IDE**: 1.8.x or Arduino CLI
+- **STM32 Core**: 2.7.1 or newer
+- **FQBN**: Standard configuration (no rtlib needed!)
+  ```
+  STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
+  ```
 
 ## Technical Details
 
 ### Function Aliasing
 
-libPrintf uses `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT` to automatically replace standard printf functions when the library is included. This means:
+libPrintf uses `PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT` to automatically replace standard printf functions when the library is included:
 
 - `printf()` → `printf_()`
 - `sprintf()` → `sprintf_()`
@@ -79,7 +72,58 @@ This aliasing is completely transparent - your existing code works unchanged onc
 | newlib nano + nanofp | ~42KB | 0% |
 | newlib nano + libPrintf | ~34KB | **17%** |
 
-### Supported Format Specifiers
+### Library Architecture
+
+**Library Files**:
+- `src/libPrintf.h`: Main library header with function aliasing
+- `src/printf.c`: eyalroz/printf v6.2.0 implementation
+- `src/printf.h`: Function declarations and configuration
+- `examples/BasicUsage/`: Demonstration sketch
+
+**Output Flow**:
+```
+printf() → printf_() → putchar_() → Serial.print() → Hardware UART
+```
+
+## Output Routing & Customization
+
+### Default Output
+
+By default, libPrintf routes output to Arduino's Serial port. To customize, override `putchar_()`:
+
+```cpp
+#include <libPrintf.h>
+#include <SEGGER_RTT.h>
+#define LIBPRINTF_CUSTOM_PUTCHAR
+
+extern "C" void putchar_(char c) {
+    // Choose your output method:
+    Serial1.write(c);                          // Different Serial port
+
+    // OR for RTT output:
+    char buf[2] = {c, '\0'};
+    SEGGER_RTT_WriteString(0, buf);            // RTT debugging
+
+    // OR conditional routing:
+    #ifdef USE_RTT
+        SEGGER_RTT_WriteString(0, buf);
+    #else
+        Serial.write(c);
+    #endif
+
+    // OR dual output:
+    Serial.write(c);                           // IDE Serial Monitor
+    SEGGER_RTT_WriteString(0, buf);            // HIL testing
+}
+
+void setup() {
+    Serial.begin(115200);      // Initialize your chosen output
+    SEGGER_RTT_Init();         // If using RTT
+    printf("Custom output: %.2f\n", 3.14159);
+}
+```
+
+## Supported Format Specifiers
 
 libPrintf supports all standard printf format specifiers:
 
@@ -90,11 +134,28 @@ libPrintf supports all standard printf format specifiers:
 - **Width/Precision**: `%10s`, `%.2f`, `%*.*f`
 - **Flags**: `%-`, `%+`, `%#`, `%0`, `% ` (space)
 
+## Advanced Configuration
+
+### Memory Optimization
+
+Configure printf features to reduce binary size:
+
+```cpp
+#define PRINTF_SUPPORT_LONG_LONG 0           // Disable long long support
+#define PRINTF_SUPPORT_DECIMAL_SPECIFIERS 1   // Keep %d, %i, %u
+#define PRINTF_SUPPORT_EXPONENTIAL_SPECIFIERS 0  // Disable %e, %E, %g, %G
+```
+
+### Format String Validation
+
+Enable compile-time format string checking:
+
+```cpp
+#define PRINTF_SUPPORT_RUNTIME_EVALUATION 0  // Disable for smaller code size
+#define PRINTF_CHECK_FOR_NULL_POINTERS 1     // Enable null pointer checks
+```
+
 ## Examples
-
-### Basic Usage
-
-See `examples/BasicUsage/BasicUsage.ino` for a complete demonstration of libPrintf functionality.
 
 ### Real-World Integration
 
@@ -110,73 +171,59 @@ void setup() {
 }
 ```
 
-## Build Requirements
+### Production Build Integration
 
-- **Arduino IDE**: 1.8.x or Arduino CLI
-- **STM32 Core**: 2.7.1 or newer
-- **FQBN**: Standard configuration (no rtlib needed!)
-  ```
-  STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE
-  ```
+```bash
+# Standard FQBN - no rtlib complexity!
+arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch>
 
-## Version Information
+# HIL testing with RTT output
+./scripts/aflash.sh <sketch> --use-rtt
 
-- **libPrintf**: v1.0.0 (Arduino wrapper library)
-- **Based on**: eyalroz/printf v6.2.0 (embedded implementation)
-- **License**: MIT (see eyalroz/printf repository)
-
-## Integration Notes
-
-### Automatic Integration
-
-Simply include `<libPrintf.h>` and all printf functions are automatically replaced:
-
-```cpp
-#include <libPrintf.h>
-// No additional configuration needed!
+# CMake builds
+cmake -S <sketch> -B build && cmake --build build
 ```
 
-### Manual Configuration
+## Comparison with Standard Printf
 
-If you need to disable automatic aliasing:
-
-```cpp
-// Include the base printf.h directly
-#include "printf.h"
-
-// Use explicit function names
-printf_("Manual printf: %.2f\n", 3.14);
-```
+| Feature | Standard (nano) | Standard (nanofp) | libPrintf |
+|---------|----------------|-------------------|-----------|
+| **Float Support** | ❌ None | ✅ Full | ✅ Full |
+| **Binary Size** | Small (~2KB) | Large (~16KB) | Optimized (~6KB) |
+| **FQBN Dependency** | N/A | `:rtlib=nanofp` required | ❌ None |
+| **Include Required** | None | None | `#include <libPrintf.h>` |
+| **Output Routing** | Serial only | Serial only | Flexible putchar_() |
+| **Configuration** | N/A | Complex FQBN | Simple include |
 
 ## Troubleshooting
 
-### Common Issues
+| Problem | Quick Fix |
+|---------|-----------|
+| No output in Serial Monitor | Add `Serial.begin(115200);` in setup() |
+| Float shows "0.000000" | Include `#include <libPrintf.h>` in all printf files |
+| `'printf' was not declared` | Add `#include <libPrintf.h>` at top of sketch |
+| Binary size larger than expected | Remove `:rtlib=nanofp` from FQBN |
+| Custom putchar_() not working | Initialize Serial1/RTT before using printf |
 
-1. **"undefined reference to printf"**
-   - Make sure `#include <libPrintf.h>` is before any printf usage
-   - Verify the library is in your libraries path
+### Verification Test
 
-2. **Float values showing as "0.000000"**
-   - This suggests the old newlib nano printf is still being used
-   - Check that libPrintf.h is included in all files using printf
-
-3. **Build size larger than expected**
-   - Verify you're not including both libPrintf and nanofp
-   - Check FQBN doesn't include `:rtlib=nanofp`
-
-### Verification
-
-To verify libPrintf is working:
+To confirm libPrintf is active:
 
 ```cpp
 #include <libPrintf.h>
-
 void setup() {
-  printf("Test float: %.6f\n", 3.14159265);
-  // Should show: Test float: 3.141593
-  // If it shows: Test float: 0.000000, libPrintf is not active
+    Serial.begin(115200);
+    printf("Float test: %.2f\n", 3.14);  // Should show "3.14", not "0.00"
 }
 ```
+
+## Version Information
+
+- **libPrintf Library**: v1.0.0 (Arduino wrapper library)
+- **Based on**: eyalroz/printf v6.2.0 (embedded implementation)
+- **Compatible STM32 Core**: 2.7.1+
+- **Upstream Repository**: [github.com/eyalroz/printf](https://github.com/eyalroz/printf)
+- **License**: MIT (inherited from eyalroz/printf)
 
 ## Contributing
 

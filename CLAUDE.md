@@ -134,13 +134,13 @@ cmake --build <build_folder>
 - **Nucleo H753ZI** (High-Performance): `STMicroelectronics:stm32:Nucleo_144:pnum=NUCLEO_H753ZI`
 
 ### Target Hardware Platforms
-This repository is specifically designed for **UAV flight controller boards** with the following STM32 microcontrollers:
+This repository supports **UAV flight controller boards** with the following STM32 microcontrollers:
 
 - **STM32F411** - Primary target (Nucleo F411RE, BlackPill F411CE for development)
 - **STM32F405** - Secondary target (common in flight controllers) 
 - **STM32H743** - Future target (high-performance flight controllers)
 
-### Target Applications
+### Example Target Applications
 - **UAV Flight Controllers** - Autonomous drone flight control systems
 - **Embedded Storage Systems** - SPI flash (LittleFS) and SD card (SDFS) file systems
 - **Real-time Data Logging** - Flight data, telemetry, and configuration storage
