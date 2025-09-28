@@ -205,10 +205,11 @@ Single-sketch development supporting both Arduino IDE and CI/HIL workflows via `
 - **Dual-Mode Support**: Same sketch works with Serial (IDE) or RTT (HIL)
 - **Build Integration**: `--use-rtt` and `--build-id` flag support
 - **Single Codebase**: Eliminates duplicate test files
+- **Clean Include Paths**: Arduino core integration for system-wide availability
 
 **Integration Pattern**:
 ```cpp
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 void setup() {
   CI_LOG("Test starting\n");
   CI_BUILD_INFO();    // RTT: shows build details, Serial: no-op
@@ -420,6 +421,41 @@ libraries/libPrintf/
 - Uses soft function aliasing for transparent printf replacement
 - Supports custom putchar_() for flexible output routing (Serial, RTT, etc.)
 
+### Include Path Infrastructure ✅ **COMPLETED**
+
+Comprehensive cleanup of include paths across the entire HIL testing ecosystem for improved maintainability.
+
+**Key Features**:
+- **Clean Arduino Syntax**: Eliminated ugly relative paths like `../../../../ci_log.h`
+- **Core Integration**: Moved `ci_log.h` to Arduino core for system-wide availability
+- **Library Architecture**: Moved `aunit_hil.h` to AUnit library for proper separation
+- **17 Files Updated**: Complete migration across tests, examples, and libraries
+- **Comprehensive Validation**: Full testing across dual storage backends (LittleFS + SDFS)
+
+**Migration Summary**:
+```cpp
+// Before: Ugly relative paths
+#include "../../../../ci_log.h"
+#include "../../aunit_hil.h"
+
+// After: Clean Arduino library syntax
+#include <ci_log.h>
+#include <aunit_hil.h>
+```
+
+**Infrastructure Changes**:
+- **ci_log.h**: Arduino_Core_STM32/cores/arduino/ci_log.h (system-wide HIL logging)
+- **aunit_hil.h**: libraries/AUnit-1.7.1/src/aunit_hil.h (testing framework integration)
+- **Build System**: No configuration changes needed - includes work automatically
+- **Backward Compatibility**: Maintained while improving maintainability
+
+**Validation Results**:
+- ✅ **21 Components Tested**: Complete ecosystem validation across both HIL rigs
+- ✅ **SDFS Backend**: 12/12 components passed (SD card storage)
+- ✅ **LittleFS Backend**: 9/9 components passed (SPI flash storage)
+- ✅ **ICM42688P Integration**: Both minimal and self-test examples validated
+- ✅ **Framework Stability**: All exit wildcard detection and build traceability maintained
+
 ## Active Projects
 
 ### ICM-42688-P IMU Library Integration 🔄 **ACTIVE PROJECT**
@@ -451,7 +487,7 @@ Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL tes
 // Basic SPI Communication (Phase 1)
 #include <ICM42688P_Simple.h>
 #include <SPI.h>
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 
 SPIClass spi(PA7, PA6, PA5);  // MOSI, MISO, SCLK (software CS)
 ICM42688P_Simple imu;
@@ -466,7 +502,7 @@ void setup() {
 // Manufacturer Self-Test (Phase 2) with libPrintf
 #include <libPrintf.h>  // Automatic float formatting, no nanofp needed!
 #include "icm42688p.h"
-#include "../../../../ci_log.h"
+#include <ci_log.h>
 
 // Standard build - no rtlib complexity!
 ./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest --use-rtt
@@ -504,6 +540,8 @@ void setup() {
 2. **✅ Pin Configuration**: Proper Arduino pin mapping without integer arithmetic
 3. **✅ HIL Integration**: Automated testing with RTT and exit wildcards
 4. **✅ Build Traceability**: Git SHA and timestamp integration
+5. **✅ Clean Include Paths**: Maintainable Arduino library syntax throughout
+6. **✅ Dual HIL Validation**: Tested on both LittleFS and SDFS hardware rigs
 
 
 ## Future Projects
