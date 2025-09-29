@@ -565,7 +565,68 @@ inv_main();  // Call preserved InvenSense factory algorithm
 ```
 ## Active Projects
 
-Currently no active projects. All major system components are completed and stable.
+### Enhanced Board Configuration System 🔧 **ACTIVE PROJECT** (board-config branch)
+
+Reconsidering board configuration scheme to properly handle STM32 SPI peripheral hardware vs software chip select (CS) control, addressing the gap between BoardConfig abstraction and STM32 SPI core capabilities.
+
+**Current Problem**:
+- BoardConfig has `CS_Mode` enum but no integration with STM32 SPI core
+- Users must manually handle CS pin setup and choose correct SPIClass constructor parameters
+- STM32 SPI core supports hardware CS via `ssel` parameter (NP for software control)
+- No easy way to switch between hardware and software CS modes based on board configuration
+
+**Critical Design Insight**:
+CS pin specification and CS control method are orthogonal concerns:
+- **CS Pin**: Always specified in BoardConfig for organization and manual access
+- **CS Mode**: Determines whether STM32 SPI peripheral or software controls the pin
+- **SPIClass Constructor**: Conditionally includes CS pin based on mode
+
+**Development Goals**:
+- **Preserve Existing Patterns**: Maintain backward compatibility with ICM42688P examples
+- **Add Hardware CS Support**: Enable automatic CS timing for production boards
+- **Seamless Mode Switching**: Factory methods handle STM32 SPI constructor differences
+- **Always-Available CS Pin**: CS pin accessible regardless of control mode
+
+**Revised Implementation**:
+```cpp
+// Enhanced SPIConfig with orthogonal CS concerns
+struct SPIConfig {
+  // Helper: Get SSEL pin for SPIClass constructor
+  constexpr uint32_t get_spi_ssel() const {
+    return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : NP;
+  }
+
+  // Helper: Check if manual CS management needed
+  constexpr bool needs_manual_cs() const {
+    return cs_mode == CS_Mode::SOFTWARE;
+  }
+
+  // Helper: Get CS pin for manual control (always available)
+  constexpr uint32_t get_cs_pin() const { return cs_pin; }
+};
+
+// Factory methods preserving existing usage patterns
+inline SPIClass create_spi_bus(const SPIConfig& config);
+inline void setup_cs_pin(const SPIConfig& config);
+```
+
+**Target Usage Patterns**:
+```cpp
+// SOFTWARE mode (preserves ICM42688P patterns)
+SPIClass spi_bus = BoardConfig::create_spi_bus(BoardConfig::imu.spi);
+// Creates: SPIClass(mosi, miso, sclk, NP) - same as manual pattern
+BoardConfig::setup_cs_pin(BoardConfig::imu.spi);  // Manual pinMode/digitalWrite
+
+// HARDWARE mode (new capability)
+SPIClass spi_bus = BoardConfig::create_spi_bus(BoardConfig::imu.spi);
+// Creates: SPIClass(mosi, miso, sclk, cs_pin) - automatic CS timing
+
+// CS pin always accessible for mixed usage
+uint32_t cs = BoardConfig::imu.spi.get_cs_pin();
+```
+
+**Development Branch**: `board-config`
+**Status**: Design phase complete, ready for implementation
 
 ## Future Projects
 
