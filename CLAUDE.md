@@ -528,146 +528,41 @@ struct IMUConfig {
 
 ### ICM-42688-P IMU Library Integration ✅ **COMPLETED**
 
-Successfully adapted manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface with complete preservation of InvenSense factory algorithms.
+Complete Arduino-compatible ICM42688P library with manufacturer-grade reliability and performance. Successfully adapted from UVOS framework while preserving 100% of InvenSense factory algorithms.
 
-**Goal**: Port manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface
-**Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 Complete ✅ | Phase 4 Complete ✅
 **Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI with PC4 interrupt (EXTI4)
 
-**Phase 1 Complete ✅**: Minimal SPI Communication
-- **✅ Minimal Arduino Library**: `ICM42688P_Simple` class with software CS control
-- **✅ SPI Communication**: Successfully reading WHO_AM_I register (0x47)
-- **✅ HIL Integration**: Full `ci_log.h` integration with deterministic testing
-- **✅ Pin Configuration**: NUCLEO_F411RE pins verified (PA4=CS, PA7=MOSI, PA6=MISO, PA5=SCLK)
-- **✅ Build Integration**: Complete `./scripts/build.sh` and `./scripts/aflash.sh` support
+**Key Features**:
+- **Factory Code Preservation**: Zero modifications to InvenSense sensor algorithms
+- **Multiple Usage Modes**: Basic SPI, self-test, interrupt-driven data, processed AG data
+- **BoardConfig Integration**: Dynamic pin/frequency configuration support
+- **HIL Testing**: Automated validation with RTT and build traceability
+- **Arduino Ecosystem**: Full compatibility with Arduino IDE and CLI
 
-**Phase 2 Complete ✅**: Manufacturer Self-Test Integration
-- **✅ Factory Code Integration**: Complete TDK InvenSense driver suite (2,421 lines)
-- **✅ Self-Test Execution**: Gyro and accelerometer self-tests passing
-- **✅ libPrintf Integration**: Embedded printf with float formatting (17% binary reduction)
-- **✅ Bias Calculation**: Reliable float display without nanofp complexity
-- **✅ CI/HIL Integration**: Deterministic testing with `*STOP*` wildcard
-- **✅ Dual-Mode Support**: Same code works with RTT (HIL) and Serial (IDE)
-- **✅ Documentation**: ICM42688P datasheet included for reference
-
-**Phase 3 Complete ✅**: Interrupt-Driven Raw Data Example
-- **✅ UVOS to Arduino Adaptation**: Minimal changes preserving 100% of InvenSense factory code
-- **✅ BoardConfig Integration**: Full integration with dynamic pin/frequency configuration
-- **✅ PC4 Interrupt Implementation**: Arduino attachInterrupt() bridge to InvenSense callbacks
-- **✅ Hardware Abstraction Layer**: Complete replacement of UVOS with Arduino equivalents
-- **✅ Real-Time Data Streaming**: Continuous sensor data acquisition with timestamps
-- **✅ HIL Integration**: Full ci_log.h + RTT support with build traceability
-- **✅ Performance Preservation**: Maintained ~1-2μs interrupt latency and timing precision
-
-**Technical Implementation**:
-- **Minimal Interface Changes**: Only modified Arduino .ino files, preserved all .c/.h factory code
-- **Arduino Hardware Bridge**: Replaced UVOS System/GPIO/UART abstractions with Arduino equivalents
-- **Interrupt Architecture**: PC4 → EXTI4 → Arduino attachInterrupt() → InvenSense callback chain
-- **SPI Optimization**: STM32 LL (Low Layer) implementation for maximum performance
-- **libPrintf Integration**: Reliable float formatting for sensor data display
+**Available Examples**:
+1. **ICM42688P_Simple**: Basic SPI communication and device identification
+2. **example-selftest**: Manufacturer self-test with bias calculation
+3. **example-raw-data-registers**: Interrupt-driven raw sensor data acquisition
+4. **example-raw-ag**: Processed accelerometer/gyroscope data with clock calibration
 
 **Production Usage**:
 ```cpp
-// Phase 1: Basic SPI Communication
+// Basic communication
 #include <ICM42688P_Simple.h>
-#include <SPI.h>
-#include <ci_log.h>
-
-SPIClass spi(PA7, PA6, PA5);  // MOSI, MISO, SCLK (software CS)
+SPIClass spi(PA7, PA6, PA5);
 ICM42688P_Simple imu;
+imu.begin(spi, PA4, 1000000);  // Returns 0x47 device ID
 
-void setup() {
-  if (imu.begin(spi, PA4, 1000000)) {  // CS=PA4, 1MHz
-    uint8_t device_id = imu.readWhoAmI();  // Returns 0x47
-    CI_LOG("✓ ICM42688P connected and responding\n");
-  }
-}
-
-// Phase 3: Interrupt-driven raw data acquisition
+// Advanced interrupt-driven acquisition
 #include "icm42688p.h"
 #include <ci_log.h>
-#include <libPrintf.h>
 #include "targets/NUCLEO_F411RE_LITTLEFS.h"
+// Arduino automatically handles BoardConfig pin configuration and interrupts
+inv_main();  // Call preserved InvenSense factory algorithm
 
-SPIClass spi_bus(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
-                 BoardConfig::imu.spi.sclk_pin);
-
-void setup() {
-    CI_LOG("=== ICM42688P Raw Data Registers ===\n");
-    CI_BUILD_INFO();
-    CI_READY_TOKEN();
-    inv_main();  // Call preserved InvenSense factory algorithm
-}
-
-// Hardware testing with HIL integration
-./scripts/aflash.sh libraries/ICM42688P/examples/example-raw-data-registers --use-rtt
-```
-
-**Hardware Validation Results**:
-```
-Pin Configuration (BoardConfig):
-  CS: 194, MOSI: 198, MISO: 199, SCLK: 207
-  SPI Speed: 1000000 Hz
-  Interrupt Pin: 204
-✓ ICM42688P initialized for data acquisition
-✓ Data ready interrupt attached to PC4
-Sample data: timestamp, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, temp
-13014: -359, 1633, 8053, -508, 35, -3, -11
-[Continuous real-time data stream...]
-```
-
-**Phase 4 Complete ✅**: Processed AG Data Example (example-raw-ag)
-- **✅ Template-Based Adaptation**: Reused proven methodology from example-raw-data-registers
-- **✅ Clock Calibration Integration**: Advanced timing accuracy with coefficient calculations
-- **✅ Processed Data Output**: Engineering units (g, dps) vs raw register values
-- **✅ 25-Minute Implementation**: Faster than estimated 30-45 minutes using proven template
-- **✅ First-Try Compilation**: Clean build success with no adaptation issues
-- **✅ Real-Time AG Data**: Accelerometer and gyroscope data streaming with proper units
-- **✅ Complete Hardware Validation**: Full HIL testing with clock calibration functioning
-
-**Production Usage - Phase 4**:
-```cpp
-// Processed accelerometer + gyroscope data acquisition
-#include "icm42688p.h"
-#include <ci_log.h>
-#include <libPrintf.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"
-
-void setup() {
-    CI_LOG("=== ICM42688P Raw AG ===\n");
-    CI_BUILD_INFO();
-    CI_READY_TOKEN();
-    inv_main();  // Call preserved InvenSense factory algorithm with clock calibration
-}
-
-// Hardware testing with processed AG data
+// Hardware testing
 ./scripts/aflash.sh libraries/ICM42688P/examples/example-raw-ag --use-rtt
 ```
-
-**Phase 4 Hardware Validation Results**:
-```
-Pin Configuration (BoardConfig):
-  CS: 194, MOSI: 198, MISO: 199, SCLK: 207
-  SPI Speed: 1000000 Hz
-  Interrupt Pin: 204
-✓ ICM42688P initialized for data acquisition
-✓ Data ready interrupt attached to PC4
-✓ Clock calibration functioning with coefficient calculations
-
-Sample data: timestamp: accel_x(counts), accel_y(counts), accel_z(counts), temp, gyro_x(counts), gyro_y(counts), gyro_z(counts)
-884381: 52, -90, 8767, -10, NA, NA, NA          # Initial accel data, gyro calibrating
-11080402: -58, -67, 8481, -10, 10, -15, 55     # Full AG data streaming
-[Processed accelerometer ~8400-8500 counts ≈ 1g, gyroscope low values at rest]
-```
-
-**Key Success Factors**:
-1. **✅ Factory Code Preservation**: Zero modifications to InvenSense sensor algorithms
-2. **✅ Interface-Only Adaptation**: All changes confined to hardware abstraction layer
-3. **✅ Performance Maintenance**: Same timing precision and interrupt latency as UVOS
-4. **✅ Arduino Ecosystem Integration**: Full compatibility with Arduino IDE and CLI
-5. **✅ BoardConfig Integration**: Dynamic pin/frequency configuration support
-6. **✅ HIL Testing Framework**: Automated validation with build traceability
-
 ## Active Projects
 
 Currently no active projects. All major system components are completed and stable.
