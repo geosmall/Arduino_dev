@@ -22,8 +22,7 @@ test(board_config_pin_values) {
   assertEqual((unsigned int)BoardConfig::storage.cs_pin, 0U);
 
   // Verify clock settings (should be 0 for NONE backend)
-  assertEqual((unsigned long)BoardConfig::storage.setup_clock_hz, 0UL);
-  assertEqual((unsigned long)BoardConfig::storage.runtime_clock_hz, 0UL);
+  assertEqual((unsigned long)BoardConfig::storage.freq_hz, 0UL);
 }
 
 test(board_config_spi_compatibility) {
@@ -32,8 +31,8 @@ test(board_config_spi_compatibility) {
   assertEqual((unsigned int)BoardConfig::storage.backend_type, (unsigned int)StorageBackend::NONE);
 
   // Test that we can access other configured peripherals (IMU uses SPI pins)
-  pinMode(BoardConfig::imu.cs_pin, OUTPUT);
-  digitalWrite(BoardConfig::imu.cs_pin, HIGH);
+  pinMode(BoardConfig::imu.spi.cs_pin, OUTPUT);
+  digitalWrite(BoardConfig::imu.spi.cs_pin, HIGH);
 
   // This tests that other SPI configurations work properly
   assertTrue(true); // If we get here, other SPI pin values are compatible
@@ -49,7 +48,7 @@ test(board_config_constexpr) {
   assertEqual((unsigned long)gps_config.baud_rate, 115200UL);
 
   constexpr auto imu_config = BoardConfig::imu;
-  assertEqual((unsigned int)imu_config.cs_pin, (unsigned int)PA4);
+  assertEqual((unsigned int)imu_config.spi.cs_pin, (unsigned int)PA4);
 }
 
 // ============================================================================

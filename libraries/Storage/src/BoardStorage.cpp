@@ -43,7 +43,7 @@ namespace BoardStorage {
         bool success = boardStorage.begin(
             config.backend_type,
             config.cs_pin,
-            config.runtime_clock_hz,
+            config.freq_hz,
             *customSPI
         );
 

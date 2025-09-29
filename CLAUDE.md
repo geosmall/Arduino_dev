@@ -69,6 +69,7 @@ Enhanced build workflow with environment validation and device auto-detection:
 ./scripts/env_check_quick.sh         # Fast environment validation
 ./scripts/detect_device.sh           # Auto-detect STM32 via J-Link
 ./scripts/flash_auto.sh <binary>     # Program with auto-detected device
+./scripts/cleanup_repo.sh            # Clean build artifacts before commit
 ```
 
 **Key Features**:
@@ -456,93 +457,115 @@ Comprehensive cleanup of include paths across the entire HIL testing ecosystem f
 - ✅ **ICM42688P Integration**: Both minimal and self-test examples validated
 - ✅ **Framework Stability**: All exit wildcard detection and build traceability maintained
 
-## Active Projects
+### Board Configuration System ✅ **COMPLETED**
 
-### ICM-42688-P IMU Library Integration 🔄 **ACTIVE PROJECT**
+Comprehensive redesign of board configuration architecture supporting flexible IMU integration with composable design patterns.
 
-Adapt existing ICM-42688-P library for STM32 Arduino Core framework with HIL testing integration.
+**Key Features**:
+- **Composable Architecture**: Uses existing `SPIConfig` as building blocks for `IMUConfig`
+- **Transport Abstraction**: Union-based pattern supporting both SPI and I2C IMU connections
+- **Chip Select Modes**: Hardware vs software CS control for different connection types
+- **Optional Interrupt Support**: Configurable interrupt pins for sensor event handling
+- **Frequency Optimization**: 1MHz for jumper connections, 8MHz for hardwired setups
+- **Factory Methods**: Clean configuration instantiation with type safety
 
-**Goal**: Port manufacturer-provided ICM-42688-P library from UVOS framework to Arduino-compatible interface
-**Status**: Phase 1 Complete ✅ | Phase 2 Complete ✅ | Phase 3 - Data acquisition in progress
-**Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI
-
-**Phase 1 Complete ✅**: Minimal SPI Communication
-- **✅ Minimal Arduino Library**: `ICM42688P_Simple` class with software CS control
-- **✅ SPI Communication**: Successfully reading WHO_AM_I register (0x47)
-- **✅ HIL Integration**: Full `ci_log.h` integration with deterministic testing
-- **✅ Pin Configuration**: NUCLEO_F411RE pins verified (PA4=CS, PA7=MOSI, PA6=MISO, PA5=SCLK)
-- **✅ Build Integration**: Complete `./scripts/build.sh` and `./scripts/aflash.sh` support
-
-**Phase 2 Complete ✅**: Manufacturer Self-Test Integration
-- **✅ Factory Code Integration**: Complete TDK InvenSense driver suite (2,421 lines)
-- **✅ Self-Test Execution**: Gyro and accelerometer self-tests passing
-- **✅ libPrintf Integration**: Embedded printf with float formatting (17% binary reduction)
-- **✅ Bias Calculation**: Reliable float display without nanofp complexity
-- **✅ CI/HIL Integration**: Deterministic testing with `*STOP*` wildcard
-- **✅ Dual-Mode Support**: Same code works with RTT (HIL) and Serial (IDE)
-- **✅ Documentation**: ICM42688P datasheet included for reference
-
-**Production Integration**:
+**Production Usage**:
 ```cpp
-// Basic SPI Communication (Phase 1)
-#include <ICM42688P_Simple.h>
-#include <SPI.h>
-#include <ci_log.h>
+#include "targets/NUCLEO_F411RE_SDFS.h"
 
-SPIClass spi(PA7, PA6, PA5);  // MOSI, MISO, SCLK (software CS)
-ICM42688P_Simple imu;
+// Automatic board detection and configuration
+SPIClass storage_spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
+                     BoardConfig::storage.sclk_pin);
+SPIClass imu_spi(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
+                 BoardConfig::imu.spi.sclk_pin);
 
 void setup() {
-  if (imu.begin(spi, PA4, 1000000)) {  // CS=PA4, 1MHz
-    uint8_t device_id = imu.readWhoAmI();  // Returns 0x47
-    CI_LOG("✓ ICM42688P connected and responding\n");
+  // Storage at 1MHz (jumper wires)
+  if (storage_spi.begin()) {
+    // IMU with interrupt support at 1MHz
+    if (imu_spi.begin() && BoardConfig::imu.int_pin != 0) {
+      attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), imu_handler, RISING);
+    }
   }
 }
+```
 
-// Manufacturer Self-Test (Phase 2) with libPrintf
-#include <libPrintf.h>  // Automatic float formatting, no nanofp needed!
+**Configuration Architecture**:
+```cpp
+// Enhanced configuration types
+enum class IMUTransport { SPI, I2C };
+enum class CS_Mode { SOFTWARE, HARDWARE };
+
+struct SPIConfig {
+  uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
+  uint32_t freq_hz;
+  CS_Mode cs_mode = CS_Mode::SOFTWARE;
+};
+
+struct IMUConfig {
+  IMUTransport transport;
+  uint32_t int_pin;              // 0 = no interrupt
+  uint32_t freq_override_hz;     // 0 = use bus default
+  uint8_t i2c_address;           // For I2C transport
+
+  union {
+    SPIConfig spi;
+    I2CConfig i2c;
+  };
+
+  static constexpr IMUConfig spi_imu(const SPIConfig& spi_config,
+                                    uint32_t freq_override = 0,
+                                    uint32_t interrupt_pin = 0);
+};
+```
+
+**Validation Results**:
+- ✅ **Complete Migration**: All 4 board targets updated (NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3)
+- ✅ **Dual HIL Testing**: Full validation on both LittleFS and SDFS hardware rigs
+- ✅ **10 Test Suites**: Comprehensive validation across storage, IMU, and configuration management
+- ✅ **Frequency Optimization**: 1MHz for HIL jumper connections, 8MHz for production hardwired
+- ✅ **Backward Compatibility**: Clean break migration with systematic file updates
+
+### ICM-42688-P IMU Library Integration ✅ **COMPLETED**
+
+Complete Arduino-compatible ICM42688P library with manufacturer-grade reliability and performance. Successfully adapted from UVOS framework while preserving 100% of InvenSense factory algorithms.
+
+**Target Hardware**: ICM-42688-P 6-axis IMU sensor via SPI with PC4 interrupt (EXTI4)
+
+**Key Features**:
+- **Factory Code Preservation**: Zero modifications to InvenSense sensor algorithms
+- **Multiple Usage Modes**: Basic SPI, self-test, interrupt-driven data, processed AG data
+- **BoardConfig Integration**: Dynamic pin/frequency configuration support
+- **HIL Testing**: Automated validation with RTT and build traceability
+- **Arduino Ecosystem**: Full compatibility with Arduino IDE and CLI
+
+**Available Examples**:
+1. **ICM42688P_Simple**: Basic SPI communication and device identification
+2. **example-selftest**: Manufacturer self-test with bias calculation
+3. **example-raw-data-registers**: Interrupt-driven raw sensor data acquisition
+4. **example-raw-ag**: Processed accelerometer/gyroscope data with clock calibration
+
+**Production Usage**:
+```cpp
+// Basic communication
+#include <ICM42688P_Simple.h>
+SPIClass spi(PA7, PA6, PA5);
+ICM42688P_Simple imu;
+imu.begin(spi, PA4, 1000000);  // Returns 0x47 device ID
+
+// Advanced interrupt-driven acquisition
 #include "icm42688p.h"
 #include <ci_log.h>
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+// Arduino automatically handles BoardConfig pin configuration and interrupts
+inv_main();  // Call preserved InvenSense factory algorithm
 
-// Standard build - no rtlib complexity!
-./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest --use-rtt
+// Hardware testing
+./scripts/aflash.sh libraries/ICM42688P/examples/example-raw-ag --use-rtt
 ```
+## Active Projects
 
-**Self-Test Results**:
-```
-[I] Gyro Selftest PASS
-[I] Accel Selftest PASS
-[I] GYR LN bias (dps): x=0.358582, y=-0.778198, z=0.251770
-[I] ACC LN bias (g): x=-0.010132, y=0.044250, z=0.039490
-```
-
-**Current Development Plan**:
-
-**Phase 3: Data Acquisition and Configuration** (Next)
-1. **Sensor Data Reading** - Accelerometer and gyroscope data acquisition
-2. **Configuration Management** - Sample rates, ranges, filters
-3. **Interrupt Handling** - Data ready and threshold interrupts
-4. **Calibration Support** - Zero-offset and sensitivity calibration
-
-**Phase 4: Advanced Features** (Future)
-5. **FIFO Management** - Buffered data acquisition
-6. **Motion Detection** - Wake-on-motion and threshold detection
-7. **Power Management** - Low-power modes and sleep states
-
-**Technical Architecture**:
-- **Minimal Layer**: `ICM42688P_Simple` for basic register access
-- **Advanced Layer**: Full manufacturer driver integration
-- **Software CS Control**: Required for reliable IMU communication
-- **HIL Testing**: Deterministic validation at each layer
-
-**Key Success Factors**:
-1. **✅ Software CS Control**: Essential for IMU communication reliability
-2. **✅ Pin Configuration**: Proper Arduino pin mapping without integer arithmetic
-3. **✅ HIL Integration**: Automated testing with RTT and exit wildcards
-4. **✅ Build Traceability**: Git SHA and timestamp integration
-5. **✅ Clean Include Paths**: Maintainable Arduino library syntax throughout
-6. **✅ Dual HIL Validation**: Tested on both LittleFS and SDFS hardware rigs
-
+Currently no active projects. All major system components are completed and stable.
 
 ## Future Projects
 
@@ -576,14 +599,21 @@ AVOID documentation duplication across files. Before adding content, check if it
 
 **Cleanup Methods**:
 ```bash
-# Complete cleanup (all build artifacts)
+# Recommended: Use the cleanup script
+./scripts/cleanup_repo.sh
+
+# Manual cleanup (if needed)
 find tests/ libraries/ cmake/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
 find . -name "build_id.h" -delete 2>/dev/null || true
 find . -name "*.bin" -o -name "*.hex" -o -name "*.elf" -delete 2>/dev/null || true
 
-# Manual verification
+# Verification
 git status    # Review changes before commit
 ```
+
+**Claude Code Integration**:
+- Use the command **"cleanup repo"** for automatic repository cleanup
+- Claude will execute `./scripts/cleanup_repo.sh` and show clean git status
 
 **Pre-Commit Verification**:
 ```bash

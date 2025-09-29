@@ -69,12 +69,14 @@ enum class StorageBackend {
 namespace BoardConfig {
   struct SPIConfig {
     constexpr SPIConfig(uint32_t mosi, uint32_t miso, uint32_t sclk, uint32_t cs,
-                       uint32_t setup_hz, uint32_t runtime_hz)
+                       uint32_t frequency_hz = 1000000,
+                       CS_Mode mode = CS_Mode::SOFTWARE)
       : mosi_pin(mosi), miso_pin(miso), sclk_pin(sclk), cs_pin(cs),
-        setup_clock_hz(setup_hz), runtime_clock_hz(runtime_hz) {}
+        freq_hz(frequency_hz), cs_mode(mode) {}
 
     const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
-    const uint32_t setup_clock_hz, runtime_clock_hz;
+    const uint32_t freq_hz;
+    const CS_Mode cs_mode;
   };
 
   struct UARTConfig {
@@ -86,22 +88,22 @@ namespace BoardConfig {
   };
 
   struct I2CConfig {
-    constexpr I2CConfig(uint32_t sda, uint32_t scl, uint32_t freq)
-      : sda_pin(sda), scl_pin(scl), frequency_hz(freq) {}
+    constexpr I2CConfig(uint32_t sda, uint32_t scl, uint32_t frequency_hz = 100000)
+      : sda_pin(sda), scl_pin(scl), freq_hz(frequency_hz) {}
 
     const uint32_t sda_pin, scl_pin;
-    const uint32_t frequency_hz;
+    const uint32_t freq_hz;
   };
 
   struct StorageConfig {
     constexpr StorageConfig(StorageBackend backend, uint32_t mosi, uint32_t miso,
-                           uint32_t sclk, uint32_t cs, uint32_t setup_hz, uint32_t runtime_hz)
+                           uint32_t sclk, uint32_t cs, uint32_t frequency_hz = 1000000)
       : backend_type(backend), mosi_pin(mosi), miso_pin(miso), sclk_pin(sclk),
-        cs_pin(cs), setup_clock_hz(setup_hz), runtime_clock_hz(runtime_hz) {}
+        cs_pin(cs), freq_hz(frequency_hz) {}
 
     const StorageBackend backend_type;
     const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
-    const uint32_t setup_clock_hz, runtime_clock_hz;
+    const uint32_t freq_hz;
   };
 }
 ```

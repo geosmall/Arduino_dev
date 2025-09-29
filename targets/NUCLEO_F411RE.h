@@ -6,10 +6,11 @@
 namespace BoardConfig {
   // Storage: No storage hardware attached by default on base Nucleo
   // Use NUCLEO_F411RE_LITTLEFS.h or NUCLEO_F411RE_SDFS.h for storage testing
-  static constexpr StorageConfig storage{StorageBackend::NONE, 0, 0, 0, 0, 0, 0};
+  static constexpr StorageConfig storage{StorageBackend::NONE, 0, 0, 0, 0, 0};
 
   // IMU: SPI connections via jumpers (reduced speed for reliability)
-  static constexpr SPIConfig imu{PA7, PA6, PA5, PA4, 1000000, 2000000};
+  static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 1000000};
+  static constexpr IMUConfig imu = IMUConfig::spi_imu(imu_spi, 0, PC4);
 
   // GPS: UART communication
   static constexpr UARTConfig gps{PA9, PA10, 115200};

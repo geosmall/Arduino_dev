@@ -5,10 +5,11 @@
 // Uses Arduino pin macros for compatibility with existing code
 namespace BoardConfig {
   // Storage: High-speed SPI flash for configuration and logging (LittleFS backend)
-  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PB15, PB14, PB13, PB12, 1000000, 8000000};
+  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PB15, PB14, PB13, PB12, 8000000};
 
   // IMU: High-performance IMU for flight control
-  static constexpr SPIConfig imu{PA7, PA6, PA5, PA4, 1000000, 8000000};
+  static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 8000000, CS_Mode::HARDWARE};
+  static constexpr IMUConfig imu = IMUConfig::spi_imu(imu_spi, 0, PD2);
 
   // GPS: High-precision GPS module
   static constexpr UARTConfig gps{PC6, PC7, 115200};
