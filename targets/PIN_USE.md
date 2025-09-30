@@ -491,6 +491,70 @@ HAL_GPIO_WritePin(PIN_TO_HAL_PORT(pin), PIN_TO_HAL_PIN(pin), GPIO_PIN_SET);
 
 This integration approach allows you to maintain the hardware clarity and Arduino compatibility of Pin Macros while accessing the full power of ST's GPIO HAL when needed.
 
+## Validated Hardware Pin Assignments
+
+### NUCLEO_F411RE + ICM42688P Configuration (Validated 2025-09-30)
+
+**Target Platform**: STM32 NUCLEO-F411RE development board with ICM-42688-P 6-axis IMU sensor
+
+**Hardware Validated Configuration** (working on HIL test rig):
+```cpp
+// BoardConfig configuration using Arduino pin macros
+static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 1000000, CS_Mode::SOFTWARE};
+static constexpr IMUConfig imu{imu_spi, PC4, 0};  // PC4 = interrupt pin
+
+// Resolves to these physical pin assignments:
+//   MOSI: PA7 (Arduino pin macro → auto-resolved to variant pin number)
+//   MISO: PA6 (Arduino pin macro → auto-resolved to variant pin number)
+//   SCLK: PA5 (Arduino pin macro → auto-resolved to variant pin number)
+//   CS:   PA4 (Software controlled, Arduino pin macro → auto-resolved)
+//   INT:  PC4 (Interrupt pin for sensor events, currently unused)
+//   Freq: 1MHz (jumper wire connections on HIL test rig)
+```
+
+**STM32 SPI Hardware Assignment**:
+- **SPI Peripheral**: Uses STM32F411RE SPI1 peripheral pins (PA5/PA6/PA7)
+- **CS Control**: Software-controlled CS via PA4 (manual digitalWrite control)
+- **Clock Speed**: 1MHz for reliable jumper wire connections on test rig
+- **Interrupt**: PC4 configured for sensor interrupt (EXTI4), currently unused in minimal example
+
+**Physical Connections** (HIL Test Rig):
+```
+NUCLEO_F411RE    ICM42688P Module
+=============    ================
+PA7 (MOSI)   →   SDI/SDA pin
+PA6 (MISO)   ←   SDO/SAO pin
+PA5 (SCLK)   →   SCLK/SCL pin
+PA4 (CS)     →   CS pin
+PC4 (INT)    ←   INT pin (optional)
+3.3V         →   VCC
+GND          →   GND
+```
+
+**BoardConfig Integration Pattern**:
+```cpp
+// Current working integration pattern (validated on hardware)
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+
+// SPIClass constructor with BoardConfig (working pattern)
+SPIClass spi(BoardConfig::imu.spi.mosi_pin,
+             BoardConfig::imu.spi.miso_pin,
+             BoardConfig::imu.spi.sclk_pin,
+             BoardConfig::imu.spi.get_ssel_pin());  // Returns PNUM_NOT_DEFINED for SOFTWARE CS
+
+// ICM42688P initialization (validated working)
+ICM42688P_Simple imu;
+if (!imu.begin(spi, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz)) {
+    // Initialization failed
+}
+```
+
+**CS Mode Implementation Details**:
+- **SOFTWARE Mode**: CS pin managed manually with pinMode/digitalWrite calls
+- **get_ssel_pin()**: Returns PNUM_NOT_DEFINED to disable STM32 SPI peripheral CS control
+- **Manual CS**: ICM42688P library handles CS assertion/deassertion in software
+- **Always Available**: BoardConfig::imu.spi.cs_pin always provides the CS pin regardless of mode
+
 ## Summary
 
 The STM32 Arduino Core's pin management system elegantly bridges three different naming conventions:
@@ -500,3 +564,5 @@ The STM32 Arduino Core's pin management system elegantly bridges three different
 3. **Arduino Pin Numbers** (`17`): Sequential, Arduino-standard, board-dependent
 
 The conversion system provides multiple access patterns optimized for different use cases, from Arduino compatibility to maximum performance, while maintaining clear hardware abstraction through the sophisticated pin encoding architecture.
+
+The current BoardConfig system leverages Arduino pin macros to provide hardware-clear configurations that automatically resolve to the correct variant-specific pin numbers while maintaining full Arduino compatibility and self-documenting code.

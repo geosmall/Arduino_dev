@@ -9,7 +9,7 @@ namespace BoardConfig {
 
   // IMU: SPI connections via jumpers (reduced speed for reliability)
   static constexpr SPIConfig imu_spi{PB15, PB14, PB13, PB12, 1000000};
-  static constexpr IMUConfig imu = IMUConfig::spi_imu(imu_spi, 0, PC13);
+  static constexpr IMUConfig imu{imu_spi, PC13};
 
   // GPS: UART communication
   static constexpr UARTConfig gps{PA2, PA3, 115200};

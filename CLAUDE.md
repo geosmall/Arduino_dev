@@ -565,68 +565,87 @@ inv_main();  // Call preserved InvenSense factory algorithm
 ```
 ## Active Projects
 
-### Enhanced Board Configuration System 🔧 **ACTIVE PROJECT** (board-config branch)
+### Enhanced Board Configuration System ⚠️ **PARTIALLY COMPLETED**
 
-Reconsidering board configuration scheme to properly handle STM32 SPI peripheral hardware vs software chip select (CS) control, addressing the gap between BoardConfig abstraction and STM32 SPI core capabilities.
+Enhanced board configuration scheme to properly handle STM32 SPI peripheral hardware vs software chip select (CS) control with validated hardware integration.
 
-**Current Problem**:
-- BoardConfig has `CS_Mode` enum but no integration with STM32 SPI core
-- Users must manually handle CS pin setup and choose correct SPIClass constructor parameters
-- STM32 SPI core supports hardware CS via `ssel` parameter (NP for software control)
-- No easy way to switch between hardware and software CS modes based on board configuration
+**Status**: Core implementation complete with hardware validation, ICM42688P integration partially complete.
 
-**Critical Design Insight**:
-CS pin specification and CS control method are orthogonal concerns:
-- **CS Pin**: Always specified in BoardConfig for organization and manual access
-- **CS Mode**: Determines whether STM32 SPI peripheral or software controls the pin
-- **SPIClass Constructor**: Conditionally includes CS pin based on mode
+**Completed Features**:
+- **CS Mode Control**: Software vs hardware chip select modes via CS_Mode enum
+- **Helper Methods**: get_ssel_pin() for seamless STM32 SPI constructor integration
+- **Hardware Validated**: ICM42688P example-minimal working with RTT output showing device ID 0x47
+- **Backward Compatible**: All existing board configurations updated and validated
+- **Core Architecture**: ConfigTypes.h enhanced with complete SPIConfig and IMUConfig
 
-**Development Goals**:
-- **Preserve Existing Patterns**: Maintain backward compatibility with ICM42688P examples
-- **Add Hardware CS Support**: Enable automatic CS timing for production boards
-- **Seamless Mode Switching**: Factory methods handle STM32 SPI constructor differences
-- **Always-Available CS Pin**: CS pin accessible regardless of control mode
-
-**Revised Implementation**:
+**Implementation**:
 ```cpp
-// Enhanced SPIConfig with orthogonal CS concerns
+// Enhanced SPIConfig with CS control modes
+enum class CS_Mode { SOFTWARE, HARDWARE };
+
 struct SPIConfig {
+  const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
+  const uint32_t freq_hz;
+  const CS_Mode cs_mode;
+
   // Helper: Get SSEL pin for SPIClass constructor
-  constexpr uint32_t get_spi_ssel() const {
-    return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : NP;
+  // SW mode: PNUM_NOT_DEFINED (disables hardware SSEL)
+  // HW mode: cs_pin (STM32 SPI peripheral controls CS)
+  constexpr uint32_t get_ssel_pin() const {
+    return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : PNUM_NOT_DEFINED;
   }
-
-  // Helper: Check if manual CS management needed
-  constexpr bool needs_manual_cs() const {
-    return cs_mode == CS_Mode::SOFTWARE;
-  }
-
-  // Helper: Get CS pin for manual control (always available)
-  constexpr uint32_t get_cs_pin() const { return cs_pin; }
 };
 
-// Factory methods preserving existing usage patterns
-inline SPIClass create_spi_bus(const SPIConfig& config);
-inline void setup_cs_pin(const SPIConfig& config);
+struct IMUConfig {
+  constexpr IMUConfig(const SPIConfig& spi_config, uint32_t interrupt_pin = 0,
+                     uint32_t setup_freq_hz = 0)
+    : spi(spi_config), int_pin(interrupt_pin), setup_freq_hz(setup_freq_hz) {}
+
+  const SPIConfig spi;
+  const uint32_t int_pin;        // 0 = no interrupt
+  const uint32_t setup_freq_hz;  // 0 = use spi.freq_hz
+};
 ```
 
-**Target Usage Patterns**:
+**Production Usage**:
 ```cpp
-// SOFTWARE mode (preserves ICM42688P patterns)
-SPIClass spi_bus = BoardConfig::create_spi_bus(BoardConfig::imu.spi);
-// Creates: SPIClass(mosi, miso, sclk, NP) - same as manual pattern
-BoardConfig::setup_cs_pin(BoardConfig::imu.spi);  // Manual pinMode/digitalWrite
+// Board configuration (automatically detects NUCLEO_F411RE vs BLACKPILL_F411CE)
+#if defined(ARDUINO_BLACKPILL_F411CE)
+#include "targets/BLACKPILL_F411CE.h"
+#else
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+#endif
 
-// HARDWARE mode (new capability)
-SPIClass spi_bus = BoardConfig::create_spi_bus(BoardConfig::imu.spi);
-// Creates: SPIClass(mosi, miso, sclk, cs_pin) - automatic CS timing
+// SPIClass constructor with BoardConfig (validated working)
+SPIClass spi(BoardConfig::imu.spi.mosi_pin,
+             BoardConfig::imu.spi.miso_pin,
+             BoardConfig::imu.spi.sclk_pin,
+             BoardConfig::imu.spi.get_ssel_pin());  // Handles CS mode automatically
 
-// CS pin always accessible for mixed usage
-uint32_t cs = BoardConfig::imu.spi.get_cs_pin();
+// ICM42688P initialization (hardware validated)
+ICM42688P_Simple imu;
+if (!imu.begin(spi, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz)) {
+  CI_LOG("ERROR: Failed to initialize ICM42688P!\n");
+}
 ```
 
-**Development Branch**: `board-config`
-**Status**: Design phase complete, ready for implementation
+**Completed Work**:
+- ✅ **Core Architecture**: ConfigTypes.h enhanced with CS_Mode enum and get_ssel_pin() helper
+- ✅ **All Board Targets**: Updated and validated (NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3)
+- ✅ **Hardware Validation**: NUCLEO_F411RE + ICM42688P working with RTT output showing device ID 0x47
+- ✅ **ICM42688P example-minimal**: Successfully converted to use BoardConfig with validation
+- ✅ **Documentation**: HW_CONFIG.md and PIN_USE.md updated with validated configurations
+
+**Remaining Work**:
+- ⏳ **ICM42688P Examples**: Convert remaining examples to use BoardConfig
+  - example-selftest: Manufacturer self-test with bias calculation
+  - example-raw-data-registers: Interrupt-driven raw sensor data acquisition
+  - example-raw-ag: Processed accelerometer/gyroscope data with clock calibration
+
+**Technical Lessons**:
+- **get_ssel_pin() Fix**: Must return PNUM_NOT_DEFINED (not NP/0U) for software CS mode
+- **Incremental Validation**: Step-by-step changes with hardware testing prevents failures
+- **CS Pin Access**: Always available via BoardConfig::imu.spi.cs_pin regardless of control mode
 
 ## Future Projects
 

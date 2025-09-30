@@ -3,6 +3,11 @@
 // Configuration type definitions for board-specific settings
 // Uses Arduino pin macros for compatibility with existing code
 
+// Include STM32 pinmap for NP definition (No Pin)
+#include "stm32/pinmap.h"
+// Include pins_arduino for PNUM_NOT_DEFINED
+#include "pins_arduino.h"
+
 // Storage backend types
 enum class StorageBackend {
     NONE,      // No storage hardware attached
@@ -10,12 +15,6 @@ enum class StorageBackend {
     SDFS       // SD card storage
 };
 
-// IMU bus transport types
-enum class IMUTransport {
-    NONE,      // No IMU hardware attached
-    SPI,       // SPI bus communication
-    I2C        // I2C bus communication
-};
 
 // SPI chip select control modes
 enum class CS_Mode {
@@ -34,6 +33,13 @@ namespace BoardConfig {
     const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
     const uint32_t freq_hz;
     const CS_Mode cs_mode;
+
+    // Helper: Get SSEL pin for SPIClass constructor
+    // SW mode: returns PNUM_NOT_DEFINED (disables hardware SSEL)
+    // HW mode: returns cs_pin (STM32 SPI peripheral controls CS)
+    constexpr uint32_t get_ssel_pin() const {
+      return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : PNUM_NOT_DEFINED;
+    }
   };
 
   struct UARTConfig {
@@ -64,38 +70,22 @@ namespace BoardConfig {
   };
 
   struct IMUConfig {
-    IMUTransport transport;
-    uint32_t int_pin;              // 0 = no interrupt
-    uint32_t freq_override_hz;     // 0 = use bus default
-    uint8_t i2c_address;           // For I2C transport
+    constexpr IMUConfig(const SPIConfig& spi_config, uint32_t interrupt_pin = 0,
+                       uint32_t setup_freq_hz = 0)
+      : spi(spi_config), int_pin(interrupt_pin), setup_freq_hz(setup_freq_hz) {}
 
-    union {
-      SPIConfig spi;
-      I2CConfig i2c;
-    };
+    const SPIConfig spi;
+    const uint32_t int_pin;        // 0 = no interrupt
+    const uint32_t setup_freq_hz;  // 0 = use spi.freq_hz for setup (slow initialization)
 
-    // Factory constructors
-    static constexpr IMUConfig spi_imu(const SPIConfig& spi_config,
-                                      uint32_t freq_override = 0,
-                                      uint32_t interrupt_pin = 0) {
-      return {IMUTransport::SPI, interrupt_pin, freq_override, 0, {.spi = spi_config}};
+    // Helper: Get effective setup frequency (slow initialization)
+    constexpr uint32_t get_setup_freq() const {
+      return (setup_freq_hz > 0) ? setup_freq_hz : spi.freq_hz;
     }
 
-    static constexpr IMUConfig i2c_imu(const I2CConfig& i2c_config,
-                                      uint8_t device_addr = 0x68,
-                                      uint32_t freq_override = 0,
-                                      uint32_t interrupt_pin = 0) {
-      return {IMUTransport::I2C, interrupt_pin, freq_override, device_addr, {.i2c = i2c_config}};
-    }
-
-    static constexpr IMUConfig none() {
-      return {IMUTransport::NONE, 0, 0, 0, {.spi = SPIConfig{0, 0, 0, 0, 0}}};
-    }
-
-    // Helper to get effective frequency
-    uint32_t effective_frequency() const {
-      if (freq_override_hz > 0) return freq_override_hz;
-      return (transport == IMUTransport::SPI) ? spi.freq_hz : i2c.freq_hz;
+    // Helper: Get effective runtime frequency (normal operation)
+    constexpr uint32_t get_runtime_freq() const {
+      return spi.freq_hz;  // Always use the SPI config frequency for runtime
     }
   };
 }

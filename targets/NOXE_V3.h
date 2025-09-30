@@ -8,8 +8,9 @@ namespace BoardConfig {
   static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PB15, PB14, PB13, PB12, 8000000};
 
   // IMU: High-performance IMU for flight control
+  // Hardware CS with dual-frequency: 1MHz setup, 8MHz runtime (MPU-6000 pattern)
   static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 8000000, CS_Mode::HARDWARE};
-  static constexpr IMUConfig imu = IMUConfig::spi_imu(imu_spi, 0, PD2);
+  static constexpr IMUConfig imu{imu_spi, PD2, 1000000};
 
   // GPS: High-precision GPS module
   static constexpr UARTConfig gps{PC6, PC7, 115200};
