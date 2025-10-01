@@ -5,11 +5,10 @@
  * and CI/HIL testing framework. It demonstrates complete manufacturer driver integration
  * while preserving factory code integrity.
  *
- * HARDWARE VERIFICATION:
- * - Target: NUCLEO-F411RE development board
- * - IMU: ICM42688P 6-axis IMU sensor
- * - Connection: SPI with jumper wires (1MHz for reliability)
- * - Pin mapping: CS=PA4, MOSI=PA7, MISO=PA6, SCLK=PA5
+ * HARDWARE CONFIGURATION:
+ * - Uses BoardConfig for automatic board detection (NUCLEO_F411RE / BLACKPILL_F411CE)
+ * - Pin assignments and SPI frequency from board configuration
+ * - Supports multiple board targets with single codebase
  *
  * VERIFICATION RESULTS (2025-09-27):
  * - WHO_AM_I: 0x47 (confirmed ICM42688P device ID)
@@ -27,8 +26,14 @@
 
 #include "icm42688p.h"
 #include <ci_log.h>
-#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
 #include <SPI.h>
+
+// Board configuration
+#if defined(ARDUINO_BLACKPILL_F411CE)
+#include "../../../../targets/BLACKPILL_F411CE.h"
+#else
+#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
+#endif
 
 #include "inv_main.h"
 #include "inv_uart.h"
@@ -37,22 +42,12 @@
 
 // libPrintf integration - automatic aliasing enabled
 #include <libPrintf.h>
-// Uncomment to use software driven NSS
-#define USE_SOFT_NSS
-#define DESIRED_SPI_FREQ 1000000
 
-constexpr bool off = 0;
-constexpr bool on = 1;
-
-// Pin definitions for NUCLEO F411RE (from BoardConfig::imu)
-#define IMU_CS_PIN    PA4
-#define IMU_MOSI_PIN  PA7
-#define IMU_MISO_PIN  PA6
-#define IMU_SCLK_PIN  PA5
-#define IMU_SPI_SPEED 1000000  // 1MHz for reliable jumper connections
-
-// Create SPI instance with specific pins (software CS control)
-SPIClass spi_bus(IMU_MOSI_PIN, IMU_MISO_PIN, IMU_SCLK_PIN);  // No SSEL = software CS
+// Create SPI instance using BoardConfig (software CS control)
+SPIClass spi_bus(BoardConfig::imu.spi.mosi_pin,
+                 BoardConfig::imu.spi.miso_pin,
+                 BoardConfig::imu.spi.sclk_pin,
+                 BoardConfig::imu.spi.get_ssel_pin());
 
 // Global print buffer
 char buf[128];

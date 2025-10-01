@@ -2,18 +2,22 @@
 #include <SPI.h>
 #include <ci_log.h>
 
-// Pin definitions for NUCLEO F411RE (from BoardConfig::imu)
-#define IMU_CS_PIN    PA4
-#define IMU_MOSI_PIN  PA7
-#define IMU_MISO_PIN  PA6
-#define IMU_SCLK_PIN  PA5
-#define IMU_SPI_SPEED 1000000  // 1MHz for reliable jumper connections
+// Board configuration
+#if defined(ARDUINO_BLACKPILL_F411CE)
+#include "../../../../targets/BLACKPILL_F411CE.h"
+#else
+#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
+#endif
+
 
 // Create IMU instance
 ICM42688P_Simple imu;
 
-// Create SPI instance with specific pins (software CS control)
-SPIClass spi(IMU_MOSI_PIN, IMU_MISO_PIN, IMU_SCLK_PIN);  // No SSEL = software CS
+// Create SPI instance using BoardConfig (software CS control)
+SPIClass spi(BoardConfig::imu.spi.mosi_pin,
+             BoardConfig::imu.spi.miso_pin,
+             BoardConfig::imu.spi.sclk_pin,
+             BoardConfig::imu.spi.get_ssel_pin());
 
 void setup() {
   // Initialize communication (Serial or RTT)
@@ -33,12 +37,14 @@ void setup() {
   CI_LOG("  MOSI (Master Out): PA7\n");
   CI_LOG("  MISO (Master In): PA6\n");
   CI_LOG("  SCLK (Clock): PA5\n");
-  CI_LOGF("  SPI Speed: %lu kHz\n\n", IMU_SPI_SPEED / 1000);
+  CI_LOGF("  SPI Speed: %lu kHz\n\n", BoardConfig::imu.spi.freq_hz / 1000);
 
   // Initialize the IMU
   CI_LOG("Initializing SPI and ICM42688P...\n");
 
-  if (!imu.begin(spi, IMU_CS_PIN, IMU_SPI_SPEED)) {
+  // Initialize ICM42688P with software CS control
+  // Parameters: (SPI_instance, CS_pin_for_manual_control, SPI_frequency_Hz)
+  if (!imu.begin(spi, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz)) {
     CI_LOG("ERROR: Failed to initialize ICM42688P!\n");
     CI_LOG("*STOP*\n");
     while (1) {

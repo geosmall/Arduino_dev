@@ -12,7 +12,7 @@ namespace BoardConfig {
 
   // IMU: Available SPI pins for sensors (if needed)
   static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 1000000};
-  static constexpr IMUConfig imu = IMUConfig::spi_imu(imu_spi, 0, PC4);
+  static constexpr IMUConfig imu{imu_spi, PC4};
 
   // GPS: UART communication (if needed)
   static constexpr UARTConfig gps{PA9, PA10, 115200};

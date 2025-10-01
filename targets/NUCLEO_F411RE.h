@@ -9,8 +9,9 @@ namespace BoardConfig {
   static constexpr StorageConfig storage{StorageBackend::NONE, 0, 0, 0, 0, 0};
 
   // IMU: SPI connections via jumpers (reduced speed for reliability)
+  // Single frequency for development/testing
   static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 1000000};
-  static constexpr IMUConfig imu = IMUConfig::spi_imu(imu_spi, 0, PC4);
+  static constexpr IMUConfig imu{imu_spi, PC4};
 
   // GPS: UART communication
   static constexpr UARTConfig gps{PA9, PA10, 115200};

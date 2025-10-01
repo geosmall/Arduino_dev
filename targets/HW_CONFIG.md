@@ -77,6 +77,13 @@ namespace BoardConfig {
     const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
     const uint32_t freq_hz;
     const CS_Mode cs_mode;
+
+    // Helper: Get SSEL pin for SPIClass constructor
+    // SW mode: returns PNUM_NOT_DEFINED (disables hardware SSEL)
+    // HW mode: returns cs_pin (STM32 SPI peripheral controls CS)
+    constexpr uint32_t get_ssel_pin() const {
+      return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : PNUM_NOT_DEFINED;
+    }
   };
 
   struct UARTConfig {
@@ -424,6 +431,30 @@ Adding a new board requires:
 2. **Add configuration** in `targets/boards/NEW_BOARD.h`
 3. **Update selector** in `targets/BoardConfig.h`
 4. **Add boards.txt entry** for Arduino CLI recognition
+
+## Hardware Validation (NUCLEO_F411RE)
+
+**Validated Configuration** (2025-09-30):
+- **Board**: NUCLEO-F411RE + ICM42688P via jumper wires
+- **CS Control**: Software mode (manual digitalWrite)
+- **SPI Speed**: 1MHz (reliable for jumper connections)
+
+**Pin Assignments**:
+```cpp
+// ICM42688P SPI connection (validated)
+CS:   PA4  (Software control via digitalWrite)
+MOSI: PA7  (SPI1_MOSI)
+MISO: PA6  (SPI1_MISO)
+SCLK: PA5  (SPI1_SCK)
+INT:  PC4  (EXTI4 interrupt pin)
+```
+
+**Validation Results**:
+- ✅ **Device Detection**: WHO_AM_I = 0x47 (ICM42688P confirmed)
+- ✅ **SPI Communication**: 5/5 successful register reads
+- ✅ **Software CS**: Manual digitalWrite control working
+- ✅ **BoardConfig Integration**: Hardcoded pins replaced with BoardConfig
+- ✅ **HIL Testing**: Deterministic RTT exit with "*STOP*" wildcard
 
 ### Additional Peripheral Types
 
