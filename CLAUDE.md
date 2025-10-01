@@ -147,11 +147,6 @@ This repository supports **UAV flight controller boards** with the following STM
 - **Real-time Data Logging** - Flight data, telemetry, and configuration storage
 - **Sensor Data Management** - IMU, GPS, and other sensor data processing
 
-### Storage Libraries
-- **LittleFS** - SPI flash storage (configuration, firmware, small data files)
-- **SDFS** - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
-- **Generic Storage Abstraction** - Unified interface for seamless backend switching
-
 ### Key Libraries
 
 **Core Libraries**:
@@ -273,48 +268,77 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 
 ### Board Configuration System ✅ **COMPLETED**
 
-Structured, compile-time board configuration system for multiple target platforms with automatic board detection.
+Comprehensive compile-time board configuration system supporting multiple target platforms with automatic detection, flexible peripheral configuration, and hardware/software chip select control.
 
 **Key Features**:
-- **Multi-Board Support**: NUCLEO_F411RE and BLACKPILL_F411CE configurations
-- **Automatic Selection**: Via `ARDUINO_*` defines with preprocessor integration
-- **SPI Speed Optimization**: 2MHz for jumper connections, 8MHz for hardwired
-- **Storage Integration**: Complete LittleFS and SDFS unit test validation
-- **Hardware Validation**: 15/15 storage tests passed on real hardware
+- **Multi-Board Support**: NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3 with automatic selection via `ARDUINO_*` defines
+- **CS Mode Control**: Software vs hardware chip select modes via CS_Mode enum with get_ssel_pin() helper
+- **Composable Architecture**: SPIConfig building blocks for storage and IMU configurations
+- **Transport Abstraction**: Union-based pattern supporting SPI and I2C peripherals
+- **Optional Interrupts**: Configurable interrupt pins for event-driven sensor operation
+- **Frequency Optimization**: 1MHz for jumper connections, 8MHz for hardwired setups
+- **Complete Integration**: Storage (LittleFS/SDFS) and IMU (ICM42688P) fully validated
+
+**Configuration Architecture**:
+```cpp
+enum class CS_Mode { SOFTWARE, HARDWARE };
+
+struct SPIConfig {
+  const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
+  const uint32_t freq_hz;
+  const CS_Mode cs_mode;
+
+  constexpr uint32_t get_ssel_pin() const {
+    return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : PNUM_NOT_DEFINED;
+  }
+};
+
+struct IMUConfig {
+  const SPIConfig spi;
+  const uint32_t int_pin;        // 0 = no interrupt
+  const uint32_t setup_freq_hz;  // 0 = use spi.freq_hz
+};
+```
 
 **Production Usage**:
 ```cpp
 #if defined(ARDUINO_BLACKPILL_F411CE)
-#include "../../targets/BLACKPILL_F411CE.h"
+#include "targets/BLACKPILL_F411CE.h"
 #else
-#include "../../targets/NUCLEO_F411RE.h"
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
 #endif
 
-SPIClass SPIbus(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin, BoardConfig::storage.sclk_pin);
+// Storage and IMU SPI initialization
+SPIClass storage_spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
+                     BoardConfig::storage.sclk_pin, BoardConfig::storage.get_ssel_pin());
+SPIClass imu_spi(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
+                 BoardConfig::imu.spi.sclk_pin, BoardConfig::imu.spi.get_ssel_pin());
+
+// ICM42688P with interrupt support
+if (BoardConfig::imu.int_pin != 0) {
+  attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), imu_handler, RISING);
+}
 ```
+
+**Validation Results**:
+- ✅ **All Board Targets**: NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3 validated
+- ✅ **Storage Integration**: 15/15 LittleFS and SDFS tests passed
+- ✅ **IMU Integration**: All 4 ICM42688P examples working with interrupts
+- ✅ **Dual HIL Testing**: Complete validation on both storage backends
 
 ### Generic Storage Abstraction ✅ **COMPLETED**
 
-Unified storage interface abstracting SDFS and LittleFS with automatic backend selection.
+Unified storage interface abstracting SDFS and LittleFS with automatic backend selection via BoardConfig. Factory pattern provides runtime safety with single API for both storage backends.
 
-**Key Features**:
-- **Unified API**: Single interface for both storage backends
-- **Board Integration**: Automatic backend selection via BoardConfig
-- **Runtime Safety**: Factory pattern with comprehensive error handling
-
-**Production Usage**:
+**Usage**:
 ```cpp
 #include <Storage.h>
 #include <BoardStorage.h>
 #include "targets/NUCLEO_F411RE_LITTLEFS.h"
 
-void setup() {
-  if (BoardStorage::begin(BoardConfig::storage)) {
-    Storage& fs = BOARD_STORAGE;
-    File log = fs.open("/flight.log", FILE_WRITE);
-    log.println("Unified storage working!");
-    log.close();
-  }
+if (BoardStorage::begin(BoardConfig::storage)) {
+  Storage& fs = BOARD_STORAGE;
+  File log = fs.open("/flight.log", FILE_WRITE);
 }
 ```
 
@@ -348,183 +372,18 @@ void setup() {
 
 ### libPrintf Embedded Printf Library ✅ **COMPLETED**
 
-Optional Arduino library wrapper for eyalroz/printf v6.2.0 that eliminates nanofp confusion and provides reliable float formatting for STM32 Arduino projects.
+Optional Arduino library (eyalroz/printf v6.2.0) that eliminates nanofp confusion and provides reliable float formatting with ~20% binary size reduction (8KB+ savings).
 
 **Key Features**:
-- **Optional Integration**: Include `#include <libPrintf.h>` when printf functionality is needed
-- **Eliminates nanofp confusion**: No more complex FQBN configurations or rtlib settings
-- **Binary size reduction**: ~20% smaller than nanofp (typically 8KB+ savings)
-- **Reliable float formatting**: Works without build configuration complexity
-- **Factory code compatible**: Seamless integration with existing printf/fprintf calls
-- **Thread-safe**: Suitable for embedded real-time applications
-- **Custom putchar_() Support**: Easy output redirection for RTT, Serial1, etc.
+- Eliminates complex FQBN rtlib configurations
+- Supports custom putchar_() for RTT/Serial routing
+- Thread-safe for embedded applications
 
-**Production Usage**:
+**Usage**:
 ```cpp
 #include <libPrintf.h>
-
-void setup() {
-  Serial.begin(115200);  // Required for default output
-
-  // All standard printf functions now work with float support
-  printf("Pi = %.6f\n", 3.14159265);  // No nanofp needed!
-  printf("Mixed: %s has %d chars\n", "libPrintf", 9);
-
-  // Works with sprintf, fprintf, etc.
-  char buffer[64];
-  sprintf(buffer, "Formatted: %.2f%%", 85.75);
-  printf("Buffer: %s\n", buffer);
-}
+printf("Pi = %.6f\n", 3.14159265);  // Float formatting works automatically
 ```
-
-**RTT Integration Example**:
-```cpp
-#include <libPrintf.h>
-#include <SEGGER_RTT.h>
-#define LIBPRINTF_CUSTOM_PUTCHAR
-
-extern "C" void putchar_(char c) {
-  char buf[2] = {c, '\0'};
-  SEGGER_RTT_WriteString(0, buf);
-}
-
-void setup() {
-  SEGGER_RTT_Init();
-  printf("RTT output: %.2f\n", 3.14159);  // Routes to RTT
-}
-```
-
-**Build Integration**:
-```bash
-# Standard FQBN - no rtlib complexity!
-arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch>
-./scripts/aflash.sh <sketch> --use-rtt
-```
-
-**Library Structure**:
-```
-libraries/libPrintf/
-├── library.properties          # Arduino IDE integration
-├── README.md                   # Complete user documentation
-├── PRINTF.md                   # Technical implementation details and customization
-├── src/
-│   ├── libPrintf.h            # Main wrapper with function aliasing (SOFT mode)
-│   ├── printf.c               # eyalroz/printf v6.2.0 implementation
-│   └── printf.h               # eyalroz printf header
-└── examples/
-    └── BasicUsage/
-        └── BasicUsage.ino     # Demonstration example
-```
-
-**Integration Notes**:
-- libPrintf is an **optional Arduino library**, not core-integrated
-- Requires explicit `#include <libPrintf.h>` for activation
-- Uses soft function aliasing for transparent printf replacement
-- Supports custom putchar_() for flexible output routing (Serial, RTT, etc.)
-
-### Include Path Infrastructure ✅ **COMPLETED**
-
-Comprehensive cleanup of include paths across the entire HIL testing ecosystem for improved maintainability.
-
-**Key Features**:
-- **Clean Arduino Syntax**: Eliminated ugly relative paths like `../../../../ci_log.h`
-- **Core Integration**: Moved `ci_log.h` to Arduino core for system-wide availability
-- **Library Architecture**: Moved `aunit_hil.h` to AUnit library for proper separation
-- **17 Files Updated**: Complete migration across tests, examples, and libraries
-- **Comprehensive Validation**: Full testing across dual storage backends (LittleFS + SDFS)
-
-**Migration Summary**:
-```cpp
-// Before: Ugly relative paths
-#include "../../../../ci_log.h"
-#include "../../aunit_hil.h"
-
-// After: Clean Arduino library syntax
-#include <ci_log.h>
-#include <aunit_hil.h>
-```
-
-**Infrastructure Changes**:
-- **ci_log.h**: Arduino_Core_STM32/cores/arduino/ci_log.h (system-wide HIL logging)
-- **aunit_hil.h**: libraries/AUnit-1.7.1/src/aunit_hil.h (testing framework integration)
-- **Build System**: No configuration changes needed - includes work automatically
-- **Backward Compatibility**: Maintained while improving maintainability
-
-**Validation Results**:
-- ✅ **21 Components Tested**: Complete ecosystem validation across both HIL rigs
-- ✅ **SDFS Backend**: 12/12 components passed (SD card storage)
-- ✅ **LittleFS Backend**: 9/9 components passed (SPI flash storage)
-- ✅ **ICM42688P Integration**: Both minimal and self-test examples validated
-- ✅ **Framework Stability**: All exit wildcard detection and build traceability maintained
-
-### Board Configuration System ✅ **COMPLETED**
-
-Comprehensive redesign of board configuration architecture supporting flexible IMU integration with composable design patterns.
-
-**Key Features**:
-- **Composable Architecture**: Uses existing `SPIConfig` as building blocks for `IMUConfig`
-- **Transport Abstraction**: Union-based pattern supporting both SPI and I2C IMU connections
-- **Chip Select Modes**: Hardware vs software CS control for different connection types
-- **Optional Interrupt Support**: Configurable interrupt pins for sensor event handling
-- **Frequency Optimization**: 1MHz for jumper connections, 8MHz for hardwired setups
-- **Factory Methods**: Clean configuration instantiation with type safety
-
-**Production Usage**:
-```cpp
-#include "targets/NUCLEO_F411RE_SDFS.h"
-
-// Automatic board detection and configuration
-SPIClass storage_spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
-                     BoardConfig::storage.sclk_pin);
-SPIClass imu_spi(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
-                 BoardConfig::imu.spi.sclk_pin);
-
-void setup() {
-  // Storage at 1MHz (jumper wires)
-  if (storage_spi.begin()) {
-    // IMU with interrupt support at 1MHz
-    if (imu_spi.begin() && BoardConfig::imu.int_pin != 0) {
-      attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), imu_handler, RISING);
-    }
-  }
-}
-```
-
-**Configuration Architecture**:
-```cpp
-// Enhanced configuration types
-enum class IMUTransport { SPI, I2C };
-enum class CS_Mode { SOFTWARE, HARDWARE };
-
-struct SPIConfig {
-  uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
-  uint32_t freq_hz;
-  CS_Mode cs_mode = CS_Mode::SOFTWARE;
-};
-
-struct IMUConfig {
-  IMUTransport transport;
-  uint32_t int_pin;              // 0 = no interrupt
-  uint32_t freq_override_hz;     // 0 = use bus default
-  uint8_t i2c_address;           // For I2C transport
-
-  union {
-    SPIConfig spi;
-    I2CConfig i2c;
-  };
-
-  static constexpr IMUConfig spi_imu(const SPIConfig& spi_config,
-                                    uint32_t freq_override = 0,
-                                    uint32_t interrupt_pin = 0);
-};
-```
-
-**Validation Results**:
-- ✅ **Complete Migration**: All 4 board targets updated (NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3)
-- ✅ **Dual HIL Testing**: Full validation on both LittleFS and SDFS hardware rigs
-- ✅ **10 Test Suites**: Comprehensive validation across storage, IMU, and configuration management
-- ✅ **Frequency Optimization**: 1MHz for HIL jumper connections, 8MHz for production hardwired
-- ✅ **Backward Compatibility**: Clean break migration with systematic file updates
 
 ### ICM-42688-P IMU Library Integration ✅ **COMPLETED**
 
@@ -563,89 +422,10 @@ inv_main();  // Call preserved InvenSense factory algorithm
 // Hardware testing
 ./scripts/aflash.sh libraries/ICM42688P/examples/example-raw-ag --use-rtt
 ```
+
 ## Active Projects
 
-### Enhanced Board Configuration System ⚠️ **PARTIALLY COMPLETED**
-
-Enhanced board configuration scheme to properly handle STM32 SPI peripheral hardware vs software chip select (CS) control with validated hardware integration.
-
-**Status**: Core implementation complete with hardware validation, ICM42688P integration partially complete.
-
-**Completed Features**:
-- **CS Mode Control**: Software vs hardware chip select modes via CS_Mode enum
-- **Helper Methods**: get_ssel_pin() for seamless STM32 SPI constructor integration
-- **Hardware Validated**: ICM42688P example-minimal working with RTT output showing device ID 0x47
-- **Backward Compatible**: All existing board configurations updated and validated
-- **Core Architecture**: ConfigTypes.h enhanced with complete SPIConfig and IMUConfig
-
-**Implementation**:
-```cpp
-// Enhanced SPIConfig with CS control modes
-enum class CS_Mode { SOFTWARE, HARDWARE };
-
-struct SPIConfig {
-  const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
-  const uint32_t freq_hz;
-  const CS_Mode cs_mode;
-
-  // Helper: Get SSEL pin for SPIClass constructor
-  // SW mode: PNUM_NOT_DEFINED (disables hardware SSEL)
-  // HW mode: cs_pin (STM32 SPI peripheral controls CS)
-  constexpr uint32_t get_ssel_pin() const {
-    return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : PNUM_NOT_DEFINED;
-  }
-};
-
-struct IMUConfig {
-  constexpr IMUConfig(const SPIConfig& spi_config, uint32_t interrupt_pin = 0,
-                     uint32_t setup_freq_hz = 0)
-    : spi(spi_config), int_pin(interrupt_pin), setup_freq_hz(setup_freq_hz) {}
-
-  const SPIConfig spi;
-  const uint32_t int_pin;        // 0 = no interrupt
-  const uint32_t setup_freq_hz;  // 0 = use spi.freq_hz
-};
-```
-
-**Production Usage**:
-```cpp
-// Board configuration (automatically detects NUCLEO_F411RE vs BLACKPILL_F411CE)
-#if defined(ARDUINO_BLACKPILL_F411CE)
-#include "targets/BLACKPILL_F411CE.h"
-#else
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"
-#endif
-
-// SPIClass constructor with BoardConfig (validated working)
-SPIClass spi(BoardConfig::imu.spi.mosi_pin,
-             BoardConfig::imu.spi.miso_pin,
-             BoardConfig::imu.spi.sclk_pin,
-             BoardConfig::imu.spi.get_ssel_pin());  // Handles CS mode automatically
-
-// ICM42688P initialization (hardware validated)
-ICM42688P_Simple imu;
-if (!imu.begin(spi, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz)) {
-  CI_LOG("ERROR: Failed to initialize ICM42688P!\n");
-}
-```
-
-**Completed Work**:
-- ✅ **Core Architecture**: ConfigTypes.h enhanced with CS_Mode enum and get_ssel_pin() helper
-- ✅ **All Board Targets**: Updated and validated (NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3)
-- ✅ **Hardware Validation**: NUCLEO_F411RE + ICM42688P working with RTT output showing device ID 0x47
-- ✅ **ICM42688P example-minimal**: Successfully converted to use BoardConfig with validation
-- ✅ **Documentation**: HW_CONFIG.md and PIN_USE.md updated with validated configurations
-
-**Remaining Work**:
-- ⏳ **ICM42688P Examples**: Convert remaining examples to use BoardConfig
-  - example-selftest: Manufacturer self-test with bias calculation
-  - example-raw-data-registers: Interrupt-driven raw sensor data acquisition
-  - example-raw-ag: Processed accelerometer/gyroscope data with clock calibration
-
-**Technical Lessons**:
-- **get_ssel_pin() Fix**: Must return PNUM_NOT_DEFINED (not NP/0U) for software CS mode
-- **Incremental Validation**: Step-by-step changes with hardware testing prevents failures
-- **CS Pin Access**: Always available via BoardConfig::imu.spi.cs_pin regardless of control mode
+(None)
 
 ## Future Projects
 

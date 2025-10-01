@@ -1,15 +1,31 @@
+/*
+ * ICM42688P Interrupt-Driven Raw Data Registers Example
+ *
+ * This example demonstrates interrupt-driven raw sensor data acquisition from
+ * the ICM42688P using the InvenSense reference implementation with STM32 Arduino integration.
+ *
+ * HARDWARE CONFIGURATION:
+ * - Uses BoardConfig for automatic board detection (NUCLEO_F411RE / BLACKPILL_F411CE)
+ * - Pin assignments and SPI frequency from board configuration
+ * - Interrupt pin configured for data-ready signaling (PC4/EXTI4)
+ * - Supports multiple board targets with single codebase
+ *
+ * CI/HIL INTEGRATION:
+ * - RTT output for automated testing
+ * - Serial output for Arduino IDE
+ * - Build traceability with git SHA and timestamp
+ */
+
 #include "icm42688p.h"
 #include <ci_log.h>
 #include <SPI.h>
 #include <cstring>
 
-// Board configuration integration
+// Board configuration
 #if defined(ARDUINO_BLACKPILL_F411CE)
 #include "../../../../targets/BLACKPILL_F411CE.h"
-#elif defined(ARDUINO_NUCLEO_F411RE)
-#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
 #else
-#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"  // Default fallback
+#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
 #endif
 
 #include "inv_main.h"
@@ -18,24 +34,20 @@
 // libPrintf integration - automatic aliasing enabled
 #include <libPrintf.h>
 
-// Uncomment to use software driven NSS
-#define USE_SOFT_NSS
-#define DESIRED_SPI_FREQ 1000000
-
 // BoardConfig integration for dynamic pin and frequency configuration
 #define IMU_CS_PIN        BoardConfig::imu.spi.cs_pin
 #define IMU_MOSI_PIN      BoardConfig::imu.spi.mosi_pin
 #define IMU_MISO_PIN      BoardConfig::imu.spi.miso_pin
 #define IMU_SCLK_PIN      BoardConfig::imu.spi.sclk_pin
-#define IMU_SPI_SPEED     (BoardConfig::imu.freq_override_hz ? BoardConfig::imu.freq_override_hz : BoardConfig::imu.spi.freq_hz)
+#define IMU_SPI_SPEED     BoardConfig::imu.spi.freq_hz
 #define IMU_INT_PIN       BoardConfig::imu.int_pin
 #define INT1_PIN          IMU_INT_PIN
 
-constexpr bool off = 0;
-constexpr bool on = 1;
-
-// Create SPI instance with BoardConfig pins (software CS control)
-SPIClass spi_bus(IMU_MOSI_PIN, IMU_MISO_PIN, IMU_SCLK_PIN);  // No SSEL = software CS
+// Create SPI instance using BoardConfig (software CS control)
+SPIClass spi_bus(BoardConfig::imu.spi.mosi_pin,
+                 BoardConfig::imu.spi.miso_pin,
+                 BoardConfig::imu.spi.sclk_pin,
+                 BoardConfig::imu.spi.get_ssel_pin());
 
 // UART types for InvenSense compatibility
 typedef enum {

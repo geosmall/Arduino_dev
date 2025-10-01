@@ -4,8 +4,8 @@
 
 #include "stm32f4xx_ll_spi.h"
 
-/* Default SPI frequency is 1 Mhz */
-static uint32_t spi_freq_hz_ = IMU_SPI_SPEED;
+/* Default SPI frequency from BoardConfig */
+static uint32_t spi_freq_hz_ = BoardConfig::imu.spi.freq_hz;
 
 #ifdef __cplusplus
 extern "C" {
@@ -130,9 +130,9 @@ void inv_io_hal_configure_spi_speed(uint8_t spi_freq_mhz)
 int inv_io_hal_init(struct inv_icm426xx_serif* serif)
 {
     // Initialize CS pin and save PinName for fast access
-    pinMode(IMU_CS_PIN, OUTPUT);
-    digitalWrite(IMU_CS_PIN, HIGH);
-    cs_pin_ = digitalPinToPinName(IMU_CS_PIN);
+    pinMode(BoardConfig::imu.spi.cs_pin, OUTPUT);
+    digitalWrite(BoardConfig::imu.spi.cs_pin, HIGH);
+    cs_pin_ = digitalPinToPinName(BoardConfig::imu.spi.cs_pin);
 
     // Set DWT ticks per uSec
     usTicks_ = SystemCoreClock / 1'000'000;
