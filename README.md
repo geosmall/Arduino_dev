@@ -20,7 +20,7 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 - **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
 - **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved)
 - **Unified Storage Systems**: LittleFS (SPI flash), SDFS (SD card), and Generic Storage abstraction with minIni configuration management
-- **ICM42688P IMU Integration**: Complete 6-axis IMU library with manufacturer self-test and data acquisition
+- **IMU Integration**: High-level C++ wrapper (IMU library) and low-level TDK drivers (ICM42688P) with chip detection and manufacturer self-test
 - **libPrintf Integration**: Embedded printf library eliminating nanofp complexity with 20KB+ binary savings
 - **AUnit Testing Framework**: Comprehensive unit testing with HIL integration (22 tests across storage systems)
 - **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
@@ -88,7 +88,8 @@ make check          # Verify environment
 - **minIniStorage v1.5.0**: INI file configuration management with automatic storage backend selection
 
 ### Sensors and Hardware
-- **ICM42688P v1.0.0**: 6-axis IMU library with TDK InvenSense drivers, self-test, and data acquisition
+- **IMU v1.0.0**: High-level C++ wrapper for InvenSense IMU sensors with chip detection and multi-instance support
+- **ICM42688P v1.0.0**: Low-level 6-axis IMU library with TDK InvenSense drivers, self-test, and data acquisition
 - **STM32RTC**: Real-time clock functionality
 
 ### Development and Testing
@@ -101,7 +102,8 @@ make check          # Verify environment
 ├── Arduino_Core_STM32/    # STM32 Arduino core (fork of stm32duino/Arduino_Core_STM32)
 ├── libraries/             # Storage, sensor, and utility libraries
 │   ├── AUnit-1.7.1/       # Arduino unit testing framework with HIL integration
-│   ├── ICM42688P/         # 6-axis IMU library with manufacturer drivers and self-test
+│   ├── ICM42688P/         # Low-level 6-axis IMU library with TDK InvenSense drivers
+│   ├── imu/               # High-level C++ wrapper for InvenSense IMU sensors
 │   ├── libPrintf/         # Embedded printf library (eyalroz/printf v6.2.0 wrapper)
 │   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
 │   ├── minIniStorage/     # Configuration management with unified storage backend
@@ -174,9 +176,9 @@ void setup() {
 ## Current Development Status
 
 - **✅ Complete**: Storage systems (LittleFS, SDFS, Storage abstraction), configuration management (minIni), build/HIL framework, libPrintf integration
-- **✅ Complete**: ICM42688P Phase 1 (SPI communication) and Phase 2 (manufacturer self-test)
-- **🔄 Active**: ICM42688P Phase 3 (data acquisition and configuration management)
-- **📋 Planned**: ICM42688P Phase 4 (FIFO, motion detection, power management)
+- **✅ Complete**: IMU library (high-level wrapper with chip detection, context-based design, interrupt support)
+- **✅ Complete**: ICM42688P library (low-level TDK drivers with self-test and data acquisition)
+- **📋 Future**: Additional IMU sensor support (MPU-6000, MPU-9250)
 
 ## Documentation
 
