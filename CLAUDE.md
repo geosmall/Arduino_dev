@@ -398,6 +398,68 @@ IMU::ChipType chip = imu.GetChipType();  // Returns ICM42688_P (0x47)
 
 ## Active Projects
 
+### TimerPWM Library ⚠️ **IN PROGRESS**
+
+Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control.
+
+**Branch**: `timer-pwm-lib`
+
+**Requirements**:
+- 1 µs resolution (1 MHz timer tick frequency)
+- Multiple timer peripherals (TIM_3, TIM_5, etc.)
+- Multiple channels per timer (up to 4 channels)
+- Runtime pulse width updates
+- Standard servo range: 1000-2000 µs
+
+**Reference Implementation**:
+- `libraries/TimerPWM/TimerPWM.cpp` - UVOS example showing timer configuration approach
+- Uses prescaler calculation to achieve 1 MHz tick rate
+- Multi-channel PWM configuration per timer
+- Pin + alternate function mapping
+
+**Arduino STM32 Core Differences**:
+- Uses `HardwareTimer` class instead of direct HAL
+- Pin-to-timer mapping via `PinMap_PWM[]` in variants
+- May leverage `analogWrite()` extension or custom API
+- Timer resource management handled by core
+
+**Planned Phases**:
+
+**Phase 1 - Research & Design**:
+- Study Arduino STM32 `HardwareTimer` API and timer management
+- Understand pin-to-timer mapping in variant files
+- Review existing timer examples in Arduino_Core_STM32
+- Design Arduino-compatible API structure
+
+**Phase 2 - Basic Implementation**:
+- Single timer, single channel support
+- 1 MHz timer resolution
+- Fixed pulse width initialization
+- Simple LED PWM test example
+
+**Phase 3 - Multi-Channel & Updates**:
+- Multiple channels per timer
+- Runtime pulse width updates (`SetPulseWidth()` method)
+- Servo control example (1000-2000 µs standard range)
+
+**Phase 4 - Production Features**:
+- Multiple independent timers
+- BoardConfig integration for pin mapping
+- ESC calibration example (throttle range)
+- HIL validation with oscilloscope verification
+
+**Key Design Considerations**:
+- Avoid conflicts with Arduino's existing PWM (`analogWrite()`)
+- Clean API similar to IMU library (Init, Start, SetPulseWidth)
+- Support common servo/ESC use cases out-of-box
+- Microsecond precision for RC control protocols
+
+**Next Steps** (for future session):
+1. Research `HardwareTimer` class in Arduino_Core_STM32/libraries/SrcWrapper/src/
+2. Find timer PWM examples in core
+3. Study variant PinMap_PWM definitions
+4. Design initial API based on Arduino patterns
+
 ## Future Projects
 
 ### New Variant Validation 📋 **FUTURE PROJECT**
