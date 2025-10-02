@@ -425,7 +425,95 @@ inv_main();  // Call preserved InvenSense factory algorithm
 
 ## Active Projects
 
-(None)
+### High-Level IMU Library ⚠️ **IN PROGRESS**
+
+Create unified C++ wrapper library for InvenSense IMU sensors, starting with ICM-42688-P and designed for easy extension to MPU-6000, MPU-9250, and other InvenSense parts.
+
+**Status**: Initial implementation started on branch `imu-lib-integration`, needs completion and testing.
+
+**Current State**:
+- ✅ **Library Structure**: Created `libraries/imu/` with src/ and examples/ directories
+- ✅ **Initial Headers**: IMU.h created with Arduino-compatible interface
+- ⚠️ **Implementation**: IMU.cpp has compilation errors due to TDK driver API mismatches
+- ⚠️ **Example**: example-selftest created but not yet functional
+
+**Key Challenges Identified**:
+1. **TDK Driver API Differences**: UVOS-based code assumptions don't match actual ICM42688P library API
+2. **Transport Layer Structure**: Callbacks belong in `serif` structure, not `transport` structure
+3. **Function Signatures**: Several functions have different names/signatures than expected
+   - `inv_icm426xx_device_reset()` not `soft_reset()`
+   - `inv_icm426xx_run_selftest()` takes 2 params, bias retrieved separately via `get_st_bias()`
+4. **Global vs Context-Based Design**: Existing examples use global state; library should use `serif->context` for multi-instance support
+
+**Implementation Strategy** (Revised):
+
+**Phase 1 - Get Working Baseline** (Next Session):
+- Mirror existing ICM42688P example pattern closely
+- Use global state internally (hidden from user) for simplicity
+- Implement minimal API: `Init()`, `RunSelfTest()`, `GetBias()`
+- Single IMU instance only
+- Test on hardware to validate understanding
+
+**Phase 2 - Refactor to Best Practices**:
+- Add `serif->context` pointer for per-instance state
+- Support multiple IMU instances
+- Add remaining API methods (FSR, ODR, interrupts, FIFO)
+- Test multi-instance scenarios
+
+**Phase 3 - Multi-Chip Support**:
+- Extract common interface to base class
+- Add MPU-6000 implementation
+- Add MPU-9250 implementation
+
+**Examples Planned**:
+1. `example-selftest`: Manufacturer self-test with bias calculation
+2. `example-raw-data-registers`: Interrupt-driven raw sensor data acquisition
+3. `example-raw-ag`: Processed accelerometer/gyroscope data with clock calibration
+
+**API Design** (User-Facing):
+```cpp
+#include <IMU.h>
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+
+SPIClass spi_bus(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
+                 BoardConfig::imu.spi.sclk_pin, BoardConfig::imu.spi.get_ssel_pin());
+IMU imu;
+
+void setup() {
+  // Initialize
+  if (imu.Init(spi_bus, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz) != IMU::Result::OK) {
+    // Handle error
+  }
+
+  // Run self-test
+  int result;
+  std::array<int, 6> bias;
+  imu.RunSelfTest(&result, &bias);
+
+  // Get sensitivities for unit conversion
+  float gyro_sens = imu.GetGyroSensitivity();
+  float accel_sens = imu.GetAccelSensitivity();
+}
+```
+
+**Technical Lessons Learned**:
+1. **Study working code first**: Don't assume API from different codebase (UVOS vs ICM42688P library)
+2. **Start simple, iterate**: Get single instance working before adding complexity
+3. **Incremental validation**: Test each piece on hardware before moving forward
+4. **Driver structure matters**: `inv_icm426xx_serif` holds callbacks, not `inv_icm426xx_transport`
+
+**Next Steps**:
+1. Simplify IMU.cpp to mirror working ICM42688P examples exactly
+2. Use global state internally for Phase 1
+3. Build and test example-selftest on hardware
+4. Once working, document actual TDK driver API patterns
+5. Refactor to context-based design for Phase 2
+
+**Files Created** (on branch `imu-lib-integration`):
+- `libraries/imu/src/IMU.h` - Header with clean C++ interface
+- `libraries/imu/src/IMU.cpp` - Implementation (needs fixes)
+- `libraries/imu/library.properties` - Arduino library metadata
+- `libraries/imu/examples/example-selftest/example-selftest.ino` - First example (needs fixes)
 
 ## Future Projects
 
