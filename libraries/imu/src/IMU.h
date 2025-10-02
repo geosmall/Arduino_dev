@@ -260,10 +260,13 @@ public:
 private:
     /**
      * @brief TDK driver instance for this IMU.
-     * IMPORTANT: The driver struct must have a `struct inv_icm426xx_transport`
-     * as its first field.
      */
     struct inv_icm426xx driver_{};
+
+    /**
+     * @brief TDK serif (serial interface) structure for communication callbacks.
+     */
+    struct inv_icm426xx_serif serif_{};
 
     /**
      * @brief Pointer to the Arduino SPI instance used for IMU SPI transactions.

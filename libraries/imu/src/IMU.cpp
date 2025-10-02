@@ -1,13 +1,13 @@
 #include "IMU.h"
 #include "stm32yyxx_ll_system.h"  // For DWT cycle counter
 
-// External symbols needed by TDK driver
+// ============================================================================
+// TDK Driver Required External Functions
+// ============================================================================
+
+#ifdef __cplusplus
 extern "C" {
-    void inv_disable_irq(void);
-    void inv_enable_irq(void);
-    uint64_t inv_timer_get_counter(unsigned timer_num);
-    void inv_delay_us(uint32_t us);
-}
+#endif
 
 // IRQ nesting counter
 static uint32_t sDisableIntCount = 0;
@@ -28,6 +28,16 @@ void inv_enable_irq(void)
     }
 }
 
+uint64_t inv_icm426xx_get_time_us(void)
+{
+    return micros();
+}
+
+void inv_icm426xx_sleep_us(uint32_t us)
+{
+    delayMicroseconds(us);
+}
+
 uint64_t inv_timer_get_counter(unsigned timer_num)
 {
     (void)timer_num;
@@ -38,6 +48,10 @@ void inv_delay_us(uint32_t us)
 {
     delayMicroseconds(us);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 // ============================================================================
 // IMU Class Implementation
@@ -62,19 +76,18 @@ IMU::Result IMU::Init(SPIClass& spi, uint32_t cs_pin, uint32_t spi_freq_hz)
     digitalWrite(cs_pin_, HIGH);
 
     // Initialize SPI
-    p_spi_->begin();
+    p_spi_->begin(SPISettings(spi_freq_hz_, MSBFIRST, SPI_MODE0));
 
-    // Set up the TDK driver transport layer
-    driver_.transport.context = this;  // Store this pointer for callbacks
-    driver_.transport.read_reg = spiReadRegs;
-    driver_.transport.write_reg = spiWriteRegs;
-    driver_.transport.configure = spiConfigure;
-    driver_.transport.serif.context = this;
-    driver_.transport.serif.serif_type = ICM426XX_UI_SPI4;
-    driver_.transport.serif.is_spi = 1;
+    // Set up the TDK driver serif (serial interface) structure
+    serif_.context = this;  // Store this pointer for callbacks
+    serif_.read_reg = spiReadRegs;
+    serif_.write_reg = spiWriteRegs;
+    serif_.max_read = IMU_MAX_READ;
+    serif_.max_write = IMU_MAX_WRITE;
+    serif_.serif_type = ICM426XX_UI_SPI4;
 
     // Initialize the TDK high-level driver
-    int rc = inv_icm426xx_init(&driver_, &driver_.transport.serif, DriverEventCb);
+    int rc = inv_icm426xx_init(&driver_, &serif_, NULL);
     if (rc != 0) {
         return Result::ERR;
     }
@@ -132,7 +145,7 @@ IMU::Result IMU::ConfigureInvDevice(AccelFS acc_fsr_g, GyroFS gyr_fsr_dps,
 int IMU::Reset()
 {
     if (!initialized_) return -1;
-    return inv_icm426xx_soft_reset(&driver_);
+    return inv_icm426xx_device_reset(&driver_);
 }
 
 int IMU::SetPwrState(PwrState state)
@@ -221,24 +234,57 @@ int IMU::SetGyroFSR(GyroFS fsr)
 int IMU::EnableDataReadyInt1()
 {
     if (!initialized_) return -1;
-    return inv_icm426xx_enable_accel_gyro_data_ready_int1(&driver_);
+
+    inv_icm426xx_interrupt_parameter_t config_int;
+
+    // Get current interrupt configuration
+    int rc = inv_icm426xx_get_config_int1(&driver_, &config_int);
+    if (rc != 0) {
+        return rc;
+    }
+
+    // Enable data ready interrupt
+    config_int.INV_ICM426XX_UI_DRDY = INV_ICM426XX_ENABLE;
+
+    // Set updated configuration
+    return inv_icm426xx_set_config_int1(&driver_, &config_int);
 }
 
 int IMU::DisableDataReadyInt1()
 {
     if (!initialized_) return -1;
-    return inv_icm426xx_disable_accel_gyro_data_ready_int1(&driver_);
+
+    inv_icm426xx_interrupt_parameter_t config_int;
+
+    // Get current interrupt configuration
+    int rc = inv_icm426xx_get_config_int1(&driver_, &config_int);
+    if (rc != 0) {
+        return rc;
+    }
+
+    // Disable data ready interrupt
+    config_int.INV_ICM426XX_UI_DRDY = INV_ICM426XX_DISABLE;
+
+    // Set updated configuration
+    return inv_icm426xx_set_config_int1(&driver_, &config_int);
 }
 
 int IMU::RunSelfTest(int* result, std::array<int, 6>* bias)
 {
     if (!initialized_) return -1;
 
-    if (bias != nullptr) {
-        return inv_icm426xx_run_selftest(&driver_, result, bias->data());
-    } else {
-        return inv_icm426xx_run_selftest(&driver_, result, nullptr);
+    // Run self-test (result is ACCEL_SUCCESS<<1 | GYRO_SUCCESS)
+    int rc = inv_icm426xx_run_selftest(&driver_, result);
+    if (rc != 0) {
+        return rc;
     }
+
+    // If bias array provided, retrieve bias values
+    if (bias != nullptr) {
+        rc = inv_icm426xx_get_st_bias(&driver_, bias->data());
+    }
+
+    return rc;
 }
 
 int IMU::ReadDataFromRegisters()
@@ -257,8 +303,8 @@ int IMU::ReadIMU6(std::array<int16_t, 6>& buf)
     // Read all 12 bytes (6 accel + 6 gyro) at once
     SelectDevice();
 
-    // Send read command for ACCEL_DATA_X1 register
-    uint8_t reg_addr = MPUREG_ACCEL_DATA_X1_UI | 0x80;  // Set read bit
+    // Send read command for ACCEL_DATA_X0 register
+    uint8_t reg_addr = MPUREG_ACCEL_DATA_X0_UI | 0x80;  // Set read bit
     p_spi_->beginTransaction(SPISettings(spi_freq_hz_, MSBFIRST, SPI_MODE0));
     p_spi_->transfer(reg_addr);
 
@@ -317,12 +363,9 @@ void IMU::DeselectDevice()
 
 void IMU::DriverEventCb(inv_icm426xx_sensor_event_t *event)
 {
-    // Get IMU instance from context
-    IMU* imu = static_cast<IMU*>(event->sensor_mask);  // TDK driver stores context here
-
-    if (imu && imu->user_event_cb_) {
-        imu->user_event_cb_(event);
-    }
+    // Event callback for TDK driver (used when reading FIFO or registers)
+    // Not used for simple operations like self-test
+    (void)event;
 }
 
 // ============================================================================

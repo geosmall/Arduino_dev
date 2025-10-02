@@ -100,18 +100,16 @@ void setup() {
     }
 
     // Display bias values (converted to physical units)
-    float gyro_sens = imu.GetGyroSensitivity();
-    float accel_sens = imu.GetAccelSensitivity();
-
+    // Note: Bias values from get_st_bias are scaled by 2^16
     CI_LOG("=== Bias Values ===\n");
     printf("Gyro Bias (dps):  x=%.6f, y=%.6f, z=%.6f\n",
-           bias[0] / gyro_sens,
-           bias[1] / gyro_sens,
-           bias[2] / gyro_sens);
+           (float)bias[0] / (float)(1 << 16),
+           (float)bias[1] / (float)(1 << 16),
+           (float)bias[2] / (float)(1 << 16));
     printf("Accel Bias (g):   x=%.6f, y=%.6f, z=%.6f\n\n",
-           bias[3] / accel_sens,
-           bias[4] / accel_sens,
-           bias[5] / accel_sens);
+           (float)bias[3] / (float)(1 << 16),
+           (float)bias[4] / (float)(1 << 16),
+           (float)bias[5] / (float)(1 << 16));
 
     CI_LOG("=== Test Complete ===\n");
     CI_LOG("*STOP*\n");
