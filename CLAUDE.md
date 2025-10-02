@@ -162,7 +162,8 @@ This repository supports **UAV flight controller boards** with the following STM
 - `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
 - `Storage` - Generic storage abstraction providing unified interface for LittleFS and SDFS
 - `minIniStorage` - INI configuration management with automatic storage backend selection
-- `ICM42688P` - 6-axis IMU library with TDK InvenSense drivers and manufacturer self-test
+- `ICM42688P` - Low-level 6-axis IMU library with TDK InvenSense drivers and manufacturer self-test
+- `IMU` - High-level C++ wrapper for InvenSense IMU sensors with chip detection and multi-instance support
 - `libPrintf` - Optional embedded printf library (eyalroz/printf v6.2.0) - eliminates nanofp confusion, 20% binary reduction
 - `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
 
@@ -279,52 +280,16 @@ Comprehensive compile-time board configuration system supporting multiple target
 - **Frequency Optimization**: 1MHz for jumper connections, 8MHz for hardwired setups
 - **Complete Integration**: Storage (LittleFS/SDFS) and IMU (ICM42688P) fully validated
 
-**Configuration Architecture**:
+**Usage**:
 ```cpp
-enum class CS_Mode { SOFTWARE, HARDWARE };
-
-struct SPIConfig {
-  const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
-  const uint32_t freq_hz;
-  const CS_Mode cs_mode;
-
-  constexpr uint32_t get_ssel_pin() const {
-    return (cs_mode == CS_Mode::HARDWARE) ? cs_pin : PNUM_NOT_DEFINED;
-  }
-};
-
-struct IMUConfig {
-  const SPIConfig spi;
-  const uint32_t int_pin;        // 0 = no interrupt
-  const uint32_t setup_freq_hz;  // 0 = use spi.freq_hz
-};
-```
-
-**Production Usage**:
-```cpp
-#if defined(ARDUINO_BLACKPILL_F411CE)
-#include "targets/BLACKPILL_F411CE.h"
-#else
 #include "targets/NUCLEO_F411RE_LITTLEFS.h"
-#endif
-
-// Storage and IMU SPI initialization
-SPIClass storage_spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
-                     BoardConfig::storage.sclk_pin, BoardConfig::storage.get_ssel_pin());
-SPIClass imu_spi(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
-                 BoardConfig::imu.spi.sclk_pin, BoardConfig::imu.spi.get_ssel_pin());
-
-// ICM42688P with interrupt support
+SPIClass spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
+             BoardConfig::storage.sclk_pin, BoardConfig::storage.get_ssel_pin());
 if (BoardConfig::imu.int_pin != 0) {
-  attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), imu_handler, RISING);
+  attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), handler, RISING);
 }
+// See targets/*.h for board configurations and examples for complete usage
 ```
-
-**Validation Results**:
-- ✅ **All Board Targets**: NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3 validated
-- ✅ **Storage Integration**: 15/15 LittleFS and SDFS tests passed
-- ✅ **IMU Integration**: All 4 ICM42688P examples working with interrupts
-- ✅ **Dual HIL Testing**: Complete validation on both storage backends
 
 ### Generic Storage Abstraction ✅ **COMPLETED**
 
@@ -334,12 +299,9 @@ Unified storage interface abstracting SDFS and LittleFS with automatic backend s
 ```cpp
 #include <Storage.h>
 #include <BoardStorage.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"
-
-if (BoardStorage::begin(BoardConfig::storage)) {
-  Storage& fs = BOARD_STORAGE;
-  File log = fs.open("/flight.log", FILE_WRITE);
-}
+BoardStorage::begin(BoardConfig::storage);
+Storage& fs = BOARD_STORAGE;
+File log = fs.open("/flight.log", FILE_WRITE);
 ```
 
 ### minIni Configuration Management System ✅ **COMPLETED**
@@ -352,22 +314,14 @@ INI file configuration management integrated with Generic Storage Abstraction fo
 - **Data Types**: Strings, integers, floats, booleans with section/key enumeration
 - **HIL Testing**: Full deterministic validation with 6 test suites
 
-**Production Usage**:
+**Usage**:
 ```cpp
 #include <minIniStorage.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"
-
 minIniStorage config("config.ini");
-
-void setup() {
-  if (config.begin(BoardConfig::storage)) {
-    config.put("network", "ip_address", "192.168.1.100");
-    config.put("system", "sample_rate", 1000);
-
-    std::string ip = config.gets("network", "ip_address", "192.168.1.1");
-    int rate = config.geti("system", "sample_rate", 100);
-  }
-}
+config.begin(BoardConfig::storage);
+config.put("network", "ip_address", "192.168.1.100");
+std::string ip = config.gets("network", "ip_address", "default");
+// See tests/minIniStorage_Unit_Tests for complete examples
 ```
 
 ### libPrintf Embedded Printf Library ✅ **COMPLETED**
@@ -404,116 +358,45 @@ Complete Arduino-compatible ICM42688P library with manufacturer-grade reliabilit
 3. **example-raw-data-registers**: Interrupt-driven raw sensor data acquisition
 4. **example-raw-ag**: Processed accelerometer/gyroscope data with clock calibration
 
-**Production Usage**:
+**Usage**:
 ```cpp
-// Basic communication
 #include <ICM42688P_Simple.h>
 SPIClass spi(PA7, PA6, PA5);
 ICM42688P_Simple imu;
 imu.begin(spi, PA4, 1000000);  // Returns 0x47 device ID
-
-// Advanced interrupt-driven acquisition
-#include "icm42688p.h"
-#include <ci_log.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"
-// Arduino automatically handles BoardConfig pin configuration and interrupts
-inv_main();  // Call preserved InvenSense factory algorithm
-
-// Hardware testing
-./scripts/aflash.sh libraries/ICM42688P/examples/example-raw-ag --use-rtt
+// See libraries/ICM42688P/examples/ for complete examples
 ```
 
-## Active Projects
+### High-Level IMU Library ✅ **COMPLETED**
 
-### High-Level IMU Library ⚠️ **IN PROGRESS**
+Unified C++ wrapper library for InvenSense IMU sensors, starting with ICM-42688-P and designed for easy extension to MPU-6000, MPU-9250, and other InvenSense parts.
 
-Create unified C++ wrapper library for InvenSense IMU sensors, starting with ICM-42688-P and designed for easy extension to MPU-6000, MPU-9250, and other InvenSense parts.
+**Key Features**:
+- **Context-Based Design**: Multi-instance support via `serif->context` pointer
+- **Chip Detection**: ChipType enum with GetChipType() for ICM42688_P, MPU-6000, MPU-9250
+- **Interrupt Support**: EnableDataReadyInt1() and DisableDataReadyInt1() methods
+- **Full API**: Init, Reset, RunSelfTest, ReadIMU6, sensor configuration (FSR, ODR, power modes)
+- **BoardConfig Integration**: Works with multi-board configuration system
+- **HIL Validated**: Both examples tested on NUCLEO_F411RE hardware
 
-**Status**: Initial implementation started on branch `imu-lib-integration`, needs completion and testing.
+**Available Examples**:
+1. **imu-selftest**: Manufacturer self-test with bias calculation and chip detection
+2. **imu-raw-data-registers**: Interrupt-driven raw sensor data acquisition at 1kHz
 
-**Current State**:
-- ✅ **Library Structure**: Created `libraries/imu/` with src/ and examples/ directories
-- ✅ **Initial Headers**: IMU.h created with Arduino-compatible interface
-- ⚠️ **Implementation**: IMU.cpp has compilation errors due to TDK driver API mismatches
-- ⚠️ **Example**: example-selftest created but not yet functional
-
-**Key Challenges Identified**:
-1. **TDK Driver API Differences**: UVOS-based code assumptions don't match actual ICM42688P library API
-2. **Transport Layer Structure**: Callbacks belong in `serif` structure, not `transport` structure
-3. **Function Signatures**: Several functions have different names/signatures than expected
-   - `inv_icm426xx_device_reset()` not `soft_reset()`
-   - `inv_icm426xx_run_selftest()` takes 2 params, bias retrieved separately via `get_st_bias()`
-4. **Global vs Context-Based Design**: Existing examples use global state; library should use `serif->context` for multi-instance support
-
-**Implementation Strategy** (Revised):
-
-**Phase 1 - Get Working Baseline** (Next Session):
-- Mirror existing ICM42688P example pattern closely
-- Use global state internally (hidden from user) for simplicity
-- Implement minimal API: `Init()`, `RunSelfTest()`, `GetBias()`
-- Single IMU instance only
-- Test on hardware to validate understanding
-
-**Phase 2 - Refactor to Best Practices**:
-- Add `serif->context` pointer for per-instance state
-- Support multiple IMU instances
-- Add remaining API methods (FSR, ODR, interrupts, FIFO)
-- Test multi-instance scenarios
-
-**Phase 3 - Multi-Chip Support**:
-- Extract common interface to base class
-- Add MPU-6000 implementation
-- Add MPU-9250 implementation
-
-**Examples Planned**:
-1. `example-selftest`: Manufacturer self-test with bias calculation
-2. `example-raw-data-registers`: Interrupt-driven raw sensor data acquisition
-3. `example-raw-ag`: Processed accelerometer/gyroscope data with clock calibration
-
-**API Design** (User-Facing):
+**Usage**:
 ```cpp
 #include <IMU.h>
-#include "targets/NUCLEO_F411RE_LITTLEFS.h"
-
 SPIClass spi_bus(BoardConfig::imu.spi.mosi_pin, BoardConfig::imu.spi.miso_pin,
                  BoardConfig::imu.spi.sclk_pin, BoardConfig::imu.spi.get_ssel_pin());
 IMU imu;
-
-void setup() {
-  // Initialize
-  if (imu.Init(spi_bus, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz) != IMU::Result::OK) {
-    // Handle error
-  }
-
-  // Run self-test
-  int result;
-  std::array<int, 6> bias;
-  imu.RunSelfTest(&result, &bias);
-
-  // Get sensitivities for unit conversion
-  float gyro_sens = imu.GetGyroSensitivity();
-  float accel_sens = imu.GetAccelSensitivity();
-}
+imu.Init(spi_bus, BoardConfig::imu.spi.cs_pin, BoardConfig::imu.spi.freq_hz);
+IMU::ChipType chip = imu.GetChipType();  // Returns ICM42688_P (0x47)
+// See libraries/imu/examples/ for complete examples
 ```
 
-**Technical Lessons Learned**:
-1. **Study working code first**: Don't assume API from different codebase (UVOS vs ICM42688P library)
-2. **Start simple, iterate**: Get single instance working before adding complexity
-3. **Incremental validation**: Test each piece on hardware before moving forward
-4. **Driver structure matters**: `inv_icm426xx_serif` holds callbacks, not `inv_icm426xx_transport`
+**Notes**: Currently supports ICM-42688-P only. Chip detection framework ready for future MPU-6000/MPU-9250 support.
 
-**Next Steps**:
-1. Simplify IMU.cpp to mirror working ICM42688P examples exactly
-2. Use global state internally for Phase 1
-3. Build and test example-selftest on hardware
-4. Once working, document actual TDK driver API patterns
-5. Refactor to context-based design for Phase 2
-
-**Files Created** (on branch `imu-lib-integration`):
-- `libraries/imu/src/IMU.h` - Header with clean C++ interface
-- `libraries/imu/src/IMU.cpp` - Implementation (needs fixes)
-- `libraries/imu/library.properties` - Arduino library metadata
-- `libraries/imu/examples/example-selftest/example-selftest.ino` - First example (needs fixes)
+## Active Projects
 
 ## Future Projects
 
