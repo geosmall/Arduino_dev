@@ -68,7 +68,27 @@ void setup() {
         CI_LOG("*STOP*\n");
         while (1) delay(1000);
     }
-    CI_LOG("✓ IMU initialized successfully\n\n");
+    CI_LOG("✓ IMU initialized successfully\n");
+
+    // Detect chip type
+    IMU::ChipType chip = imu.GetChipType();
+    const char* chip_name = "UNKNOWN";
+    switch (chip) {
+        case IMU::ChipType::ICM42688_P: chip_name = "ICM-42688-P"; break;
+        case IMU::ChipType::MPU_6000:   chip_name = "MPU-6000"; break;
+        case IMU::ChipType::MPU_9250:   chip_name = "MPU-9250"; break;
+        default: break;
+    }
+    printf("Detected chip: %s (0x%02X)\n", chip_name, static_cast<uint8_t>(chip));
+
+    // Verify chip is supported by this library version
+    if (chip != IMU::ChipType::ICM42688_P) {
+        CI_LOG("ERROR: This library currently only supports ICM-42688-P!\n");
+        printf("Detected: %s (0x%02X)\n", chip_name, static_cast<uint8_t>(chip));
+        CI_LOG("*STOP*\n");
+        while (1) delay(1000);
+    }
+    CI_LOG("\n");
 
     // Run self-test
     CI_LOG("Running manufacturer self-test...\n");

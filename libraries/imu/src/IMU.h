@@ -105,6 +105,14 @@ public:
         ERR,
     };
 
+    enum class ChipType : uint8_t
+    {
+        UNKNOWN = 0x00,
+        ICM42688_P = 0x47,
+        MPU_6000 = 0x68,
+        MPU_9250 = 0x71,
+    };
+
     /**
      * @brief Construct an IMU object.
      */
@@ -204,6 +212,12 @@ public:
      * @return Gyro sensitivity value (updated upon change to FS value).
      */
     float GetGyroSensitivity()  const { return gyro_sensitivity_; }
+
+    /**
+     * @brief Get the detected chip type via WHO_AM_I register.
+     * @return ChipType enum value (UNKNOWN, ICM42688P, MPU6000, MPU9250).
+     */
+    ChipType GetChipType();
 
     /**
      * @brief Enable the data ready interrupt on INT1 pin.

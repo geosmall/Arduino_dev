@@ -231,6 +231,27 @@ int IMU::SetGyroFSR(GyroFS fsr)
     return rc;
 }
 
+IMU::ChipType IMU::GetChipType()
+{
+    if (!initialized_) {
+        return ChipType::UNKNOWN;
+    }
+
+    uint8_t who_am_i = 0;
+    int rc = inv_icm426xx_get_who_am_i(&driver_, &who_am_i);
+    if (rc != 0) {
+        return ChipType::UNKNOWN;
+    }
+
+    // Map WHO_AM_I value to ChipType enum
+    switch (who_am_i) {
+        case 0x47: return ChipType::ICM42688_P;
+        case 0x68: return ChipType::MPU_6000;
+        case 0x71: return ChipType::MPU_9250;
+        default:   return ChipType::UNKNOWN;
+    }
+}
+
 int IMU::EnableDataReadyInt1()
 {
     if (!initialized_) return -1;
