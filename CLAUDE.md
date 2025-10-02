@@ -19,7 +19,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `libraries/` - Core STM32 libraries (SPI, Wire, SoftwareSerial, etc.)
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
-- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, ICM42688P, libPrintf, minIniStorage, Storage, AUnit, etc.)
+- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, ICM42688P, IMU, libPrintf, minIniStorage, Storage, AUnit, etc.)
 - `HIL_RTT_Test/` - HIL test framework with comprehensive validation and RTT debugging
 
 ## Build Systems and Commands
