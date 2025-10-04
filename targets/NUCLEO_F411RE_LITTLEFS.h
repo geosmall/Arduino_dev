@@ -19,4 +19,20 @@ namespace BoardConfig {
 
   // I2C: Available for additional sensors (if needed)
   static constexpr I2CConfig sensors{PB9, PB8, 400000};
+
+  // Servo: TIM3 @ 50 Hz (hardware validated with PWM_Verification)
+  namespace Servo {
+    static inline TIM_TypeDef* const timer = TIM3;
+    static constexpr uint32_t frequency_hz = 50;
+
+    struct Channel {
+      uint32_t pin;
+      uint32_t ch;
+      uint32_t min_us;
+      uint32_t max_us;
+    };
+
+    static constexpr Channel pwm_output = {PB4, 1, 1000, 2000};  // TIM3_CH1 (D5) - PWM output
+    static constexpr Channel input_capture = {PA0, 1, 1000, 2000};  // TIM2_CH1 (A0) - Input capture
+  };
 }

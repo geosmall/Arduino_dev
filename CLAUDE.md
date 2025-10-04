@@ -401,49 +401,51 @@ IMU::ChipType chip = imu.GetChipType();  // Returns ICM42688_P (0x47)
 
 **Notes**: Currently supports ICM-42688-P only. Chip detection framework ready for future MPU-6000/MPU-9250 support.
 
-### TimerPWM Library ✅ **COMPLETED - Phase 1**
+### TimerPWM Library ✅ **COMPLETED - Phase 2**
 
-Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control.
+Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control on UAV flight controllers.
 
 **Branch**: `timer-pwm-lib`
 
-**Phase 1 Implementation** (Complete):
-- **PWMOutputBank class** with explicit timer bank configuration
-- **1 MHz timer resolution** via automatic prescaler calculation
-- **RCC-aware clock handling** (APB1/APB2 with 2× multiplier detection)
-- **Runtime pulse width updates** in microseconds
-- **Arduino Servo compatibility** via Write() method (0-180° or µs)
-- **Multi-channel support** (up to 4 channels per timer)
+**Implementation Status**:
+- **Phase 1**: Core PWMOutputBank class with 1µs resolution ✅
+- **Phase 2**: BoardConfig integration ✅
+- **Phase 3**: Dual timer support (servos + OneShot125 ESCs) - planned
+- **Phase 4**: Flight controller utilities (ESC calibration, multi-board configs) - planned
 
-**Core API**:
+**Key Features**:
+- 1 MHz timer resolution (1µs pulse width control)
+- Explicit timer bank configuration (prevents frequency conflicts)
+- BoardConfig hardware abstraction
+- Arduino Servo compatible API (Write method supports 0-180° or µs)
+- Multi-channel support (up to 4 channels per timer)
+
+**Usage Example**:
 ```cpp
 #include <PWMOutputBank.h>
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+
 PWMOutputBank pwm;
-pwm.Init(TIM3, 50);              // 50 Hz servo frequency
-pwm.AttachChannel(1, PB4);       // TIM3_CH1 on PB4
-pwm.SetPulseWidth(1, 1500);      // 1500 µs pulse
-pwm.Start();                     // Start PWM output
+auto& ch = BoardConfig::Servo::pwm_output;
+pwm.Init(BoardConfig::Servo::timer, BoardConfig::Servo::frequency_hz);
+pwm.AttachChannel(ch.ch, ch.pin, ch.min_us, ch.max_us);
+pwm.SetPulseWidth(ch.ch, 1500);  // 1500 µs pulse
+pwm.Start();
 ```
 
-**Available Examples**:
-1. **SimplePWM**: Basic PWM sweep (1000-2000 µs) on PB4/D5
-2. **PWM_Verification**: Input capture validation with HIL integration
-   - Uses TIM2 Input Capture to verify TIM3 PWM output
-   - Validates 50 Hz ±2% tolerance via jumper wire (D5 → A0)
-   - HIL framework integration with deterministic testing
+**Example**:
+- **PWM_Verification**: Input capture validation with HIL integration
+  - Demonstrates PWMOutputBank API with BoardConfig
+  - Hardware validation via TIM2 input capture (D5 → A0 jumper)
+  - Deterministic HIL testing with exit wildcard
 
 **Hardware Validation**:
-- ✅ Tested on NUCLEO_F411RE
-- ✅ Measured 49.50 Hz (20202 µs period, within spec)
-- ✅ HIL integration verified with RTT framework
+- ✅ NUCLEO_F411RE: 49.50 Hz measured (within ±2% spec)
+- ✅ HIL test passed: PWM_Verification with BoardConfig
 
 **Documentation**:
-- `libraries/TimerPWM/APPROACH_1.md` - Complete design and research documentation
-
-**Next Phases** (Future Work):
-- **Phase 2**: BoardConfig integration for multi-board support
-- **Phase 3**: Multiple timer instances, ESC calibration examples
-- **Phase 4**: OneShot125 protocol support, advanced features
+- `libraries/TimerPWM/APPROACH.md` - Design rationale and technical decisions
+- `targets/NUCLEO_F411RE_LITTLEFS.h` - Hardware configuration
 
 ## Future Projects
 
