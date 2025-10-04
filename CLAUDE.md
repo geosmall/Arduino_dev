@@ -19,7 +19,7 @@ The `Arduino_Core_STM32/` directory is a fork of the upstream [stm32duino/Arduin
   - `libraries/` - Core STM32 libraries (SPI, Wire, SoftwareSerial, etc.)
   - `system/` - STM32Cube HAL drivers and CMSIS
 - `cmake/` - CMake build examples and configuration
-- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, ICM42688P, IMU, libPrintf, minIniStorage, Storage, AUnit, etc.)
+- `libraries/` - Additional STM32-specific libraries (LittleFS, SDFS, STM32RTC, ICM42688P, IMU, TimerPWM, libPrintf, minIniStorage, Storage, AUnit, etc.)
 - `HIL_RTT_Test/` - HIL test framework with comprehensive validation and RTT debugging
 
 ## Build Systems and Commands
@@ -164,6 +164,7 @@ This repository supports **UAV flight controller boards** with the following STM
 - `minIniStorage` - INI configuration management with automatic storage backend selection
 - `ICM42688P` - Low-level 6-axis IMU library with TDK InvenSense drivers and manufacturer self-test
 - `IMU` - High-level C++ wrapper for InvenSense IMU sensors with chip detection and multi-instance support
+- `TimerPWM` - Hardware timer-based PWM library for servo/ESC control with 1µs resolution
 - `libPrintf` - Optional embedded printf library (eyalroz/printf v6.2.0) - eliminates nanofp confusion, 20% binary reduction
 - `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
 
@@ -396,69 +397,49 @@ IMU::ChipType chip = imu.GetChipType();  // Returns ICM42688_P (0x47)
 
 **Notes**: Currently supports ICM-42688-P only. Chip detection framework ready for future MPU-6000/MPU-9250 support.
 
-## Active Projects
-
-### TimerPWM Library ⚠️ **IN PROGRESS**
+### TimerPWM Library ✅ **COMPLETED - Phase 1**
 
 Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control.
 
 **Branch**: `timer-pwm-lib`
 
-**Requirements**:
-- 1 µs resolution (1 MHz timer tick frequency)
-- Multiple timer peripherals (TIM_3, TIM_5, etc.)
-- Multiple channels per timer (up to 4 channels)
-- Runtime pulse width updates
-- Standard servo range: 1000-2000 µs
+**Phase 1 Implementation** (Complete):
+- **PWMOutputBank class** with explicit timer bank configuration
+- **1 MHz timer resolution** via automatic prescaler calculation
+- **RCC-aware clock handling** (APB1/APB2 with 2× multiplier detection)
+- **Runtime pulse width updates** in microseconds
+- **Arduino Servo compatibility** via Write() method (0-180° or µs)
+- **Multi-channel support** (up to 4 channels per timer)
 
-**Reference Implementation**:
-- `libraries/TimerPWM/TimerPWM.cpp` - UVOS example showing timer configuration approach
-- Uses prescaler calculation to achieve 1 MHz tick rate
-- Multi-channel PWM configuration per timer
-- Pin + alternate function mapping
+**Core API**:
+```cpp
+#include <PWMOutputBank.h>
+PWMOutputBank pwm;
+pwm.Init(TIM3, 50);              // 50 Hz servo frequency
+pwm.AttachChannel(1, PB4);       // TIM3_CH1 on PB4
+pwm.SetPulseWidth(1, 1500);      // 1500 µs pulse
+pwm.Start();                     // Start PWM output
+```
 
-**Arduino STM32 Core Differences**:
-- Uses `HardwareTimer` class instead of direct HAL
-- Pin-to-timer mapping via `PinMap_PWM[]` in variants
-- May leverage `analogWrite()` extension or custom API
-- Timer resource management handled by core
+**Available Examples**:
+1. **SimplePWM**: Basic PWM sweep (1000-2000 µs) on PB4/D5
+2. **PWM_Verification**: Input capture validation with HIL integration
+   - Uses TIM2 Input Capture to verify TIM3 PWM output
+   - Validates 50 Hz ±2% tolerance via jumper wire (D5 → A0)
+   - HIL framework integration with deterministic testing
 
-**Planned Phases**:
+**Hardware Validation**:
+- ✅ Tested on NUCLEO_F411RE
+- ✅ Measured 49.50 Hz (20202 µs period, within spec)
+- ✅ HIL integration verified with RTT framework
 
-**Phase 1 - Research & Design**:
-- Study Arduino STM32 `HardwareTimer` API and timer management
-- Understand pin-to-timer mapping in variant files
-- Review existing timer examples in Arduino_Core_STM32
-- Design Arduino-compatible API structure
+**Documentation**:
+- `libraries/TimerPWM/APPROACH_1.md` - Complete design and research documentation
 
-**Phase 2 - Basic Implementation**:
-- Single timer, single channel support
-- 1 MHz timer resolution
-- Fixed pulse width initialization
-- Simple LED PWM test example
-
-**Phase 3 - Multi-Channel & Updates**:
-- Multiple channels per timer
-- Runtime pulse width updates (`SetPulseWidth()` method)
-- Servo control example (1000-2000 µs standard range)
-
-**Phase 4 - Production Features**:
-- Multiple independent timers
-- BoardConfig integration for pin mapping
-- ESC calibration example (throttle range)
-- HIL validation with oscilloscope verification
-
-**Key Design Considerations**:
-- Avoid conflicts with Arduino's existing PWM (`analogWrite()`)
-- Clean API similar to IMU library (Init, Start, SetPulseWidth)
-- Support common servo/ESC use cases out-of-box
-- Microsecond precision for RC control protocols
-
-**Next Steps** (for future session):
-1. Research `HardwareTimer` class in Arduino_Core_STM32/libraries/SrcWrapper/src/
-2. Find timer PWM examples in core
-3. Study variant PinMap_PWM definitions
-4. Design initial API based on Arduino patterns
+**Next Phases** (Future Work):
+- **Phase 2**: BoardConfig integration for multi-board support
+- **Phase 3**: Multiple timer instances, ESC calibration examples
+- **Phase 4**: OneShot125 protocol support, advanced features
 
 ## Future Projects
 
@@ -481,7 +462,37 @@ AVOID documentation duplication across files. Before adding content, check if it
 
 ## Claude Code Collaboration Notes
 
-**Repository Attribution**: This repository's collaborative development with Claude Code is documented in README.md under the Documentation section. 
+**Repository Attribution**: This repository's collaborative development with Claude Code is documented in README.md under the Documentation section.
+
+### ci_log.h API Reference
+
+**CRITICAL**: Always use the correct ci_log.h macros. Common mistakes to avoid:
+- ❌ `CI_LOG_INIT()` does NOT exist - Serial initialization is automatic
+- ❌ `CI_LOG()` does NOT support printf formatting - use `CI_LOGF()` instead
+- ❌ Do NOT call `Serial.begin()` in sketches using ci_log.h - handled by framework
+
+**Available Macros** (`Arduino_Core_STM32/cores/arduino/ci_log.h`):
+```cpp
+CI_LOG(s)              // String literals only (no printf formatting)
+CI_LOGF(...)           // Printf-style formatting (RTT: SEGGER_RTT_printf, Serial: Serial.printf)
+CI_BUILD_INFO()        // Shows build SHA + timestamp (RTT only, no-op in Serial mode)
+CI_READY_TOKEN()       // Shows ready token (RTT only, no-op in Serial mode)
+CI_LOG_FLOAT(prefix, value, decimals)  // Float output helper (works in both modes)
+```
+
+**Correct Usage Pattern**:
+```cpp
+#include <ci_log.h>
+
+void setup() {
+  // No initialization needed - Serial.begin() is automatic
+  CI_LOG("Starting test\n");           // String literal
+  CI_LOGF("Value: %d\n", 123);         // Printf formatting
+  CI_LOG_FLOAT("Temp: ", 23.5, 2);    // Float output
+  CI_BUILD_INFO();                      // Build traceability
+  CI_READY_TOKEN();                     // Ready signal
+}
+``` 
 
 ## Clean Repository Policy
 

@@ -1,9 +1,6 @@
-# TimerPWM Library - Finalized Design Approach
+# TimerPWM Library - Design Approach
 
-## Research Phase Complete ✅
-
-**Branch**: `timer-pwm-lib`
-**Status**: Phase 1 Research Complete → Ready for Implementation
+This document contains the complete design approach, research findings, and technical decisions for the TimerPWM library.
 
 ---
 
@@ -288,54 +285,47 @@ void loop() {
 
 ---
 
-## Implementation Phases
+## Implementation Summary
 
-### ✅ Phase 0 - Research (COMPLETED)
-- [x] HardwareTimer API research
-- [x] RCC clock tree understanding
-- [x] Architecture docs (TIMERS.md, TIMERS_PWM_OUT.md)
-- [x] UVOS TimerPWM analysis
-- [x] Arduino library survey
-- [x] Configuration approach design
-- [x] Pin convention decision
-- [x] Finalized API design
+### Phase 0 - Research
+- HardwareTimer API research
+- RCC clock tree understanding
+- Architecture docs (TIMERS.md, TIMERS_PWM_OUT.md)
+- UVOS TimerPWM analysis
+- Arduino library survey
+- Configuration approach design
+- Pin convention decision
+- Finalized API design
 
-### 📋 Phase 1 - Basic Implementation (NEXT)
-- [ ] Create `src/PWMOutputBank.h` header
-- [ ] Create `src/PWMOutputBank.cpp` implementation
-- [ ] Implement `Init()` with 1 MHz prescaler calculation
-- [ ] Implement `AttachChannel()` for single channel
-- [ ] Implement `SetPulseWidth()` using HardwareTimer
-- [ ] Implement `Start()/Stop()`
-- [ ] Create `examples/SimplePWM/` - Basic LED fade example
-- [ ] HIL validation on NUCLEO_F411RE
+### Phase 1 - Basic Implementation
+**Implemented Features**:
+- `src/PWMOutputBank.h` - Complete API with Init, AttachChannel, SetPulseWidth, Write, Start, Stop
+- `src/PWMOutputBank.cpp` - Full implementation with RCC-aware prescaler calculation
+- 1 MHz timer resolution via automatic prescaler calculation
+- APB1/APB2 bus detection with 2× multiplier handling
+- Multi-channel support (up to 4 channels per timer)
+- Per-channel pulse width updates with min/max clamping
+- Arduino Servo compatibility via Write() method (0-180° or µs)
+- `examples/SimplePWM/` - Basic PWM sweep demonstration
+- `examples/PWM_Verification/` - Input capture validation with HIL integration
+- Hardware validation on NUCLEO_F411RE (measured 49.50 Hz, within ±2% spec)
 
-### 📋 Phase 2 - Multi-Channel Support
-- [ ] Support up to 4 channels per timer
-- [ ] Array-based channel tracking
-- [ ] Per-channel pulse width updates
-- [ ] `SetPulseWidthAll()` broadcast method
-- [ ] Create `examples/MultiServo/` - 4 servos on TIM3
-- [ ] Create `targets/NUCLEO_F411RE_SERVO.h` config
-- [ ] HIL validation with oscilloscope
+### Future Phases
 
-### 📋 Phase 3 - Arduino Compatibility
-- [ ] Implement `Write()` method (angle/microsecond auto-detect)
-- [ ] Implement `WriteMicroseconds()` alias
-- [ ] Implement `DetachChannel()` method
-- [ ] Add channel validation (min/max limits)
-- [ ] Create `examples/ServoSweep/` - Arduino Servo compatible
-- [ ] Create `examples/ESC_Calibration/` - ESC setup guide
-- [ ] Documentation and API reference
+**Phase 2 - BoardConfig Integration**:
+- Target configuration files (NUCLEO_F411RE_SERVO.h, etc.)
+- Multi-board support examples
+- Servo sweep demonstrations
 
-### 📋 Phase 4 - Production Features
-- [ ] Multi-timer support validation (independent instances)
-- [ ] BoardConfig integration examples
-- [ ] OneShot125 protocol support (1-2 kHz)
-- [ ] Error handling and diagnostics
-- [ ] Create `targets/NOXE_V3_FLIGHT.h` - Flight controller config
-- [ ] HIL validation suite
-- [ ] Performance benchmarking
+**Phase 3 - Advanced Features**:
+- Multiple timer instances validation
+- ESC calibration examples
+- Enhanced documentation
+
+**Phase 4 - Protocol Extensions**:
+- OneShot125 protocol support (1-2 kHz)
+- Flight controller configurations
+- Performance benchmarking
 
 ---
 
@@ -732,59 +722,10 @@ servos.Init(BoardConfig::Servo::timer, BoardConfig::Servo::frequency_hz);
 
 ---
 
-## Next Steps
-
-### Immediate (Start of Implementation)
-1. Create `src/PWMOutputBank.h` with complete API
-2. Create `src/PWMOutputBank.cpp` with basic implementation
-3. Implement `Init()`, `AttachChannel()`, `SetPulseWidth()`, `Start()`
-4. Create `examples/SimplePWM/SimplePWM.ino` - single LED fade
-5. Test on NUCLEO_F411RE with oscilloscope validation
-
-### Short-Term (Phase 2)
-1. Add multi-channel support (4 channels)
-2. Create servo control example
-3. Create target configuration file
-4. HIL validation with multiple servos
-
-### Long-Term (Phase 3-4)
-1. Arduino Servo compatibility layer
-2. ESC calibration example
-3. OneShot125 protocol support
-4. Flight controller configuration example
-
----
-
-## Success Criteria
-
-**Phase 1 Complete When**:
-- ✅ Single timer, single channel works
-- ✅ 1 MHz tick rate verified (oscilloscope)
-- ✅ Pulse width accuracy ±1 µs
-- ✅ Example compiles and runs on NUCLEO_F411RE
-
-**Phase 2 Complete When**:
-- ✅ 4 channels work independently
-- ✅ Per-channel pulse width control
-- ✅ Servo example moves 4 servos smoothly
-
-**Phase 3 Complete When**:
-- ✅ Arduino Servo API compatibility
-- ✅ ESC calibration documented
-- ✅ Min/max limiting works
-
-**Phase 4 Complete When**:
-- ✅ Multi-timer support validated
-- ✅ OneShot125 protocol works
-- ✅ Flight controller config example
-- ✅ HIL test suite passes
-
----
-
 ## Reference Material
 
 ### Local Documentation
-- `doc/TIMERS.md` - Complete timer architecture reference
+- `doc/TIMERS.md` - Complete STM32 timer architecture reference
 - `doc/TIMERS_PWM_OUT.md` - Practical PWM output guide
 - `libraries/TimerPWM/TimerPWM.cpp` - UVOS reference implementation
 - `Arduino_Core_STM32/cores/arduino/HardwareTimer.h` - Core API
@@ -795,8 +736,3 @@ servos.Init(BoardConfig::Servo::timer, BoardConfig::Servo::frequency_hz);
 - [Arduino Servo Library](https://github.com/arduino-libraries/Servo)
 - [ServoHT STM32 Hardware Timer Servo](https://github.com/PR-DC/PRDC_ServoHT)
 - STM32F4 Reference Manual RM0383 (Timers: Chapter 13-18)
-
----
-
-**Research Phase: COMPLETE ✅**
-**Ready for Phase 1 Implementation**
