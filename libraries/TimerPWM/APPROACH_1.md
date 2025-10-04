@@ -154,9 +154,6 @@ public:
   bool AttachChannel(uint32_t channel, uint32_t pin,
                      uint32_t min_us = 1000, uint32_t max_us = 2000);
 
-  // Detach a channel (stop PWM output)
-  void DetachChannel(uint32_t channel);
-
   //
   // Pulse Width Control (Microsecond API)
   //
@@ -166,9 +163,6 @@ public:
   // pulse_us: Pulse width in microseconds (e.g., 1500)
   void SetPulseWidth(uint32_t channel, uint32_t pulse_us);
 
-  // Set same pulse width for all attached channels
-  void SetPulseWidthAll(uint32_t pulse_us);
-
   //
   // Arduino Servo Compatibility
   //
@@ -177,9 +171,6 @@ public:
   // channel: Timer channel (1-4)
   // value: Angle (0-180) or microseconds if >= 200
   void Write(uint32_t channel, int value);
-
-  // Write microseconds (alias for SetPulseWidth)
-  void WriteMicroseconds(uint32_t channel, uint32_t us);
 
   //
   // Control
@@ -191,32 +182,38 @@ public:
   // Stop PWM generation on all channels
   void Stop();
 
-  // Get number of attached channels
-  uint8_t GetChannelCount() const;
+  // Get current pulse width for a channel
+  // channel: Timer channel (1-4)
+  // Returns: Current pulse width in microseconds
+  uint32_t GetPulseWidth(uint32_t channel);
+
+  // Check if timer is initialized
+  // Returns: true if initialized, false otherwise
+  bool IsInitialized() const;
 
 private:
-  HardwareTimer* timer_;
-  uint32_t frequency_hz_;
+  HardwareTimer *_timer;              // Hardware timer instance
+  TIM_TypeDef *_timer_instance;       // Timer peripheral
+  uint32_t _frequency_hz;             // PWM frequency
+  uint32_t _period_us;                // Period in microseconds
+  bool _initialized;                  // Initialization status
 
   struct ChannelConfig {
-    uint32_t channel;
-    uint32_t pin;
-    uint32_t min_us;
-    uint32_t max_us;
-    bool active;
+    uint32_t pin;           // Arduino pin number
+    uint32_t channel;       // Timer channel (1-4)
+    uint32_t min_us;        // Minimum pulse width
+    uint32_t max_us;        // Maximum pulse width
+    uint32_t current_us;    // Current pulse width
+    bool active;            // Channel is configured
   };
 
-  ChannelConfig channels_[4];  // Max 4 channels per timer
-  uint8_t channel_count_;
+  ChannelConfig _channels[4];         // Up to 4 channels per timer
 
   // Helper: Calculate 1 MHz prescaler
   uint32_t Calculate1MHzPrescaler();
 
-  // Helper: Validate channel number (1-4)
-  bool IsValidChannel(uint32_t channel) const;
-
-  // Helper: Clamp pulse width to min/max limits
-  uint32_t ClampPulseWidth(uint32_t channel, uint32_t pulse_us) const;
+  // Helper: Get timer clock frequency
+  uint32_t GetTimerClockFreq();
 };
 ```
 
@@ -406,7 +403,7 @@ Before implementing production features, we need reliable verification of PWM ou
 
 **Hardware Setup**:
 ```
-PA6 (TIM3_CH1 PWM Output) → [Jumper Wire] → PA0 (TIM2_CH1 Input Capture)
+PB4 (TIM3_CH1 PWM Output, Arduino D5) → [Jumper Wire] → PA0 (TIM2_CH1 Input Capture, Arduino A0)
 ```
 
 **Advantages**:
@@ -433,28 +430,32 @@ volatile uint32_t capture_falling = 0;
 volatile bool measurement_ready = false;
 
 void setup() {
-  CI_LOG_INIT();
+#ifndef USE_RTT
+  Serial.begin(115200);
+  while (!Serial && millis() < 3000);
+#endif
+
   CI_LOG("=== PWM Verification Test ===\n");
   CI_BUILD_INFO();
 
   // Configure PWM Output (TIM3 @ 50 Hz, 1500 µs pulse)
-  tim3.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick
+  tim3.setPrescaleFactor(49);  // 50 MHz / 50 = 1 MHz tick (TIM3 on APB1)
   tim3.setOverflow(20000, MICROSEC_FORMAT);  // 50 Hz (20 ms period)
   tim3.setCaptureCompare(1, 1500, MICROSEC_COMPARE_FORMAT);  // 1500 µs pulse
-  tim3.setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA6);
+  tim3.setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PB4);
   tim3.resume();
 
-  CI_LOG("PWM Output: PA6, 50 Hz, 1500 µs pulse\n");
+  CI_LOG("PWM Output: PB4 (D5), 50 Hz, 1500 µs pulse\n");
 
   // Configure Input Capture (TIM2 measuring rising edge)
   tim2.setMode(1, TIMER_INPUT_CAPTURE_RISING, PA0);
-  tim2.setPrescaleFactor(99);  // Match TIM3 tick rate (1 MHz)
+  tim2.setPrescaleFactor(49);  // 50 MHz / 50 = 1 MHz tick (TIM2 on APB1)
   tim2.setOverflow(0xFFFFFFFF);  // Max period
   tim2.attachInterrupt(1, captureCallback);
   tim2.resume();
 
-  CI_LOG("Input Capture: PA0 measuring period\n");
-  CI_LOG("Connect jumper: PA6 → PA0\n\n");
+  CI_LOG("Input Capture: PA0 (A0) measuring period\n");
+  CI_LOG("Connect jumper: D5 → A0\n\n");
   CI_READY_TOKEN();
 }
 

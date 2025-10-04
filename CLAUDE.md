@@ -209,6 +209,10 @@ Single-sketch development supporting both Arduino IDE and CI/HIL workflows via `
 ```cpp
 #include <ci_log.h>
 void setup() {
+#ifndef USE_RTT
+  Serial.begin(115200);
+  while (!Serial && millis() < 3000);
+#endif
   CI_LOG("Test starting\n");
   CI_BUILD_INFO();    // RTT: shows build details, Serial: no-op
   CI_READY_TOKEN();   // RTT: shows ready token, Serial: no-op
@@ -256,7 +260,7 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 
 **Key Features**:
 - **Complete Integration**: `aunit_hil.h` wrapper with RTT/Serial abstraction
-- **22 Total Tests**: LittleFS (8 tests), SDFS (7 tests), minIniStorage (6 tests), framework validation (1 test)
+- **18 Total AUnit Tests**: LittleFS (8 tests), SDFS (7 tests), AUnit framework validation (3 tests)
 - **Hardware Validation**: Real SPI flash and SD card testing on STM32F411RE
 - **Dual-Mode Support**: Same tests work with RTT (HIL) and Serial (IDE)
 - **Type Safety**: Established AUnit assertion patterns for embedded types
@@ -265,7 +269,7 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 ```bash
 ./scripts/aflash.sh tests/LittleFS_Unit_Tests --use-rtt --build-id
 ./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
-./scripts/aflash.sh tests/minIniStorage_Unit_Tests --use-rtt --build-id
+./scripts/aflash.sh tests/AUnit_Pilot_Test --use-rtt --build-id
 ```
 
 ### Board Configuration System ✅ **COMPLETED**
@@ -467,9 +471,9 @@ AVOID documentation duplication across files. Before adding content, check if it
 ### ci_log.h API Reference
 
 **CRITICAL**: Always use the correct ci_log.h macros. Common mistakes to avoid:
-- ❌ `CI_LOG_INIT()` does NOT exist - Serial initialization is automatic
+- ❌ `CI_LOG_INIT()` does NOT exist - there is no init macro
 - ❌ `CI_LOG()` does NOT support printf formatting - use `CI_LOGF()` instead
-- ❌ Do NOT call `Serial.begin()` in sketches using ci_log.h - handled by framework
+- ✅ **YOU MUST** call `Serial.begin()` when NOT using RTT mode - ci_log.h does NOT initialize Serial
 
 **Available Macros** (`Arduino_Core_STM32/cores/arduino/ci_log.h`):
 ```cpp
@@ -485,12 +489,17 @@ CI_LOG_FLOAT(prefix, value, decimals)  // Float output helper (works in both mod
 #include <ci_log.h>
 
 void setup() {
-  // No initialization needed - Serial.begin() is automatic
+  // Initialize Serial for non-RTT mode (Arduino IDE)
+#ifndef USE_RTT
+  Serial.begin(115200);
+  while (!Serial && millis() < 3000); // Wait for Serial with timeout
+#endif
+
   CI_LOG("Starting test\n");           // String literal
   CI_LOGF("Value: %d\n", 123);         // Printf formatting
   CI_LOG_FLOAT("Temp: ", 23.5, 2);    // Float output
-  CI_BUILD_INFO();                      // Build traceability
-  CI_READY_TOKEN();                     // Ready signal
+  CI_BUILD_INFO();                     // Build traceability (RTT only)
+  CI_READY_TOKEN();                    // Ready signal (RTT only)
 }
 ``` 
 
