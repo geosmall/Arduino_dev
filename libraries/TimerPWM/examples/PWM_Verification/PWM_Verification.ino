@@ -1,7 +1,8 @@
 /**
  * PWM_Verification.ino - Input capture verification example
  *
- * Verifies PWM output using TIM2 Input Capture to measure TIM3 PWM output.
+ * Verifies PWM output using TIM2 Input Capture to measure TIM3 PWM output
+ * with BoardConfig integration.
  * No oscilloscope or logic analyzer needed - just a jumper wire!
  *
  * Hardware Setup:
@@ -17,20 +18,26 @@
 
 #include <PWMOutputBank.h>
 #include <ci_log.h>
+#include "../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
 
 // PWM Output on TIM3
 PWMOutputBank pwm;
 
 // Input Capture on TIM2
+// HOW THIS TEST WORKS:
+// 1. TIM3 generates PWM on D5 (50 Hz, 1500 µs pulse)
+// 2. Jumper wire connects D5 → A0
+// 3. TIM2 input capture on A0 measures time between rising edges
+// 4. Callback fires on each rising edge, calculates period
+// 5. Period validates PWM frequency is within ±2% tolerance
 HardwareTimer tim2(TIM2);
 volatile uint32_t capture_period_us = 0;
 volatile bool measurement_ready = false;
 
-// Pin definitions
-const uint32_t PWM_OUTPUT_PIN = PB4;  // TIM3_CH1 (Arduino D5)
-const uint32_t CAPTURE_INPUT_PIN = PA0;  // TIM2_CH1 (Arduino A0)
-
 void captureCallback() {
+  // Hardware interrupt ensures precise timing measurement
+  // Callback fires immediately on rising edge
+  // Static variable preserves last_capture between interrupts
   static uint32_t last_capture = 0;
   uint32_t current_capture = tim2.getCaptureCompare(1);
 
@@ -54,29 +61,31 @@ void setup() {
   CI_BUILD_INFO();
   CI_LOG("\n");
 
-  // Configure PWM Output (TIM3 @ 50 Hz, 1500 µs pulse)
-  if (!pwm.Init(TIM3, 50)) {
+  // Configure PWM Output using BoardConfig
+  if (!pwm.Init(BoardConfig::Servo::timer, BoardConfig::Servo::frequency_hz)) {
     CI_LOG("ERROR: Failed to initialize PWM timer\n");
     while (1);
   }
-  CI_LOG("PWM Timer: TIM3 @ 50 Hz\n");
+  CI_LOGF("PWM Timer: TIM3 @ %lu Hz\n", BoardConfig::Servo::frequency_hz);
 
-  if (!pwm.AttachChannel(1, PWM_OUTPUT_PIN, 1000, 2000)) {
+  auto& pwm_ch = BoardConfig::Servo::pwm_output;
+  if (!pwm.AttachChannel(pwm_ch.ch, pwm_ch.pin, pwm_ch.min_us, pwm_ch.max_us)) {
     CI_LOG("ERROR: Failed to attach PWM channel\n");
     while (1);
   }
   CI_LOG("PWM Output: PB4 (Arduino D5)\n");
 
   // Set 1500 µs pulse width
-  pwm.SetPulseWidth(1, 1500);
+  pwm.SetPulseWidth(pwm_ch.ch, 1500);
   pwm.Start();
   CI_LOG("PWM Pulse: 1500 µs\n\n");
 
-  // Configure Input Capture (TIM2 measuring rising edge)
-  tim2.setMode(1, TIMER_INPUT_CAPTURE_RISING, CAPTURE_INPUT_PIN);
+  // Configure Input Capture using BoardConfig
+  auto& cap_ch = BoardConfig::Servo::input_capture;
+  tim2.setMode(cap_ch.ch, TIMER_INPUT_CAPTURE_RISING, cap_ch.pin);
   tim2.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick rate
   tim2.setOverflow(0xFFFFFFFF);  // Max period (32-bit timer)
-  tim2.attachInterrupt(1, captureCallback);
+  tim2.attachInterrupt(cap_ch.ch, captureCallback);
   tim2.resume();
 
   CI_LOG("Input Capture: PA0 (Arduino A0)\n");
@@ -87,6 +96,16 @@ void setup() {
 
 void loop() {
   static int measurement_count = 0;
+  static uint32_t start_time = millis();
+
+  // Timeout if no measurements after 15 seconds
+  const uint32_t TIMEOUT_MS = 15000;
+  if (millis() - start_time > TIMEOUT_MS && measurement_count == 0) {
+    CI_LOG("\n✗ TIMEOUT: No measurements received after 15 seconds\n");
+    CI_LOG("Check jumper connection: D5 → A0\n");
+    CI_LOG("*STOP*\n");
+    while(1); // Halt
+  }
 
   if (measurement_ready) {
     measurement_ready = false;

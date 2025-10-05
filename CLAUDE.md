@@ -177,6 +177,104 @@ The core integrates three levels of STM32 APIs:
 
 Board-specific configurations are defined through the variant system, allowing the same core to support hundreds of STM32 boards with different pin layouts and capabilities.
 
+## Embedded Hardware Validation Standards
+
+**CRITICAL DISTINCTION**: Embedded systems require physical signal validation, not just software execution. This is fundamentally different from web/software development where console output often constitutes validation.
+
+### Validation Levels
+
+**1. Software Validation** (Necessary but NOT Sufficient):
+- ✅ Code compiles without errors
+- ✅ Code runs on target hardware without crashes
+- ✅ RTT/Serial output shows expected calculated values
+- ✅ **Proves**: Firmware executes correctly
+- ❌ **Does NOT prove**: Hardware peripherals are configured/operating correctly
+- ❌ **Does NOT prove**: Physical signals are being generated
+
+**2. Hardware Validation** (Required for "Hardware Validated" Claims):
+- ✅ **Measurement required**: Oscilloscope, logic analyzer, or input capture
+- ✅ **Specifications verified**: Frequency, pulse width, voltage levels within tolerance
+- ✅ **Physical signals confirmed**: Actual pin outputs measured, not just calculated
+- ✅ **Example**: PWM_Verification uses TIM2 input capture to measure TIM3 output (49.50 Hz ±2%)
+
+### When to Claim "Hardware Validated"
+
+**Acceptable Claims**:
+- ✅ "Hardware validated" - Only when physical signals measured and verified against specs
+- ✅ "Measured with oscilloscope: 49.50 Hz ±2%" - Specific measurement data
+- ✅ "Input capture verified: 1500 µs pulse width" - Measurement methodology stated
+- ✅ "Software tested on NUCLEO_F411RE" - Honest about validation level
+
+**Unacceptable Claims**:
+- ❌ "Hardware validated" when only software executed successfully
+- ❌ "Validated on hardware" when only RTT output shows expected values
+- ❌ "Hardware tested" when code just runs without crashing
+- ❌ Any validation claim without actual signal measurement
+
+### Validation Test Requirements
+
+Every hardware peripheral library must include measurement-based validation:
+
+**Required Elements**:
+1. **Measurement Methodology**:
+   - Tool used (oscilloscope, logic analyzer, input capture timer)
+   - Probe points or jumper connections
+   - Measurement procedure
+
+2. **Tolerance Specifications**:
+   - Frequency: ±X% or ±X Hz
+   - Pulse width: ±X µs
+   - Voltage levels: Min/Max thresholds
+   - Timing accuracy requirements
+
+3. **Pass/Fail Criteria**:
+   - Based on measured values, not calculated values
+   - Defined tolerance bands
+   - Clear success/failure determination
+
+4. **Hardware Setup**:
+   - Physical connections required (jumpers, probes)
+   - Test equipment needed
+   - Board configuration
+
+**Example - Good Validation Test** (PWM_Verification):
+```cpp
+// Hardware: TIM2 input capture measures TIM3 PWM output
+// Setup: Jumper wire D5 (TIM3_CH1) → A0 (TIM2_CH1)
+// Measurement: Input capture reads actual period
+// Specification: 50 Hz ±2% (49-51 Hz acceptable)
+// Result: 49.50 Hz measured ✅ PASS
+```
+
+**Example - Insufficient "Validation"**:
+```cpp
+// ❌ BAD: No measurement
+CI_LOGF("PWM set to 50 Hz\n");  // This only shows software calculated a value
+// No actual signal measurement = NOT hardware validated
+```
+
+### Common Pitfalls to Avoid
+
+1. **Confusing "runs on hardware" with "hardware validated"**:
+   - Running on target ≠ Peripherals working correctly
+   - RTT output ≠ Physical signal measurement
+
+2. **Trusting register writes without verification**:
+   - Setting TIM3->ARR doesn't prove timer is counting
+   - Configuring GPIO doesn't prove signal is toggling
+
+3. **Assuming correct behavior without measurement**:
+   - "No errors" ≠ "Working correctly"
+   - Silent failure modes exist in embedded systems
+
+### Integration with TODO Workflow
+
+When creating validation todos, be explicit:
+- ✅ "Measure TIM3 frequency with input capture"
+- ✅ "Verify ESC pulse widths with oscilloscope"
+- ❌ "Run hardware validation" (too ambiguous)
+- ❌ "Test on hardware" (doesn't specify measurement)
+
 ## Completed Projects
 
 ### Build Workflow ✅ **COMPLETED**
@@ -401,49 +499,71 @@ IMU::ChipType chip = imu.GetChipType();  // Returns ICM42688_P (0x47)
 
 **Notes**: Currently supports ICM-42688-P only. Chip detection framework ready for future MPU-6000/MPU-9250 support.
 
-### TimerPWM Library ✅ **COMPLETED - Phase 1**
+### TimerPWM Library ✅ **COMPLETED**
 
-Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control.
+Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control on UAV flight controllers.
 
 **Branch**: `timer-pwm-lib`
 
-**Phase 1 Implementation** (Complete):
-- **PWMOutputBank class** with explicit timer bank configuration
-- **1 MHz timer resolution** via automatic prescaler calculation
-- **RCC-aware clock handling** (APB1/APB2 with 2× multiplier detection)
-- **Runtime pulse width updates** in microseconds
-- **Arduino Servo compatibility** via Write() method (0-180° or µs)
-- **Multi-channel support** (up to 4 channels per timer)
+**Key Features**:
+- 1 MHz timer resolution (1µs pulse width control)
+- Explicit timer bank configuration (prevents frequency conflicts)
+- BoardConfig hardware abstraction
+- Arduino Servo compatible API (Write method supports 0-180° or µs)
+- Multi-channel support (up to 4 channels per timer)
+- Dual timer support (servos + ESCs simultaneously)
 
-**Core API**:
+**Usage Example**:
 ```cpp
 #include <PWMOutputBank.h>
-PWMOutputBank pwm;
-pwm.Init(TIM3, 50);              // 50 Hz servo frequency
-pwm.AttachChannel(1, PB4);       // TIM3_CH1 on PB4
-pwm.SetPulseWidth(1, 1500);      // 1500 µs pulse
-pwm.Start();                     // Start PWM output
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+
+// Servo control at 50 Hz
+PWMOutputBank servo_pwm;
+auto& servo_ch = BoardConfig::Servo::pwm_output;
+servo_pwm.Init(BoardConfig::Servo::timer, BoardConfig::Servo::frequency_hz);
+servo_pwm.AttachChannel(servo_ch.ch, servo_ch.pin, servo_ch.min_us, servo_ch.max_us);
+servo_pwm.SetPulseWidth(servo_ch.ch, 1500);  // 1500 µs center position
+servo_pwm.Start();
+
+// ESC control at 1 kHz (OneShot125)
+PWMOutputBank esc_pwm;
+auto& esc_ch = BoardConfig::ESC::esc1;
+esc_pwm.Init(BoardConfig::ESC::timer, BoardConfig::ESC::frequency_hz);
+esc_pwm.AttachChannel(esc_ch.ch, esc_ch.pin, esc_ch.min_us, esc_ch.max_us);
+esc_pwm.SetPulseWidth(esc_ch.ch, 187);  // 187 µs midpoint
+esc_pwm.Start();
 ```
 
-**Available Examples**:
-1. **SimplePWM**: Basic PWM sweep (1000-2000 µs) on PB4/D5
-2. **PWM_Verification**: Input capture validation with HIL integration
-   - Uses TIM2 Input Capture to verify TIM3 PWM output
-   - Validates 50 Hz ±2% tolerance via jumper wire (D5 → A0)
-   - HIL framework integration with deterministic testing
+**Examples**:
+- **PWM_Verification**: Single timer validation with input capture
+  - TIM3 @ 50 Hz validated via TIM2 input capture (D5 → A0 jumper)
+  - Hardware measurement: 49.50 Hz ✅ PASS (±2% tolerance)
+  - Demonstrates timeout/fail behavior for missing jumpers
+  - Deterministic HIL testing with exit wildcard
 
-**Hardware Validation**:
-- ✅ Tested on NUCLEO_F411RE
-- ✅ Measured 49.50 Hz (20202 µs period, within spec)
-- ✅ HIL integration verified with RTT framework
+- **DualTimerPWM**: Demo of simultaneous servo and ESC control
+  - Servo on TIM3 @ 50 Hz (1000-2000 µs pulses)
+  - ESCs on TIM4 @ 1 kHz (125-250 µs OneShot125 pulses)
+  - Shows practical dual timer operation for flight controllers
+
+- **DualTimerPWM_Verification**: Dual timer hardware validation
+  - TIM3 @ 50 Hz + TIM4 @ 1 kHz validated simultaneously
+  - TIM2 dual-channel input capture (D5 → A0, D10 → D6 jumpers)
+  - Hardware measurements:
+    - Servo: 49.50 Hz ✅ PASS (49-51 Hz tolerance)
+    - ESC: 990.10 Hz ✅ PASS (980-1020 Hz tolerance)
+  - Proves independent timer operation without crosstalk
+
+**Hardware Validation Results**:
+- ✅ **Single Timer**: PWM_Verification - 49.50 Hz measured (±2% spec)
+- ✅ **Dual Timer**: DualTimerPWM_Verification - 49.50 Hz servo + 990.10 Hz ESC measured simultaneously
+- **Methodology**: TIM2 input capture with jumper wires (no oscilloscope required)
+- **Test Features**: 15-second timeout for missing jumpers, helpful error messages
 
 **Documentation**:
-- `libraries/TimerPWM/APPROACH_1.md` - Complete design and research documentation
-
-**Next Phases** (Future Work):
-- **Phase 2**: BoardConfig integration for multi-board support
-- **Phase 3**: Multiple timer instances, ESC calibration examples
-- **Phase 4**: OneShot125 protocol support, advanced features
+- `libraries/TimerPWM/APPROACH.md` - Design rationale and technical decisions
+- `targets/NUCLEO_F411RE_LITTLEFS.h` - Hardware configuration
 
 ## Future Projects
 
