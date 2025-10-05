@@ -503,8 +503,6 @@ IMU::ChipType chip = imu.GetChipType();  // Returns ICM42688_P (0x47)
 
 Hardware timer-based PWM library for high-resolution (1µs) servo and ESC control on UAV flight controllers.
 
-**Branch**: `timer-pwm-lib`
-
 **Key Features**:
 - 1 MHz timer resolution (1µs pulse width control)
 - Explicit timer bank configuration (prevents frequency conflicts)
