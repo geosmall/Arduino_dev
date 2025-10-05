@@ -35,4 +35,20 @@ namespace BoardConfig {
     static constexpr Channel pwm_output = {PB4, 1, 1000, 2000};  // TIM3_CH1 (D5) - PWM output
     static constexpr Channel input_capture = {PA0, 1, 1000, 2000};  // TIM2_CH1 (A0) - Input capture
   };
+
+  // ESC: TIM4 @ 1000 Hz (OneShot125 protocol)
+  namespace ESC {
+    static inline TIM_TypeDef* const timer = TIM4;
+    static constexpr uint32_t frequency_hz = 1000;  // 1 kHz for OneShot125
+
+    struct Channel {
+      uint32_t pin;
+      uint32_t ch;
+      uint32_t min_us;
+      uint32_t max_us;
+    };
+
+    static constexpr Channel esc1 = {PB6, 1, 125, 250};  // TIM4_CH1 (D10) - ESC 1
+    static constexpr Channel esc2 = {PB7, 2, 125, 250};  // TIM4_CH2 (CN7-21) - ESC 2
+  };
 }

@@ -24,11 +24,20 @@
 PWMOutputBank pwm;
 
 // Input Capture on TIM2
+// HOW THIS TEST WORKS:
+// 1. TIM3 generates PWM on D5 (50 Hz, 1500 µs pulse)
+// 2. Jumper wire connects D5 → A0
+// 3. TIM2 input capture on A0 measures time between rising edges
+// 4. Callback fires on each rising edge, calculates period
+// 5. Period validates PWM frequency is within ±2% tolerance
 HardwareTimer tim2(TIM2);
 volatile uint32_t capture_period_us = 0;
 volatile bool measurement_ready = false;
 
 void captureCallback() {
+  // Hardware interrupt ensures precise timing measurement
+  // Callback fires immediately on rising edge
+  // Static variable preserves last_capture between interrupts
   static uint32_t last_capture = 0;
   uint32_t current_capture = tim2.getCaptureCompare(1);
 
@@ -87,6 +96,16 @@ void setup() {
 
 void loop() {
   static int measurement_count = 0;
+  static uint32_t start_time = millis();
+
+  // Timeout if no measurements after 15 seconds
+  const uint32_t TIMEOUT_MS = 15000;
+  if (millis() - start_time > TIMEOUT_MS && measurement_count == 0) {
+    CI_LOG("\n✗ TIMEOUT: No measurements received after 15 seconds\n");
+    CI_LOG("Check jumper connection: D5 → A0\n");
+    CI_LOG("*STOP*\n");
+    while(1); // Halt
+  }
 
   if (measurement_ready) {
     measurement_ready = false;
