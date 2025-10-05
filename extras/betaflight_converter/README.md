@@ -1,12 +1,66 @@
-# Betaflight to BoardConfig Converter - Research Documentation
+# Betaflight to BoardConfig Converter
 
 ## Overview
 
-This directory contains complete research for building a Betaflight unified target → Arduino STM32 BoardConfig converter.
+Python tool that automatically converts Betaflight unified target configurations into Arduino STM32 BoardConfig headers with comprehensive validation.
 
-**Goal**: Automatically convert Betaflight `.config` files into compile-time C++ `BoardConfig` namespaces with full validation.
+**Status**: ✅ **Production Ready**
 
-**Status**: ✅ **Research Complete** - Ready for implementation
+**Cross-Platform**: Works on Windows, macOS, and Linux (see [CROSS_PLATFORM.md](CROSS_PLATFORM.md))
+
+## Quick Start
+
+### Requirements
+- Python 3.7+
+- Arduino Core STM32 (for PeripheralPins.c validation)
+
+### Usage
+
+```bash
+# Linux/macOS
+python3 convert.py data/JHEF-JHEF411.config output/NOXE_V3.h
+
+# Windows
+python convert.py data\JHEF-JHEF411.config output\NOXE_V3.h
+```
+
+### Example Output
+```
+Loading Betaflight config: data/JHEF-JHEF411.config
+  Board: JHEF411
+  Manufacturer: JHEF
+  MCU: STM32F411
+Loading PeripheralPins.c: Arduino_Core_STM32/variants/STM32F4xx/F411C(C-E)(U-Y)/PeripheralPins.c
+
+Validating configuration...
+✅ Validation passed
+Validation Summary:
+  Errors: 0
+  Warnings: 0
+
+Generating BoardConfig: output/NOXE_V3.h
+✅ Successfully generated: output/NOXE_V3.h
+```
+
+### Testing
+
+```bash
+# Install pytest (one-time)
+pip install pytest
+
+# Run tests
+pytest -v
+# Expected: 53 tests passing
+```
+
+## Implementation Status
+
+**Completed**: ✅ Full converter with validation
+- Betaflight config parser (18 tests)
+- PeripheralPins.c parser (15 tests)
+- Configuration validator (8 tests)
+- C++ code generator (12 tests)
+- **Total: 53 tests, 100% passing**
 
 ---
 
