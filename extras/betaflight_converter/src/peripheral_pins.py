@@ -10,6 +10,31 @@ from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
 
+class Patterns:
+    """Compiled regex patterns for PeripheralPins.c parsing."""
+    # Section patterns - find PinMap_XXX arrays
+    TIM_SECTION = re.compile(
+        r'WEAK const PinMap PinMap_TIM\[\] = \{(.+?)\{NC,',
+        re.DOTALL
+    )
+
+    # Entry patterns - parse individual pin entries
+    TIMER_ENTRY = re.compile(
+        r'\{(\w+),\s+(\w+),\s+STM_PIN_DATA_EXT\([^,]+,[^,]+,\s+GPIO_AF(\d+)_\w+,\s+(\d+),\s+(\d+)\)\}'
+    )
+    PERIPHERAL_ENTRY = re.compile(
+        r'\{(\w+),\s+(\w+),\s+STM_PIN_DATA'
+    )
+
+    @staticmethod
+    def get_section_pattern(map_name: str) -> re.Pattern:
+        """Build regex pattern for finding a specific PinMap array."""
+        return re.compile(
+            rf'WEAK const PinMap {map_name}\[\] = \{{(.+?)\{{NC,',
+            re.DOTALL
+        )
+
+
 @dataclass
 class TimerPin:
     """Timer pin configuration."""
@@ -71,18 +96,12 @@ class PeripheralPinMap:
     def _parse_timers(self, content: str):
         """Parse PinMap_TIM array."""
         # Find PinMap_TIM array
-        tim_section = re.search(
-            r'WEAK const PinMap PinMap_TIM\[\] = \{(.+?)\{NC,',
-            content,
-            re.DOTALL
-        )
+        tim_section = Patterns.TIM_SECTION.search(content)
         if not tim_section:
             return
 
         # Parse each line: {PB_4, TIM3, STM_PIN_DATA_EXT(..., GPIO_AF2_TIM3, 1, 0)}, // TIM3_CH1
-        pattern = r'\{(\w+),\s+(\w+),\s+STM_PIN_DATA_EXT\([^,]+,[^,]+,\s+GPIO_AF(\d+)_\w+,\s+(\d+),\s+(\d+)\)\}'
-
-        for match in re.finditer(pattern, tim_section.group(1)):
+        for match in Patterns.TIMER_ENTRY.finditer(tim_section.group(1)):
             pin = match.group(1)
             timer = match.group(2)
             af = int(match.group(3))
@@ -106,17 +125,12 @@ class PeripheralPinMap:
         }
 
         for map_name, signal in signal_types.items():
-            section = re.search(
-                rf'WEAK const PinMap {map_name}\[\] = \{{(.+?)\{{NC,',
-                content,
-                re.DOTALL
-            )
+            section = Patterns.get_section_pattern(map_name).search(content)
             if not section:
                 continue
 
             # Parse: {PA_7, SPI1, STM_PIN_DATA(...)}
-            pattern = r'\{(\w+),\s+(\w+),\s+STM_PIN_DATA'
-            for match in re.finditer(pattern, section.group(1)):
+            for match in Patterns.PERIPHERAL_ENTRY.finditer(section.group(1)):
                 pin = match.group(1)
                 bus = match.group(2)
 
@@ -134,17 +148,12 @@ class PeripheralPinMap:
         }
 
         for map_name, signal in signal_types.items():
-            section = re.search(
-                rf'WEAK const PinMap {map_name}\[\] = \{{(.+?)\{{NC,',
-                content,
-                re.DOTALL
-            )
+            section = Patterns.get_section_pattern(map_name).search(content)
             if not section:
                 continue
 
             # Parse: {PB_9, I2C1, STM_PIN_DATA(...)}
-            pattern = r'\{(\w+),\s+(\w+),\s+STM_PIN_DATA'
-            for match in re.finditer(pattern, section.group(1)):
+            for match in Patterns.PERIPHERAL_ENTRY.finditer(section.group(1)):
                 pin = match.group(1)
                 bus = match.group(2)
 
@@ -162,17 +171,12 @@ class PeripheralPinMap:
         }
 
         for map_name, signal in signal_types.items():
-            section = re.search(
-                rf'WEAK const PinMap {map_name}\[\] = \{{(.+?)\{{NC,',
-                content,
-                re.DOTALL
-            )
+            section = Patterns.get_section_pattern(map_name).search(content)
             if not section:
                 continue
 
             # Parse: {PB_6, USART1, STM_PIN_DATA(...)}
-            pattern = r'\{(\w+),\s+(\w+),\s+STM_PIN_DATA'
-            for match in re.finditer(pattern, section.group(1)):
+            for match in Patterns.PERIPHERAL_ENTRY.finditer(section.group(1)):
                 pin = match.group(1)
                 uart = match.group(2)
 

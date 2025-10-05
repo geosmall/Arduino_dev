@@ -8,6 +8,19 @@ from typing import Dict, List, Optional
 from pathlib import Path
 
 
+class Patterns:
+    """Compiled regex patterns for Betaflight config parsing."""
+    MCU_TYPE = re.compile(r'STM32\w+')
+    RESOURCE = re.compile(r'resource\s+(\w+)\s+(\d+)\s+(\w+)')
+    TIMER = re.compile(r'timer\s+(\w+)\s+AF(\d+)')
+    TIMER_COMMENT = re.compile(r'#\s+pin\s+(\w+):\s+(\w+)\s+CH(\d+)')
+    DMA = re.compile(r'dma\s+(pin\s+)?(\w+)\s+(\d+)\s+(\d+)')
+    FEATURE = re.compile(r'feature\s+(\w+)')
+    SETTING = re.compile(r'set\s+(\w+)\s+=\s+(.+)')
+    PIN_LEADING_ZERO = re.compile(r'0(\d)')
+    DEFINE_CHECK = re.compile(r'#define\s+USE_GYRO_SPI_(\w+)')
+
+
 @dataclass
 class ResourcePin:
     """Resource pin assignment."""
@@ -80,9 +93,10 @@ class BetaflightConfig:
     def _parse_header(self, line: str):
         """Parse header line for MCU type."""
         # # Betaflight / STM32F411 (S411) 4.2.0 ...
-        match = re.search(r'STM32\w+', line)
-        if match and line.startswith('#') and 'Betaflight' in line:
-            self.mcu_type = match.group(0)
+        if line.startswith('#') and 'Betaflight' in line:
+            match = Patterns.MCU_TYPE.search(line)
+            if match:
+                self.mcu_type = match.group(0)
 
     def _parse_define(self, line: str):
         """Parse #define statements."""
@@ -99,7 +113,7 @@ class BetaflightConfig:
     def _parse_resource(self, line: str):
         """Parse resource definitions."""
         # resource MOTOR 1 B04
-        match = re.match(r'resource\s+(\w+)\s+(\d+)\s+(\w+)', line)
+        match = Patterns.RESOURCE.match(line)
         if match:
             resource_type = match.group(1)
             index = int(match.group(2))
@@ -117,7 +131,7 @@ class BetaflightConfig:
     def _parse_timer(self, line: str):
         """Parse timer assignments."""
         # timer B04 AF2
-        match = re.match(r'timer\s+(\w+)\s+AF(\d+)', line)
+        match = Patterns.TIMER.match(line)
         if match:
             pin = match.group(1)
             af = int(match.group(2))
@@ -126,7 +140,7 @@ class BetaflightConfig:
         # Parse comment for timer/channel info
         # # pin B04: TIM3 CH1 (AF2)
         # # pin A08: TIM1 CH1 (AF1)
-        comment_match = re.match(r'#\s+pin\s+(\w+):\s+(\w+)\s+CH(\d+)', line)
+        comment_match = Patterns.TIMER_COMMENT.match(line)
         if comment_match:
             pin = comment_match.group(1)
             timer = comment_match.group(2)
@@ -143,7 +157,7 @@ class BetaflightConfig:
         """Parse DMA assignments."""
         # dma pin B04 0
         # dma ADC 1 1
-        match = re.match(r'dma\s+(pin\s+)?(\w+)\s+(\d+)\s+(\d+)', line)
+        match = Patterns.DMA.match(line)
         if match:
             is_pin = match.group(1) is not None
             target = match.group(2)
@@ -160,14 +174,14 @@ class BetaflightConfig:
     def _parse_feature(self, line: str):
         """Parse feature flags."""
         # feature RX_SERIAL
-        match = re.match(r'feature\s+(\w+)', line)
+        match = Patterns.FEATURE.match(line)
         if match:
             self.features.append(match.group(1))
 
     def _parse_setting(self, line: str):
         """Parse set commands."""
         # set gyro_1_spibus = 1
-        match = re.match(r'set\s+(\w+)\s+=\s+(.+)', line)
+        match = Patterns.SETTING.match(line)
         if match:
             key = match.group(1)
             value = match.group(2).strip()
@@ -252,7 +266,7 @@ class BetaflightConfig:
             Arduino format (e.g., "PB_4", "PA_8")
         """
         # Remove leading zero: B04 -> B4
-        pin = re.sub(r'0(\d)', r'\1', bf_pin)
+        pin = Patterns.PIN_LEADING_ZERO.sub(r'\1', bf_pin)
         # Add P prefix and underscore: B4 -> PB_4
         return f"P{pin[0]}_{pin[1:]}"
 
@@ -268,7 +282,7 @@ class BetaflightConfig:
         """Get list of supported gyro chips from #defines."""
         chips = []
         for define in self.defines:
-            match = re.match(r'#define\s+USE_GYRO_SPI_(\w+)', define)
+            match = Patterns.DEFINE_CHECK.match(define)
             if match:
                 chips.append(match.group(1))
         return chips
