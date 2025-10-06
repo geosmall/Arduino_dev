@@ -40,24 +40,43 @@ def main():
     # Detect Arduino variant path from MCU type
     arduino_root = Path(__file__).parents[2]
 
-    # Map MCU type to variant path
-    mcu_to_variant = {
-        'STM32F411': 'STM32F4xx/F411C(C-E)(U-Y)',
-        'STM32F405': 'STM32F4xx/F405RG',
-        'STM32F745': 'STM32F7xx/F74xZ(G-I)',
-        'STM32H743': 'STM32H7xx/H743Z(G-I)',
+    # Map MCU type to variant paths (try in order until found)
+    mcu_to_variants = {
+        'STM32F411': [
+            'STM32F4xx/F411C(C-E)(U-Y)',
+        ],
+        'STM32F405': [
+            'STM32F4xx/F405RG',
+        ],
+        'STM32F745': [
+            'STM32F7xx/F74xZ(G-I)',
+        ],
+        'STM32H743': [
+            'STM32H7xx/H742V(G-I)(H-T)_H743V(G-I)(H-T)_H750VBT_H753VI(H-T)',  # V package (LQFP100)
+            'STM32H7xx/H742Z(G-I)T_H743Z(G-I)T_H747A(G-I)I_H747I(G-I)T_H750ZBT_H753ZIT_H757AII_H757IIT',  # Z package (LQFP144)
+            'STM32H7xx/H742I(G-I)(K-T)_H743I(G-I)(K-T)_H750IB(K-T)_H753II(K-T)',  # I package (BGA)
+        ],
     }
 
-    variant_subpath = mcu_to_variant.get(bf_config.mcu_type)
-    if not variant_subpath:
+    variant_paths = mcu_to_variants.get(bf_config.mcu_type)
+    if not variant_paths:
         print(f"Error: Unsupported MCU type: {bf_config.mcu_type}")
-        print(f"Supported MCUs: {', '.join(mcu_to_variant.keys())}")
+        print(f"Supported MCUs: {', '.join(mcu_to_variants.keys())}")
         sys.exit(1)
 
-    pinmap_path = arduino_root / f"Arduino_Core_STM32/variants/{variant_subpath}/PeripheralPins.c"
+    # Try each variant path until we find one that exists
+    pinmap_path = None
+    for variant_subpath in variant_paths:
+        candidate = arduino_root / f"Arduino_Core_STM32/variants/{variant_subpath}/PeripheralPins.c"
+        if candidate.exists():
+            pinmap_path = candidate
+            break
 
-    if not pinmap_path.exists():
-        print(f"Error: PeripheralPins.c not found at: {pinmap_path}")
+    if not pinmap_path:
+        print(f"Error: No PeripheralPins.c found for {bf_config.mcu_type}")
+        print(f"Tried paths:")
+        for variant_subpath in variant_paths:
+            print(f"  - Arduino_Core_STM32/variants/{variant_subpath}/PeripheralPins.c")
         sys.exit(1)
 
     print(f"Loading PeripheralPins.c: {pinmap_path}")
