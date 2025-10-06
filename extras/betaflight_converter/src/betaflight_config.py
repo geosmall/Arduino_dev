@@ -195,6 +195,10 @@ class BetaflightConfig:
         """Get motor resources."""
         return self.get_resources('MOTOR')
 
+    def get_servos(self) -> List[ResourcePin]:
+        """Get servo resources."""
+        return self.get_resources('SERVO')
+
     def get_spi_pins(self, bus_num: int) -> Optional[Dict[str, str]]:
         """
         Get SPI pins for a specific bus.
@@ -263,7 +267,7 @@ class BetaflightConfig:
             bf_pin: Betaflight format (e.g., "B04", "A08")
 
         Returns:
-            Arduino format (e.g., "PB_4", "PA_8")
+            Arduino format (e.g., "PB_4", "PA_8") - matches PeripheralPins.c format
         """
         # Remove leading zero: B04 -> B4
         pin = Patterns.PIN_LEADING_ZERO.sub(r'\1', bf_pin)

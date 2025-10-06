@@ -112,6 +112,26 @@ namespace BoardConfig {
     const uint32_t mosi_pin, miso_pin, sclk_pin, cs_pin;
     const uint32_t freq_hz;
   };
+
+  struct ADCConfig {
+    constexpr ADCConfig(uint32_t voltage_pin, uint32_t current_pin,
+                       uint16_t voltage_scale, uint16_t current_scale)
+      : voltage_pin(voltage_pin), current_pin(current_pin),
+        voltage_scale(voltage_scale), current_scale(current_scale) {}
+
+    const uint32_t voltage_pin;    // ADC pin for battery voltage
+    const uint32_t current_pin;    // ADC pin for battery current
+    const uint16_t voltage_scale;  // Betaflight vbat_scale (voltage divider ratio * 10)
+    const uint16_t current_scale;  // Betaflight ibata_scale (current sensor sensitivity)
+  };
+
+  struct LEDConfig {
+    constexpr LEDConfig(uint32_t pin1, uint32_t pin2 = 0)
+      : led1_pin(pin1), led2_pin(pin2) {}
+
+    const uint32_t led1_pin;  // Primary status LED
+    const uint32_t led2_pin;  // Secondary status LED (0 = not present)
+  };
 }
 ```
 

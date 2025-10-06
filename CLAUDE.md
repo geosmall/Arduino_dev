@@ -511,6 +511,49 @@ Hardware timer-based PWM library for high-resolution (1µs) servo and ESC contro
 - Multi-channel support (up to 4 channels per timer)
 - Dual timer support (servos + ESCs simultaneously)
 
+### Betaflight Config Converter ✅ **COMPLETED**
+
+Python tool that converts Betaflight unified target configurations into Arduino STM32 BoardConfig headers with comprehensive validation.
+
+**Location**: `extras/betaflight_converter/`
+
+**Key Features**:
+- **Parser→Validator→Generator Pipeline**: Clean architecture with 53 passing tests
+- **PeripheralPins.c Validation**: Cross-validates all pins against Arduino Core STM32 variants
+- **Multi-Variant MCU Support**: Automatically finds correct variant for different chip packages
+- **Motor Timer Grouping**: Groups motors by timer banks for TimerPWM integration
+- **Cross-Platform**: Works on Windows, macOS, Linux with Python 3.7+
+
+**Supported MCUs**:
+- STM32F411 (F411CE - BlackPill, JHEF411 - NOXE V3)
+- STM32F405 (F405RG - common in flight controllers)
+- STM32F745 (F7 series)
+- STM32H743 (H743VIH6 - Matek H743-WLITE, H743ZIT6 - Nucleo boards)
+
+**Usage**:
+```bash
+cd extras/betaflight_converter
+python3 convert.py data/MTKS-MATEKH743.config  # Generates output/MTKS-MATEKH743.h
+```
+
+**Generated Configs Include**:
+- Storage (SPI flash/SD card) → `StorageConfig`
+- IMU (gyro + interrupt) → `IMUConfig`
+- I2C sensors → `I2CConfig`
+- UARTs → `UARTConfig`
+- ADC battery monitoring → `ADCConfig`
+- Status LEDs → `LEDConfig`
+- Servos (50 Hz PWM) → `Servo` namespace
+- Motors (DSHOT/OneShot) → `Motor` namespace
+
+**Validated Targets**:
+- ✅ JHEF-JHEF411 (NOXE V3) - 5 motors, SPI flash, dual SPI buses → `output/JHEF-JHEF411.h`
+- ✅ MTKS-MATEKH743 (H743-WLITE) - 8 motors, 2 servos, dual gyros, 7 UARTs, SD card → `output/MTKS-MATEKH743.h`
+
+**Naming Convention**: Follows madflight - output filename matches config filename (e.g., `JHEF-JHEF411.config` → `JHEF-JHEF411.h`)
+
+**Documentation**: See `extras/betaflight_converter/README.md` for quick start
+
 **Usage Example**:
 ```cpp
 #include <PWMOutputBank.h>

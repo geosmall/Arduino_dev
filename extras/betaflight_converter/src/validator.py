@@ -141,6 +141,62 @@ class ConfigValidator:
 
         return validated_motors
 
+    def validate_servos(self) -> List[ValidatedMotor]:
+        """Validate servo timer assignments (reuses ValidatedMotor dataclass)."""
+        validated_servos = []
+
+        for servo in self.bf_config.get_servos():
+            pin_bf = servo.pin
+            pin_arduino = self.bf_config.convert_pin_format(pin_bf)
+
+            # Get timer assignment
+            if pin_bf not in self.bf_config.timers:
+                self.errors.append(ValidationError(
+                    severity="error",
+                    message=f"Servo {servo.index} pin {pin_bf} has no timer assignment",
+                    resource=f"SERVO_{servo.index}",
+                    pin=pin_bf
+                ))
+                continue
+
+            timer_assignment = self.bf_config.timers[pin_bf]
+
+            # Validate against PeripheralPins.c
+            channel = self.pinmap.validate_timer(
+                pin=pin_arduino,
+                timer=timer_assignment.timer,
+                af=timer_assignment.af
+            )
+
+            if channel is None:
+                self.errors.append(ValidationError(
+                    severity="error",
+                    message=f"Servo {servo.index}: {pin_arduino} does not support {timer_assignment.timer} on AF{timer_assignment.af}",
+                    resource=f"SERVO_{servo.index}",
+                    pin=pin_bf
+                ))
+                continue
+
+            # Verify channel matches
+            if timer_assignment.channel and channel != timer_assignment.channel:
+                self.warnings.append(ValidationError(
+                    severity="warning",
+                    message=f"Servo {servo.index}: Expected CH{timer_assignment.channel}, found CH{channel}",
+                    resource=f"SERVO_{servo.index}",
+                    pin=pin_bf
+                ))
+
+            validated_servos.append(ValidatedMotor(
+                index=servo.index,
+                pin_bf=pin_bf,
+                pin_arduino=pin_arduino,
+                timer=timer_assignment.timer,
+                channel=channel,
+                af=timer_assignment.af
+            ))
+
+        return validated_servos
+
     def validate_spi_buses(self) -> List[ValidatedSPIBus]:
         """Validate SPI bus pin assignments."""
         validated_buses = []

@@ -1,11 +1,13 @@
 /*
  * Auto-generated BoardConfig from Betaflight unified target
- * Generated: 2025-10-05 16:31:23
+ * Generated: 2025-10-06 06:32:10
  * Generator: betaflight_target_converter.py
  */
 
 #pragma once
-#include "config/ConfigTypes.h"
+
+// Copy this file to your sketch folder, or add targets/ to include path
+#include "ConfigTypes.h"  // Expects ConfigTypes.h in same directory
 
 // Board: JHEF411
 // Manufacturer: JHEF
@@ -30,6 +32,9 @@ namespace BoardConfig {
 
   // ADC: Battery voltage and current monitoring
   static constexpr ADCConfig battery{PA_0, PA_1, 110, 170};
+
+  // Status LEDs
+  static constexpr LEDConfig status_leds{PC_13};
 
   // Motors: DSHOT300 protocol
   namespace Motor {

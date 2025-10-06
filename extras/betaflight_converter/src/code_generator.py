@@ -28,7 +28,9 @@ class BoardConfigGenerator:
 
         # Include guard and includes
         lines.append("#pragma once")
-        lines.append('#include "config/ConfigTypes.h"')
+        lines.append("")
+        lines.append("// Copy this file to your sketch folder, or add targets/ to include path")
+        lines.append('#include "ConfigTypes.h"  // Expects ConfigTypes.h in same directory')
         lines.append("")
 
         # Comment with source info
@@ -61,6 +63,16 @@ class BoardConfigGenerator:
         adc_code = self._generate_adc()
         if adc_code:
             lines.append(adc_code)
+
+        # LEDs
+        led_code = self._generate_leds()
+        if led_code:
+            lines.append(led_code)
+
+        # Servos
+        servo_code = self._generate_servos()
+        if servo_code:
+            lines.append(servo_code)
 
         # Motors
         motor_code = self._generate_motors()
@@ -185,9 +197,25 @@ class BoardConfigGenerator:
             return None
 
         lines = []
+
+        # Common I2C usage patterns (based on typical flight controller configurations)
+        i2c_usage = {
+            1: ("Airspeed sensor, external compass", "airspeed"),
+            2: ("Barometer, compass", "baro"),
+            3: ("External sensors", "i2c3"),
+            4: ("External sensors", "i2c4"),
+        }
+
         for bus in i2c_buses:
-            lines.append(f"  // {bus.bus_name}: Environmental sensors")
-            lines.append(f"  static constexpr I2CConfig sensors{{{bus.scl}, {bus.sda}, 400000}};")
+            usage_desc, var_name = i2c_usage.get(bus.bus_num, ("External sensors", f"i2c{bus.bus_num}"))
+
+            # If only one I2C bus, use generic name
+            if len(i2c_buses) == 1:
+                var_name = "sensors"
+                usage_desc = "Environmental sensors"
+
+            lines.append(f"  // {bus.bus_name}: {usage_desc}")
+            lines.append(f"  static constexpr I2CConfig {var_name}{{{bus.scl}, {bus.sda}, 400000}};")
             lines.append("")
 
         return "\n".join(lines)
@@ -228,6 +256,81 @@ class BoardConfigGenerator:
             f"  static constexpr ADCConfig battery{{{vbat_pin}, {curr_pin}, {vbat_scale}, {ibata_scale}}};",
             ""
         ]
+
+        return "\n".join(lines)
+
+    def _generate_leds(self) -> Optional[str]:
+        """Generate LEDConfig for status LEDs."""
+        led_resources = self.bf_config.get_resources('LED')
+
+        if not led_resources:
+            return None
+
+        # Get up to 2 LED pins
+        led_pins = []
+        for led in sorted(led_resources, key=lambda r: r.index)[:2]:
+            pin = self.bf_config.convert_pin_format(led.pin)
+            led_pins.append(pin)
+
+        # Construct LEDConfig
+        if len(led_pins) == 1:
+            config_line = f"  static constexpr LEDConfig status_leds{{{led_pins[0]}}};"
+        else:
+            config_line = f"  static constexpr LEDConfig status_leds{{{led_pins[0]}, {led_pins[1]}}};"
+
+        lines = [
+            "  // Status LEDs",
+            config_line,
+            ""
+        ]
+
+        return "\n".join(lines)
+
+    def _generate_servos(self) -> Optional[str]:
+        """Generate Servo namespace with timer banks."""
+        servos = self.validator.validate_servos()
+        if not servos:
+            return None
+
+        # Group by timer
+        timer_banks = self.validator.group_motors_by_timer(servos)  # Reuse motor grouping
+
+        # Servos use standard PWM (50 Hz, 1000-2000 µs)
+        frequency_hz = 50
+        min_us, max_us = 1000, 2000
+
+        lines = [
+            "  // Servos: Standard PWM (50 Hz)",
+            "  namespace Servo {",
+            f"    static constexpr uint32_t frequency_hz = {frequency_hz};",
+            ""
+        ]
+
+        # Generate timer banks
+        for timer_name in sorted(timer_banks.keys()):
+            bank_servos = timer_banks[timer_name]
+            bank_name = timer_name.replace('TIM', 'TIM') + "_Bank"
+
+            lines.append(f"    // {timer_name} Bank: Servos {', '.join(str(s.index) for s in bank_servos)}")
+            lines.append(f"    namespace {bank_name} {{")
+            lines.append(f"      static inline TIM_TypeDef* const timer = {timer_name};")
+            lines.append("")
+            lines.append("      struct Channel {")
+            lines.append("        uint32_t pin;")
+            lines.append("        uint32_t ch;")
+            lines.append("        uint32_t min_us;")
+            lines.append("        uint32_t max_us;")
+            lines.append("      };")
+            lines.append("")
+
+            # Generate servo channels
+            for servo in sorted(bank_servos, key=lambda s: s.index):
+                lines.append(f"      static constexpr Channel servo{servo.index} = {{{servo.pin_arduino}, {servo.channel}, {min_us}, {max_us}}};  // {timer_name}_CH{servo.channel}")
+
+            lines.append("    };")
+            lines.append("")
+
+        lines.append("  };")  # End Servo namespace
 
         return "\n".join(lines)
 

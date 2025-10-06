@@ -17,11 +17,11 @@ Python tool that automatically converts Betaflight unified target configurations
 ### Usage
 
 ```bash
-# Linux/macOS
-python3 convert.py data/JHEF-JHEF411.config output/NOXE_V3.h
+# Auto-generate output filename from config (JHEF-JHEF411.config → output/JHEF-JHEF411.h)
+python3 convert.py data/JHEF-JHEF411.config
 
-# Windows
-python convert.py data\JHEF-JHEF411.config output\NOXE_V3.h
+# Or specify custom output filename
+python3 convert.py data/JHEF-JHEF411.config output/CUSTOM_NAME.h
 ```
 
 ### Example Output
@@ -38,8 +38,8 @@ Validation Summary:
   Errors: 0
   Warnings: 0
 
-Generating BoardConfig: output/NOXE_V3.h
-✅ Successfully generated: output/NOXE_V3.h
+Generating BoardConfig: output/JHEF-JHEF411.h
+✅ Successfully generated: output/JHEF-JHEF411.h
 ```
 
 ### Testing
@@ -105,18 +105,84 @@ See [dev-docs/](dev-docs/) for detailed design documentation:
 
 ---
 
-## Example: JHEF411 (NOXE V3)
+## Example: JHEF-JHEF411 (NOXE V3)
 
 **Input:** `data/JHEF-JHEF411.config` (Betaflight unified target)
 
-**Output:** BoardConfig header with:
+**Output:** `output/JHEF-JHEF411.h` - BoardConfig header with:
 - Storage: SPI flash (SPI2) → `StorageConfig`
 - IMU: ICM42688P/MPU6000 (SPI1) → `IMUConfig`
 - I2C: Environmental sensors (I2C1) → `I2CConfig`
 - UARTs: 2 serial ports → `UARTConfig`
 - ADC: Battery monitoring → `ADCConfig`
+- LEDs: Status LEDs → `LEDConfig`
+- Servos: PWM servo outputs (50 Hz) → `Servo` namespace (when present)
 - Motors: 5 motors on 2 timer banks → `Motor` namespace
 
 **Validation:** All pins cross-validated against `PeripheralPins.c`
 
-See `output/NOXE_V3_generated.h` for complete example.
+See `output/JHEF-JHEF411.h` for complete example.
+
+---
+
+## Usage Examples
+
+### Basic Configuration Access
+
+See `examples/basic_config_usage/` - Demonstrates how to read and use generated BoardConfig:
+- Storage (SPI flash/SD card) configuration
+- IMU sensor setup (SPI + interrupt)
+- UART port configuration
+- Battery monitoring (ADC)
+- Status LED initialization
+- Motor/servo frequency and pin information
+
+**Key Pattern**:
+```cpp
+#include "../../output/JHEF-JHEF411.h"
+
+void setup() {
+  // Access storage config
+  auto cs_pin = BoardConfig::storage.cs_pin;
+  auto freq = BoardConfig::storage.freq_hz;
+
+  // Access IMU config
+  auto imu_cs = BoardConfig::imu.spi.cs_pin;
+  auto imu_int = BoardConfig::imu.int_pin;
+
+  // Initialize status LED
+  pinMode(BoardConfig::status_leds.led1_pin, OUTPUT);
+}
+```
+
+### Motor and Servo PWM Control
+
+See `examples/pwm_motor_servo/` - Demonstrates PWM output using TimerPWM library:
+- Servo control (50 Hz, 1000-2000 µs)
+- Motor control (1000 Hz, OneShot125)
+- Timer bank configuration
+- Channel attachment and pulse width control
+
+**Key Pattern**:
+```cpp
+#include <PWMOutputBank.h>
+#include "../../output/MTKS-MATEKH743.h"
+
+PWMOutputBank servo_pwm;
+
+void setup() {
+  // Initialize servo timer bank
+  servo_pwm.Init(BoardConfig::Servo::TIM15_Bank::timer,
+                 BoardConfig::Servo::frequency_hz);
+
+  // Attach servo channels
+  auto& servo1 = BoardConfig::Servo::TIM15_Bank::servo1;
+  servo_pwm.AttachChannel(servo1.ch, servo1.pin,
+                          servo1.min_us, servo1.max_us);
+  servo_pwm.Start();
+}
+
+void loop() {
+  servo_pwm.SetPulseWidth(servo1.ch, 1500); // Center position
+}
+```

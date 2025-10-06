@@ -203,10 +203,16 @@ class PeripheralPinMap:
             if tp.pin == pin and tp.timer == timer and tp.af == af:
                 return tp.channel
 
-        # Try ALT variants (PB_0_ALT1, etc.)
-        pin_base = pin.split('_')[0] + '_' + pin.split('_')[1]  # "PB_0" -> "PB_0"
+        # Try ALT variants (PB_0_ALT1, PB4_ALT1, etc.)
+        # Handle both PB_4 and PB4 formats
+        if '_' in pin and not pin.endswith(tuple('0123456789')):
+            pin_base = pin.split('_')[0] + '_' + pin.split('_')[1]  # "PB_0" -> "PB_0"
+        else:
+            # No underscore or ends with number: PB4 -> PB4
+            pin_base = pin.split('_ALT')[0]
+
         for tp in self.timer_pins:
-            tp_base = tp.pin.split('_ALT')[0]  # "PB_0_ALT1" -> "PB_0"
+            tp_base = tp.pin.split('_ALT')[0]  # "PB_0_ALT1" -> "PB_0" or "PB4_ALT1" -> "PB4"
             if tp_base == pin_base and tp.timer == timer and tp.af == af:
                 return tp.channel
 

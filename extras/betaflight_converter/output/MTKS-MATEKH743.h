@@ -1,11 +1,13 @@
 /*
  * Auto-generated BoardConfig from Betaflight unified target
- * Generated: 2025-10-05 20:10:59
+ * Generated: 2025-10-06 06:17:04
  * Generator: betaflight_target_converter.py
  */
 
 #pragma once
-#include "config/ConfigTypes.h"
+
+// Copy this file to your sketch folder, or add targets/ to include path
+#include "ConfigTypes.h"  // Expects ConfigTypes.h in same directory
 
 // Board: MATEKH743
 // Manufacturer: MTKS
@@ -16,11 +18,11 @@ namespace BoardConfig {
   static constexpr SPIConfig imu_spi{PD_7, PA_6, PA_5, PC_15, 8000000, CS_Mode::HARDWARE};
   static constexpr IMUConfig imu{imu_spi, PB_2, 1000000};
 
-  // I2C1: Environmental sensors
-  static constexpr I2CConfig sensors{PB_6, PB_7, 400000};
+  // I2C1: Airspeed sensor, external compass
+  static constexpr I2CConfig airspeed{PB_6, PB_7, 400000};
 
-  // I2C2: Environmental sensors
-  static constexpr I2CConfig sensors{PB_10, PB_11, 400000};
+  // I2C2: Barometer, compass
+  static constexpr I2CConfig baro{PB_10, PB_11, 400000};
 
   // LPUART1: Serial port
   static constexpr UARTConfig uart1{PA_9, PA_10, 115200};
@@ -46,6 +48,29 @@ namespace BoardConfig {
   // ADC: Battery voltage and current monitoring
   static constexpr ADCConfig battery{PC_0, PC_1, 110, 250};
 
+  // Status LEDs
+  static constexpr LEDConfig status_leds{PE_3, PE_4};
+
+  // Servos: Standard PWM (50 Hz)
+  namespace Servo {
+    static constexpr uint32_t frequency_hz = 50;
+
+    // TIM15 Bank: Servos 1, 2
+    namespace TIM15_Bank {
+      static inline TIM_TypeDef* const timer = TIM15;
+
+      struct Channel {
+        uint32_t pin;
+        uint32_t ch;
+        uint32_t min_us;
+        uint32_t max_us;
+      };
+
+      static constexpr Channel servo1 = {PE_5, 1, 1000, 2000};  // TIM15_CH1
+      static constexpr Channel servo2 = {PE_6, 2, 1000, 2000};  // TIM15_CH2
+    };
+
+  };
   // Motors: ONESHOT125 protocol
   namespace Motor {
     static constexpr uint32_t frequency_hz = 1000;

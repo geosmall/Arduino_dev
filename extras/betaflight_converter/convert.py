@@ -18,13 +18,19 @@ from code_generator import BoardConfigGenerator
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: ./convert.py <config_file> <output_file>")
-        print("Example: ./convert.py data/JHEF-JHEF411.config output/NOXE_V3.h")
+    if len(sys.argv) < 2:
+        print("Usage: ./convert.py <config_file> [output_file]")
+        print("Example: ./convert.py data/JHEF-JHEF411.config")
+        print("         ./convert.py data/JHEF-JHEF411.config output/CUSTOM_NAME.h")
         sys.exit(1)
 
     config_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2])
+
+    # If output path not specified, derive from board name
+    if len(sys.argv) >= 3:
+        output_path = Path(sys.argv[2])
+    else:
+        output_path = None  # Will be set after loading config
 
     if not config_path.exists():
         print(f"Error: Config file not found: {config_path}")
@@ -36,6 +42,12 @@ def main():
     print(f"  Board: {bf_config.board_name}")
     print(f"  Manufacturer: {bf_config.manufacturer_id}")
     print(f"  MCU: {bf_config.mcu_type}")
+
+    # Set default output path from config filename if not specified
+    # Matches madflight convention: JHEF-JHEF411.config → JHEF-JHEF411.h
+    if output_path is None:
+        config_basename = config_path.stem  # Remove .config extension
+        output_path = Path(__file__).parent / "output" / f"{config_basename}.h"
 
     # Detect Arduino variant path from MCU type
     arduino_root = Path(__file__).parents[2]
