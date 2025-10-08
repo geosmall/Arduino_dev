@@ -261,18 +261,19 @@ class BetaflightConfig:
 
     def convert_pin_format(self, bf_pin: str) -> str:
         """
-        Convert Betaflight pin format to Arduino format.
+        Convert Betaflight pin format to Arduino macro format.
 
         Args:
             bf_pin: Betaflight format (e.g., "B04", "A08")
 
         Returns:
-            Arduino format (e.g., "PB_4", "PA_8") - matches PeripheralPins.c format
+            Arduino macro format (e.g., "PB4", "PA8") - no underscore
+            This format matches Arduino pin macros defined in variant headers.
         """
         # Remove leading zero: B04 -> B4
         pin = Patterns.PIN_LEADING_ZERO.sub(r'\1', bf_pin)
-        # Add P prefix and underscore: B4 -> PB_4
-        return f"P{pin[0]}_{pin[1:]}"
+        # Add P prefix (no underscore): B4 -> PB4
+        return f"P{pin[0]}{pin[1:]}"
 
     def has_define(self, define_name: str) -> bool:
         """Check if a specific #define exists."""

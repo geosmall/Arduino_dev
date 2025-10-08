@@ -54,7 +54,7 @@ class TestConfigValidator(unittest.TestCase):
         motor1 = next((m for m in motors if m.index == 1), None)
         self.assertIsNotNone(motor1)
         self.assertEqual(motor1.pin_bf, 'A08')
-        self.assertEqual(motor1.pin_arduino, 'PA_8')
+        self.assertEqual(motor1.pin_arduino, 'PA8')
         self.assertEqual(motor1.timer, 'TIM1')
         self.assertEqual(motor1.channel, 1)
         self.assertEqual(motor1.af, 1)
@@ -63,7 +63,7 @@ class TestConfigValidator(unittest.TestCase):
         motor5 = next((m for m in motors if m.index == 5), None)
         self.assertIsNotNone(motor5)
         self.assertEqual(motor5.pin_bf, 'B04')
-        self.assertEqual(motor5.pin_arduino, 'PB_4')
+        self.assertEqual(motor5.pin_arduino, 'PB4')
         self.assertEqual(motor5.timer, 'TIM3')
         self.assertEqual(motor5.channel, 1)
         self.assertEqual(motor5.af, 2)
@@ -99,17 +99,17 @@ class TestConfigValidator(unittest.TestCase):
         spi1 = next((bus for bus in spi_buses if bus.bus_num == 1), None)
         self.assertIsNotNone(spi1)
         self.assertEqual(spi1.bus_name, 'SPI1')
-        self.assertEqual(spi1.mosi, 'PA_7')
-        self.assertEqual(spi1.miso, 'PA_6')
-        self.assertEqual(spi1.sclk, 'PA_5')
+        self.assertEqual(spi1.mosi, 'PA7')
+        self.assertEqual(spi1.miso, 'PA6')
+        self.assertEqual(spi1.sclk, 'PA5')
 
         # Find SPI2 (Flash/OSD)
         spi2 = next((bus for bus in spi_buses if bus.bus_num == 2), None)
         self.assertIsNotNone(spi2)
         self.assertEqual(spi2.bus_name, 'SPI2')
-        self.assertEqual(spi2.mosi, 'PB_15')
-        self.assertEqual(spi2.miso, 'PB_14')
-        self.assertEqual(spi2.sclk, 'PB_13')
+        self.assertEqual(spi2.mosi, 'PB15')
+        self.assertEqual(spi2.miso, 'PB14')
+        self.assertEqual(spi2.sclk, 'PB13')
 
     def test_validate_i2c_buses(self):
         """Test I2C bus validation."""
@@ -121,8 +121,8 @@ class TestConfigValidator(unittest.TestCase):
         i2c1 = i2c_buses[0]
         self.assertEqual(i2c1.bus_num, 1)
         self.assertEqual(i2c1.bus_name, 'I2C1')
-        self.assertEqual(i2c1.scl, 'PB_8')
-        self.assertEqual(i2c1.sda, 'PB_9')
+        self.assertEqual(i2c1.scl, 'PB8')
+        self.assertEqual(i2c1.sda, 'PB9')
 
     def test_validate_uarts(self):
         """Test UART validation."""
@@ -135,15 +135,15 @@ class TestConfigValidator(unittest.TestCase):
         uart1 = next((u for u in uarts if u.uart_num == 1), None)
         self.assertIsNotNone(uart1)
         self.assertEqual(uart1.uart_name, 'USART1')
-        self.assertEqual(uart1.tx, 'PB_6')
-        self.assertEqual(uart1.rx, 'PB_7')
+        self.assertEqual(uart1.tx, 'PB6')
+        self.assertEqual(uart1.rx, 'PB7')
 
         # Find UART2
         uart2 = next((u for u in uarts if u.uart_num == 2), None)
         self.assertIsNotNone(uart2)
         self.assertEqual(uart2.uart_name, 'USART2')
-        self.assertEqual(uart2.tx, 'PA_2')
-        self.assertEqual(uart2.rx, 'PA_3')
+        self.assertEqual(uart2.tx, 'PA2')
+        self.assertEqual(uart2.rx, 'PA3')
 
     def test_no_errors_for_jhef411(self):
         """Test that JHEF411 config validates without errors."""

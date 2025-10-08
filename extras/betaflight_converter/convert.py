@@ -19,16 +19,21 @@ from code_generator import BoardConfigGenerator
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: ./convert.py <config_file> [output_file]")
+        print("Usage: ./convert.py <config_file> [output_file] [--force]")
         print("Example: ./convert.py data/JHEF-JHEF411.config")
         print("         ./convert.py data/JHEF-JHEF411.config output/CUSTOM_NAME.h")
+        print("         ./convert.py data/JHEF-JHEF411.config --force  # Skip validation")
         sys.exit(1)
 
-    config_path = Path(sys.argv[1])
+    # Check for --force flag
+    force_generate = '--force' in sys.argv
+    args = [arg for arg in sys.argv[1:] if arg != '--force']
+
+    config_path = Path(args[0])
 
     # If output path not specified, derive from board name
-    if len(sys.argv) >= 3:
-        output_path = Path(sys.argv[2])
+    if len(args) >= 2:
+        output_path = Path(args[1])
     else:
         output_path = None  # Will be set after loading config
 
@@ -100,10 +105,14 @@ def main():
     if not validator.validate_all():
         print("\n❌ Validation failed:")
         print(validator.get_validation_summary())
-        sys.exit(1)
+        if not force_generate:
+            sys.exit(1)
+        else:
+            print("⚠️  Continuing with --force flag...")
 
-    print("✅ Validation passed")
-    print(validator.get_validation_summary())
+    if validator.validate_all():
+        print("✅ Validation passed")
+        print(validator.get_validation_summary())
 
     # Generate code
     print(f"\nGenerating BoardConfig: {output_path}")

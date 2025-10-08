@@ -136,10 +136,10 @@ class TestBetaflightConfig(unittest.TestCase):
 
     def test_pin_format_conversion(self):
         """Test Betaflight to Arduino pin format conversion."""
-        self.assertEqual(self.config.convert_pin_format('B04'), 'PB_4')
-        self.assertEqual(self.config.convert_pin_format('A08'), 'PA_8')
-        self.assertEqual(self.config.convert_pin_format('A10'), 'PA_10')
-        self.assertEqual(self.config.convert_pin_format('B15'), 'PB_15')
+        self.assertEqual(self.config.convert_pin_format('B04'), 'PB4')
+        self.assertEqual(self.config.convert_pin_format('A08'), 'PA8')
+        self.assertEqual(self.config.convert_pin_format('A10'), 'PA10')
+        self.assertEqual(self.config.convert_pin_format('B15'), 'PB15')
 
     def test_storage_cs_pins(self):
         """Test storage chip select pin parsing."""
@@ -200,15 +200,15 @@ class TestPinConversion(unittest.TestCase):
 
     def test_single_digit_pins(self):
         """Test single-digit pin conversion."""
-        self.assertEqual(self.config.convert_pin_format('A00'), 'PA_0')
-        self.assertEqual(self.config.convert_pin_format('B01'), 'PB_1')
-        self.assertEqual(self.config.convert_pin_format('C04'), 'PC_4')
+        self.assertEqual(self.config.convert_pin_format('A00'), 'PA0')
+        self.assertEqual(self.config.convert_pin_format('B01'), 'PB1')
+        self.assertEqual(self.config.convert_pin_format('C04'), 'PC4')
 
     def test_double_digit_pins(self):
         """Test double-digit pin conversion."""
-        self.assertEqual(self.config.convert_pin_format('A10'), 'PA_10')
-        self.assertEqual(self.config.convert_pin_format('B15'), 'PB_15')
-        self.assertEqual(self.config.convert_pin_format('E11'), 'PE_11')
+        self.assertEqual(self.config.convert_pin_format('A10'), 'PA10')
+        self.assertEqual(self.config.convert_pin_format('B15'), 'PB15')
+        self.assertEqual(self.config.convert_pin_format('E11'), 'PE11')
 
 
 if __name__ == '__main__':

@@ -35,10 +35,37 @@ class Patterns:
         )
 
 
+def convert_pinname_to_macro(pin: str) -> tuple[str, str]:
+    """
+    Convert PinName enum format to Arduino macro format, preserving ALT variant info.
+
+    Args:
+        pin: PinName enum format (e.g., "PB_4", "PA_8", "PB_0_ALT1")
+
+    Returns:
+        Tuple of (base_pin, alt_variant):
+        - base_pin: Arduino macro format (e.g., "PB4", "PA8", "PB0") - no underscore
+        - alt_variant: ALT suffix (e.g., "", "_ALT1", "_ALT2")
+
+    Examples:
+        "PB_4" → ("PB4", "")
+        "PB_0_ALT1" → ("PB0", "_ALT1")
+    """
+    alt_variant = ""
+    # Extract _ALT suffix if present (e.g., PB_0_ALT1 -> PB_0, _ALT1)
+    if '_ALT' in pin:
+        parts = pin.split('_ALT')
+        pin = parts[0]
+        alt_variant = f"_ALT{parts[1]}"
+    # Remove all underscores (PB_0 -> PB0)
+    base_pin = pin.replace('_', '')
+    return (base_pin, alt_variant)
+
+
 @dataclass
 class TimerPin:
     """Timer pin configuration."""
-    pin: str        # e.g., "PB_4"
+    pin: str        # e.g., "PB4" (Arduino macro format)
     timer: str      # e.g., "TIM3"
     af: int         # Alternate function number (1-15)
     channel: int    # Timer channel (1-4)
@@ -48,25 +75,28 @@ class TimerPin:
 @dataclass
 class SPIPin:
     """SPI pin configuration."""
-    pin: str        # e.g., "PA_7"
+    pin: str        # Base pin (e.g., "PA7")
     bus: str        # e.g., "SPI1"
     signal: str     # "MOSI", "MISO", or "SCLK"
+    alt_variant: str = ""  # e.g., "", "_ALT1", "_ALT2"
 
 
 @dataclass
 class I2CPin:
     """I2C pin configuration."""
-    pin: str        # e.g., "PB_8"
+    pin: str        # Base pin (e.g., "PB8")
     bus: str        # e.g., "I2C1"
     signal: str     # "SCL" or "SDA"
+    alt_variant: str = ""  # e.g., "", "_ALT1", "_ALT2"
 
 
 @dataclass
 class UARTPin:
     """UART pin configuration."""
-    pin: str        # e.g., "PB_6"
+    pin: str        # Base pin (e.g., "PB6")
     uart: str       # e.g., "USART1"
     signal: str     # "TX" or "RX"
+    alt_variant: str = ""  # e.g., "", "_ALT1", "_ALT2"
 
 
 class PeripheralPinMap:
@@ -102,7 +132,8 @@ class PeripheralPinMap:
 
         # Parse each line: {PB_4, TIM3, STM_PIN_DATA_EXT(..., GPIO_AF2_TIM3, 1, 0)}, // TIM3_CH1
         for match in Patterns.TIMER_ENTRY.finditer(tim_section.group(1)):
-            pin = match.group(1)
+            pin_pinname = match.group(1)  # PB_4 or PB_4_ALT1 from PeripheralPins.c
+            pin, _ = convert_pinname_to_macro(pin_pinname)  # ("PB4", "_ALT1") - discard ALT for timers
             timer = match.group(2)
             af = int(match.group(3))
             channel = int(match.group(4))
@@ -131,13 +162,15 @@ class PeripheralPinMap:
 
             # Parse: {PA_7, SPI1, STM_PIN_DATA(...)}
             for match in Patterns.PERIPHERAL_ENTRY.finditer(section.group(1)):
-                pin = match.group(1)
+                pin_pinname = match.group(1)  # PA_7 or PA_7_ALT1 from PeripheralPins.c
+                pin, alt_variant = convert_pinname_to_macro(pin_pinname)  # ("PA7", "_ALT1")
                 bus = match.group(2)
 
                 self.spi_pins.append(SPIPin(
                     pin=pin,
                     bus=bus,
-                    signal=signal
+                    signal=signal,
+                    alt_variant=alt_variant
                 ))
 
     def _parse_i2c(self, content: str):
@@ -154,13 +187,15 @@ class PeripheralPinMap:
 
             # Parse: {PB_9, I2C1, STM_PIN_DATA(...)}
             for match in Patterns.PERIPHERAL_ENTRY.finditer(section.group(1)):
-                pin = match.group(1)
+                pin_pinname = match.group(1)  # PB_9 or PB_9_ALT1 from PeripheralPins.c
+                pin, alt_variant = convert_pinname_to_macro(pin_pinname)  # ("PB9", "_ALT1")
                 bus = match.group(2)
 
                 self.i2c_pins.append(I2CPin(
                     pin=pin,
                     bus=bus,
-                    signal=signal
+                    signal=signal,
+                    alt_variant=alt_variant
                 ))
 
     def _parse_uart(self, content: str):
@@ -177,13 +212,15 @@ class PeripheralPinMap:
 
             # Parse: {PB_6, USART1, STM_PIN_DATA(...)}
             for match in Patterns.PERIPHERAL_ENTRY.finditer(section.group(1)):
-                pin = match.group(1)
+                pin_pinname = match.group(1)  # PB_6 or PB_6_ALT1 from PeripheralPins.c
+                pin, alt_variant = convert_pinname_to_macro(pin_pinname)  # ("PB6", "_ALT1")
                 uart = match.group(2)
 
                 self.uart_pins.append(UARTPin(
                     pin=pin,
                     uart=uart,
-                    signal=signal
+                    signal=signal,
+                    alt_variant=alt_variant
                 ))
 
     def validate_timer(self, pin: str, timer: str, af: int) -> Optional[int]:
@@ -300,4 +337,55 @@ class PeripheralPinMap:
         for up in self.uart_pins:
             if up.pin == pin and up.signal == signal:
                 return up.uart
+        return None
+
+    def get_pin_for_spi_bus(self, base_pin: str, signal: str, target_bus: str) -> Optional[str]:
+        """
+        Find the correct pin format (base or ALT) that maps to the target SPI bus.
+
+        Args:
+            base_pin: Base pin name without ALT suffix (e.g., "PB5")
+            signal: SPI signal type ("MOSI", "MISO", or "SCLK")
+            target_bus: Target SPI bus (e.g., "SPI3")
+
+        Returns:
+            Pin format that maps to target bus (e.g., "PB5" or "PB5_ALT1"), or None if not found
+
+        Example:
+            get_pin_for_spi_bus("PB5", "MOSI", "SPI3") → "PB5_ALT1"
+            get_pin_for_spi_bus("PB5", "MOSI", "SPI1") → "PB5"
+        """
+        # Find all SPI pins that match the base pin and signal
+        matching_pins = [sp for sp in self.spi_pins
+                        if sp.pin == base_pin and sp.signal == signal]
+
+        # Look for entry that maps to target bus
+        for sp in matching_pins:
+            if sp.bus == target_bus:
+                # Return pin with ALT suffix if present
+                return base_pin + sp.alt_variant
+
+        # No match found - pin can't reach target bus
+        return None
+
+    def get_pin_for_i2c_bus(self, base_pin: str, signal: str, target_bus: str) -> Optional[str]:
+        """Find the correct pin format (base or ALT) for target I2C bus."""
+        matching_pins = [ip for ip in self.i2c_pins
+                        if ip.pin == base_pin and ip.signal == signal]
+
+        for ip in matching_pins:
+            if ip.bus == target_bus:
+                return base_pin + ip.alt_variant
+
+        return None
+
+    def get_pin_for_uart(self, base_pin: str, signal: str, target_uart: str) -> Optional[str]:
+        """Find the correct pin format (base or ALT) for target UART."""
+        matching_pins = [up for up in self.uart_pins
+                        if up.pin == base_pin and up.signal == signal]
+
+        for up in matching_pins:
+            if up.uart == target_uart:
+                return base_pin + up.alt_variant
+
         return None

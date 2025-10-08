@@ -35,11 +35,11 @@ class TestPeripheralPinMap(unittest.TestCase):
         # Verify known entry: PB4 = TIM3_CH1 on AF2
         found = False
         for tp in self.pinmap.timer_pins:
-            if (tp.pin == "PB_4" and tp.timer == "TIM3" and
+            if (tp.pin == "PB4" and tp.timer == "TIM3" and
                 tp.af == 2 and tp.channel == 1 and not tp.is_complementary):
                 found = True
                 break
-        self.assertTrue(found, "PB_4 TIM3_CH1 AF2 not found")
+        self.assertTrue(found, "PB4 TIM3_CH1 AF2 not found")
 
     def test_spi_parsing(self):
         """Test SPI pin parsing."""
@@ -49,10 +49,10 @@ class TestPeripheralPinMap(unittest.TestCase):
         # Verify known entry: PA7 = SPI1 MOSI
         found = False
         for sp in self.pinmap.spi_pins:
-            if sp.pin == "PA_7" and sp.bus == "SPI1" and sp.signal == "MOSI":
+            if sp.pin == "PA7" and sp.bus == "SPI1" and sp.signal == "MOSI":
                 found = True
                 break
-        self.assertTrue(found, "PA_7 SPI1 MOSI not found")
+        self.assertTrue(found, "PA7 SPI1 MOSI not found")
 
     def test_i2c_parsing(self):
         """Test I2C pin parsing."""
@@ -62,10 +62,10 @@ class TestPeripheralPinMap(unittest.TestCase):
         # Verify known entry: PB8 = I2C1 SCL
         found = False
         for ip in self.pinmap.i2c_pins:
-            if ip.pin == "PB_8" and ip.bus == "I2C1" and ip.signal == "SCL":
+            if ip.pin == "PB8" and ip.bus == "I2C1" and ip.signal == "SCL":
                 found = True
                 break
-        self.assertTrue(found, "PB_8 I2C1 SCL not found")
+        self.assertTrue(found, "PB8 I2C1 SCL not found")
 
     def test_uart_parsing(self):
         """Test UART pin parsing."""
@@ -75,19 +75,19 @@ class TestPeripheralPinMap(unittest.TestCase):
         # Verify known entry: PB6 = USART1 TX
         found = False
         for up in self.pinmap.uart_pins:
-            if up.pin == "PB_6" and up.uart == "USART1" and up.signal == "TX":
+            if up.pin == "PB6" and up.uart == "USART1" and up.signal == "TX":
                 found = True
                 break
-        self.assertTrue(found, "PB_6 USART1 TX not found")
+        self.assertTrue(found, "PB6 USART1 TX not found")
 
     def test_validate_timer(self):
         """Test timer validation."""
         # Valid: PB4 = TIM3 on AF2
-        channel = self.pinmap.validate_timer("PB_4", "TIM3", 2)
-        self.assertEqual(channel, 1, "PB_4 TIM3 AF2 should return channel 1")
+        channel = self.pinmap.validate_timer("PB4", "TIM3", 2)
+        self.assertEqual(channel, 1, "PB4 TIM3 AF2 should return channel 1")
 
         # Invalid: Wrong AF
-        channel = self.pinmap.validate_timer("PB_4", "TIM3", 99)
+        channel = self.pinmap.validate_timer("PB4", "TIM3", 99)
         self.assertIsNone(channel, "Invalid AF should return None")
 
         # Invalid: Wrong pin
@@ -97,7 +97,7 @@ class TestPeripheralPinMap(unittest.TestCase):
     def test_validate_spi_bus(self):
         """Test SPI bus validation."""
         # Valid: SPI1 = PA7 (MOSI), PA6 (MISO), PA5 (SCLK)
-        pins = {'MOSI': 'PA_7', 'MISO': 'PA_6', 'SCLK': 'PA_5'}
+        pins = {'MOSI': 'PA7', 'MISO': 'PA6', 'SCLK': 'PA5'}
         result = self.pinmap.validate_spi_bus(pins, "SPI1")
         self.assertTrue(result, "SPI1 pins should validate")
 
@@ -106,14 +106,14 @@ class TestPeripheralPinMap(unittest.TestCase):
         self.assertFalse(result, "Invalid SPI bus should fail")
 
         # Invalid: Mixed buses
-        pins = {'MOSI': 'PA_7', 'MISO': 'PB_14', 'SCLK': 'PA_5'}  # MISO on SPI2
+        pins = {'MOSI': 'PA7', 'MISO': 'PB14', 'SCLK': 'PA5'}  # MISO on SPI2
         result = self.pinmap.validate_spi_bus(pins, "SPI1")
         self.assertFalse(result, "Mixed SPI buses should fail")
 
     def test_validate_i2c_bus(self):
         """Test I2C bus validation."""
         # Valid: I2C1 = PB8 (SCL), PB9 (SDA)
-        pins = {'SCL': 'PB_8', 'SDA': 'PB_9'}
+        pins = {'SCL': 'PB8', 'SDA': 'PB9'}
         result = self.pinmap.validate_i2c_bus(pins, "I2C1")
         self.assertTrue(result, "I2C1 pins should validate")
 
@@ -124,7 +124,7 @@ class TestPeripheralPinMap(unittest.TestCase):
     def test_validate_uart(self):
         """Test UART validation."""
         # Valid: USART1 = PB6 (TX), PB7 (RX)
-        pins = {'TX': 'PB_6', 'RX': 'PB_7'}
+        pins = {'TX': 'PB6', 'RX': 'PB7'}
         result = self.pinmap.validate_uart(pins, "USART1")
         self.assertTrue(result, "USART1 pins should validate")
 
@@ -134,30 +134,30 @@ class TestPeripheralPinMap(unittest.TestCase):
 
     def test_get_spi_bus(self):
         """Test SPI bus lookup."""
-        bus = self.pinmap.get_spi_bus("PA_7", "MOSI")
-        self.assertEqual(bus, "SPI1", "PA_7 MOSI should be SPI1")
+        bus = self.pinmap.get_spi_bus("PA7", "MOSI")
+        self.assertEqual(bus, "SPI1", "PA7 MOSI should be SPI1")
 
-        bus = self.pinmap.get_spi_bus("PB_15", "MOSI")
-        self.assertEqual(bus, "SPI2", "PB_15 MOSI should be SPI2")
+        bus = self.pinmap.get_spi_bus("PB15", "MOSI")
+        self.assertEqual(bus, "SPI2", "PB15 MOSI should be SPI2")
 
         bus = self.pinmap.get_spi_bus("PX_99", "MOSI")
         self.assertIsNone(bus, "Invalid pin should return None")
 
     def test_get_i2c_bus(self):
         """Test I2C bus lookup."""
-        bus = self.pinmap.get_i2c_bus("PB_8", "SCL")
-        self.assertEqual(bus, "I2C1", "PB_8 SCL should be I2C1")
+        bus = self.pinmap.get_i2c_bus("PB8", "SCL")
+        self.assertEqual(bus, "I2C1", "PB8 SCL should be I2C1")
 
         bus = self.pinmap.get_i2c_bus("PX_99", "SCL")
         self.assertIsNone(bus, "Invalid pin should return None")
 
     def test_get_uart(self):
         """Test UART lookup."""
-        uart = self.pinmap.get_uart("PB_6", "TX")
-        self.assertEqual(uart, "USART1", "PB_6 TX should be USART1")
+        uart = self.pinmap.get_uart("PB6", "TX")
+        self.assertEqual(uart, "USART1", "PB6 TX should be USART1")
 
-        uart = self.pinmap.get_uart("PA_2", "TX")
-        self.assertEqual(uart, "USART2", "PA_2 TX should be USART2")
+        uart = self.pinmap.get_uart("PA2", "TX")
+        self.assertEqual(uart, "USART2", "PA2 TX should be USART2")
 
         uart = self.pinmap.get_uart("PX_99", "TX")
         self.assertIsNone(uart, "Invalid pin should return None")
@@ -165,41 +165,41 @@ class TestPeripheralPinMap(unittest.TestCase):
     def test_jhef411_motor_validation(self):
         """Test motor pins from JHEF411 config."""
         # MOTOR 1: PA8 = TIM1_CH1 on AF1
-        channel = self.pinmap.validate_timer("PA_8", "TIM1", 1)
+        channel = self.pinmap.validate_timer("PA8", "TIM1", 1)
         self.assertEqual(channel, 1, "Motor 1 (PA8) should be TIM1_CH1")
 
         # MOTOR 5: PB4 = TIM3_CH1 on AF2
-        channel = self.pinmap.validate_timer("PB_4", "TIM3", 2)
+        channel = self.pinmap.validate_timer("PB4", "TIM3", 2)
         self.assertEqual(channel, 1, "Motor 5 (PB4) should be TIM3_CH1")
 
     def test_jhef411_spi_validation(self):
         """Test SPI buses from JHEF411 config."""
         # SPI1 (IMU): PA5/PA6/PA7
-        spi1_pins = {'MOSI': 'PA_7', 'MISO': 'PA_6', 'SCLK': 'PA_5'}
+        spi1_pins = {'MOSI': 'PA7', 'MISO': 'PA6', 'SCLK': 'PA5'}
         self.assertTrue(self.pinmap.validate_spi_bus(spi1_pins, "SPI1"),
                         "JHEF411 SPI1 (IMU) should validate")
 
         # SPI2 (Flash/OSD): PB13/PB14/PB15
-        spi2_pins = {'MOSI': 'PB_15', 'MISO': 'PB_14', 'SCLK': 'PB_13'}
+        spi2_pins = {'MOSI': 'PB15', 'MISO': 'PB14', 'SCLK': 'PB13'}
         self.assertTrue(self.pinmap.validate_spi_bus(spi2_pins, "SPI2"),
                         "JHEF411 SPI2 (Flash/OSD) should validate")
 
     def test_jhef411_i2c_validation(self):
         """Test I2C bus from JHEF411 config."""
         # I2C1 (Sensors): PB8/PB9
-        i2c1_pins = {'SCL': 'PB_8', 'SDA': 'PB_9'}
+        i2c1_pins = {'SCL': 'PB8', 'SDA': 'PB9'}
         self.assertTrue(self.pinmap.validate_i2c_bus(i2c1_pins, "I2C1"),
                         "JHEF411 I2C1 (sensors) should validate")
 
     def test_jhef411_uart_validation(self):
         """Test UARTs from JHEF411 config."""
         # UART1: PB6/PB7
-        uart1_pins = {'TX': 'PB_6', 'RX': 'PB_7'}
+        uart1_pins = {'TX': 'PB6', 'RX': 'PB7'}
         self.assertTrue(self.pinmap.validate_uart(uart1_pins, "USART1"),
                         "JHEF411 UART1 should validate")
 
         # UART2: PA2/PA3
-        uart2_pins = {'TX': 'PA_2', 'RX': 'PA_3'}
+        uart2_pins = {'TX': 'PA2', 'RX': 'PA3'}
         self.assertTrue(self.pinmap.validate_uart(uart2_pins, "USART2"),
                         "JHEF411 UART2 should validate")
 

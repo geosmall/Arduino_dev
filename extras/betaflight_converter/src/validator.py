@@ -215,38 +215,35 @@ class ConfigValidator:
                 ))
                 continue
 
-            # Convert to Arduino format
-            pins_arduino = {
+            # Convert to Arduino format (base pins, no ALT)
+            pins_arduino_base = {
                 signal: self.bf_config.convert_pin_format(pin)
                 for signal, pin in pins_bf.items()
             }
 
-            # Detect bus name from pins
-            bus_name = self.pinmap.get_spi_bus(pins_arduino['MOSI'], 'MOSI')
-            if not bus_name:
-                self.errors.append(ValidationError(
-                    severity="error",
-                    message=f"SPI{bus_num} MOSI pin {pins_arduino['MOSI']} not found in pinmap",
-                    resource=f"SPI{bus_num}"
-                ))
-                continue
+            # Get correct pin format (with ALT if needed) for target bus
+            target_bus = f"SPI{bus_num}"
+            pins_with_alt = {}
 
-            # Validate all pins belong to same bus
-            if not self.pinmap.validate_spi_bus(pins_arduino, bus_name):
-                self.errors.append(ValidationError(
-                    severity="error",
-                    message=f"SPI{bus_num} pins don't all belong to {bus_name}",
-                    resource=f"SPI{bus_num}"
+            for signal, base_pin in pins_arduino_base.items():
+                correct_pin = self.pinmap.get_pin_for_spi_bus(base_pin, signal, target_bus)
+                if not correct_pin:
+                    self.errors.append(ValidationError(
+                        severity="error",
+                        message=f"SPI{bus_num} {signal} pin {base_pin} cannot reach {target_bus}",
+                        resource=f"SPI{bus_num}"
+                    ))
+                    break
+                pins_with_alt[signal] = correct_pin
+            else:
+                # All pins validated successfully
+                validated_buses.append(ValidatedSPIBus(
+                    bus_num=bus_num,
+                    bus_name=target_bus,
+                    mosi=pins_with_alt['MOSI'],
+                    miso=pins_with_alt['MISO'],
+                    sclk=pins_with_alt['SCLK']
                 ))
-                continue
-
-            validated_buses.append(ValidatedSPIBus(
-                bus_num=bus_num,
-                bus_name=bus_name,
-                mosi=pins_arduino['MOSI'],
-                miso=pins_arduino['MISO'],
-                sclk=pins_arduino['SCLK']
-            ))
 
         return validated_buses
 
@@ -268,37 +265,34 @@ class ConfigValidator:
                 ))
                 continue
 
-            # Convert to Arduino format
-            pins_arduino = {
+            # Convert to Arduino format (base pins, no ALT)
+            pins_arduino_base = {
                 signal: self.bf_config.convert_pin_format(pin)
                 for signal, pin in pins_bf.items()
             }
 
-            # Detect bus name from pins
-            bus_name = self.pinmap.get_i2c_bus(pins_arduino['SCL'], 'SCL')
-            if not bus_name:
-                self.errors.append(ValidationError(
-                    severity="error",
-                    message=f"I2C{bus_num} SCL pin {pins_arduino['SCL']} not found in pinmap",
-                    resource=f"I2C{bus_num}"
-                ))
-                continue
+            # Get correct pin format (with ALT if needed) for target bus
+            target_bus = f"I2C{bus_num}"
+            pins_with_alt = {}
 
-            # Validate both pins belong to same bus
-            if not self.pinmap.validate_i2c_bus(pins_arduino, bus_name):
-                self.errors.append(ValidationError(
-                    severity="error",
-                    message=f"I2C{bus_num} pins don't both belong to {bus_name}",
-                    resource=f"I2C{bus_num}"
+            for signal, base_pin in pins_arduino_base.items():
+                correct_pin = self.pinmap.get_pin_for_i2c_bus(base_pin, signal, target_bus)
+                if not correct_pin:
+                    self.errors.append(ValidationError(
+                        severity="error",
+                        message=f"I2C{bus_num} {signal} pin {base_pin} cannot reach {target_bus}",
+                        resource=f"I2C{bus_num}"
+                    ))
+                    break
+                pins_with_alt[signal] = correct_pin
+            else:
+                # All pins validated successfully
+                validated_buses.append(ValidatedI2CBus(
+                    bus_num=bus_num,
+                    bus_name=target_bus,
+                    scl=pins_with_alt['SCL'],
+                    sda=pins_with_alt['SDA']
                 ))
-                continue
-
-            validated_buses.append(ValidatedI2CBus(
-                bus_num=bus_num,
-                bus_name=bus_name,
-                scl=pins_arduino['SCL'],
-                sda=pins_arduino['SDA']
-            ))
 
         return validated_buses
 
@@ -320,37 +314,45 @@ class ConfigValidator:
                 ))
                 continue
 
-            # Convert to Arduino format
-            pins_arduino = {
+            # Convert to Arduino format (base pins, no ALT)
+            pins_arduino_base = {
                 signal: self.bf_config.convert_pin_format(pin)
                 for signal, pin in pins_bf.items()
             }
 
-            # Detect UART name from pins
-            uart_name = self.pinmap.get_uart(pins_arduino['TX'], 'TX')
-            if not uart_name:
+            # Betaflight UART numbers don't always match hardware UART numbers
+            # We need to find which UART these pins connect to
+            # Try to get UART name from TX pin first
+            first_uart = self.pinmap.get_uart(pins_arduino_base['TX'], 'TX')
+            if not first_uart:
                 self.errors.append(ValidationError(
                     severity="error",
-                    message=f"UART{uart_num} TX pin {pins_arduino['TX']} not found in pinmap",
+                    message=f"UART{uart_num} TX pin {pins_arduino_base['TX']} not found in pinmap",
                     resource=f"UART{uart_num}"
                 ))
                 continue
 
-            # Validate both pins belong to same UART
-            if not self.pinmap.validate_uart(pins_arduino, uart_name):
-                self.errors.append(ValidationError(
-                    severity="error",
-                    message=f"UART{uart_num} pins don't both belong to {uart_name}",
-                    resource=f"UART{uart_num}"
-                ))
-                continue
+            # Get correct pin format (with ALT if needed) for target UART
+            pins_with_alt = {}
 
-            validated_uarts.append(ValidatedUART(
-                uart_num=uart_num,
-                uart_name=uart_name,
-                tx=pins_arduino['TX'],
-                rx=pins_arduino['RX']
-            ))
+            for signal, base_pin in pins_arduino_base.items():
+                correct_pin = self.pinmap.get_pin_for_uart(base_pin, signal, first_uart)
+                if not correct_pin:
+                    self.errors.append(ValidationError(
+                        severity="error",
+                        message=f"UART{uart_num} {signal} pin {base_pin} cannot reach {first_uart}",
+                        resource=f"UART{uart_num}"
+                    ))
+                    break
+                pins_with_alt[signal] = correct_pin
+            else:
+                # All pins validated successfully
+                validated_uarts.append(ValidatedUART(
+                    uart_num=uart_num,
+                    uart_name=first_uart,
+                    tx=pins_with_alt['TX'],
+                    rx=pins_with_alt['RX']
+                ))
 
         return validated_uarts
 

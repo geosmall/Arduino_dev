@@ -53,7 +53,7 @@ class TestCodeGenerator(unittest.TestCase):
         self.assertIn("#pragma once", code)
 
         # Should include ConfigTypes
-        self.assertIn('#include "config/ConfigTypes.h"', code)
+        self.assertIn('#include "ConfigTypes.h"', code)
 
         # Should have namespace
         self.assertIn("namespace BoardConfig {", code)
@@ -80,12 +80,12 @@ class TestCodeGenerator(unittest.TestCase):
         self.assertIn("StorageBackend::LITTLEFS", code)
 
         # Should have SPI2 pins (PB15, PB14, PB13)
-        self.assertIn("PB_15", code)
-        self.assertIn("PB_14", code)
-        self.assertIn("PB_13", code)
+        self.assertIn("PB15", code)
+        self.assertIn("PB14", code)
+        self.assertIn("PB13", code)
 
         # Should have CS pin (PB02)
-        self.assertIn("PB_2", code)
+        self.assertIn("PB2", code)
 
     def test_generate_imu(self):
         """Test IMU config generation."""
@@ -96,15 +96,15 @@ class TestCodeGenerator(unittest.TestCase):
         self.assertIn("SPIConfig imu_spi", code)
 
         # Should have SPI1 pins (PA7, PA6, PA5)
-        self.assertIn("PA_7", code)
-        self.assertIn("PA_6", code)
-        self.assertIn("PA_5", code)
+        self.assertIn("PA7", code)
+        self.assertIn("PA6", code)
+        self.assertIn("PA5", code)
 
         # Should have CS pin (PA04)
-        self.assertIn("PA_4", code)
+        self.assertIn("PA4", code)
 
         # Should have interrupt pin (PB03)
-        self.assertIn("PB_3", code)
+        self.assertIn("PB3", code)
 
     def test_generate_i2c(self):
         """Test I2C config generation."""
@@ -114,8 +114,8 @@ class TestCodeGenerator(unittest.TestCase):
         self.assertIn("I2CConfig sensors", code)
 
         # Should have I2C1 pins (PB8, PB9)
-        self.assertIn("PB_8", code)
-        self.assertIn("PB_9", code)
+        self.assertIn("PB8", code)
+        self.assertIn("PB9", code)
 
     def test_generate_uarts(self):
         """Test UART config generation."""
@@ -126,12 +126,12 @@ class TestCodeGenerator(unittest.TestCase):
         self.assertIn("UARTConfig uart2", code)
 
         # UART1: PB6/PB7
-        self.assertIn("PB_6", code)
-        self.assertIn("PB_7", code)
+        self.assertIn("PB6", code)
+        self.assertIn("PB7", code)
 
         # UART2: PA2/PA3
-        self.assertIn("PA_2", code)
-        self.assertIn("PA_3", code)
+        self.assertIn("PA2", code)
+        self.assertIn("PA3", code)
 
     def test_generate_adc(self):
         """Test ADC config generation."""
@@ -141,8 +141,8 @@ class TestCodeGenerator(unittest.TestCase):
         self.assertIn("ADCConfig battery", code)
 
         # Should have voltage/current pins
-        self.assertIn("PA_0", code)  # VBAT
-        self.assertIn("PA_1", code)  # CURR
+        self.assertIn("PA0", code)  # VBAT
+        self.assertIn("PA1", code)  # CURR
 
     def test_generate_motors(self):
         """Test motor namespace generation."""
