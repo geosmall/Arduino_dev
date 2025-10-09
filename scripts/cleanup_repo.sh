@@ -25,6 +25,12 @@ echo "Removing Arduino CLI artifacts..."
 find . -name ".arduino" -type d -exec rm -rf {} + 2>/dev/null || true
 find . -name "sketches" -type d -path "*/.cache/*" -exec rm -rf {} + 2>/dev/null || true
 
+# Remove Python cache directories and bytecode
+echo "Removing Python cache directories..."
+find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+find . -name "*.pyc" -delete 2>/dev/null || true
+find . -name "*.pyo" -delete 2>/dev/null || true
+
 echo "✓ Repository cleanup complete"
 echo ""
 echo "Clean files ready for commit:"

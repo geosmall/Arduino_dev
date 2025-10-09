@@ -164,7 +164,11 @@ StorageConfig storage{StorageBackend::LITTLEFS, PB_15, PB_14, PB_13, PB_2, 80000
 
 ### ALT Pin Variants for Peripheral Selection
 
-Some pins support multiple peripheral instances (e.g., `PB5` can be SPI1 or SPI3):
+Some pins support multiple peripheral instances. ALT variants are required in two scenarios:
+
+#### 1. **SPI/I2C Bus Selection**
+
+Some pins support multiple SPI/I2C buses (e.g., `PB5` can be SPI1 or SPI3):
 
 ```cpp
 // PeripheralPins.c shows:
@@ -187,6 +191,33 @@ Some pins support multiple peripheral instances (e.g., `PB5` can be SPI1 or SPI3
 2. `digitalPinToPinName(0x115)` returns `PB_5_ALT1` enum
 3. `pinmap_pinout()` searches for `PB_5_ALT1`
 4. Finds: `{PB_5_ALT1, SPI3, ...}` → **SPI3 configured**
+
+#### 2. **Timer/Motor Selection (CRITICAL for Motor Configs)**
+
+Some pins support multiple timers on different Alternate Functions. This is common for motors.
+
+**Real Example - Motor 4 on JHEF411:**
+
+```cpp
+// Betaflight config specifies:
+resource MOTOR 4 B00
+timer B00 AF2         // Requests TIM3_CH3
+
+// PeripheralPins.c shows PB_0 has TWO timer mappings:
+{PB_0,      TIM1, ..._AF1_TIM1, 2, 1}    // Default: TIM1_CH2N (AF1)
+{PB_0_ALT1, TIM3, ..._AF2_TIM3, 3, 0}    // ALT1: TIM3_CH3 (AF2)
+
+// Generated config MUST use ALT variant to match Betaflight timer:
+static constexpr Channel motor4 = {PB0_ALT1, 3, ...};  // ✅ Correct (TIM3)
+// NOT: {PB0, 3, ...};  // ❌ Wrong - would use TIM1_CH2N instead
+```
+
+**Converter automatically handles this:**
+1. Reads Betaflight timer assignment: `timer B00 AF2`
+2. Cross-validates against PeripheralPins.c
+3. Detects base pin (PB_0) doesn't support TIM3 on AF2
+4. Searches for ALT variant (PB_0_ALT1) that matches TIM3 + AF2
+5. Generates correct Arduino format: `PB0_ALT1`
 
 ### Pin Format Selection in This Converter
 
@@ -277,16 +308,37 @@ void setup() {
 
 ### Motor and Servo PWM Control
 
-See `examples/pwm_motor_servo/` - Demonstrates PWM output using TimerPWM library:
-- Servo control (50 Hz, 1000-2000 µs)
-- Motor control (1000 Hz, OneShot125)
-- Timer bank configuration
-- Channel attachment and pulse width control
+Generated BoardConfig headers include Motor and Servo namespaces organized by timer banks:
 
-**Key Pattern**:
+**Generated Structure** (from MTKS-MATEKH743.h):
+```cpp
+namespace BoardConfig {
+  namespace Servo {
+    static constexpr uint32_t frequency_hz = 50;  // 50 Hz for servos
+
+    namespace TIM15_Bank {
+      static inline TIM_TypeDef* const timer = TIM15;
+      static constexpr Channel servo1 = {PE5, 1, 1000, 2000};  // TIM15_CH1
+      static constexpr Channel servo2 = {PE6, 2, 1000, 2000};  // TIM15_CH2
+    };
+  };
+
+  namespace Motor {
+    static constexpr uint32_t frequency_hz = 1000;  // OneShot125
+
+    namespace TIM3_Bank {
+      static inline TIM_TypeDef* const timer = TIM3;
+      static constexpr Channel motor1 = {PB0_ALT1, 3, 125, 250};  // TIM3_CH3
+      static constexpr Channel motor2 = {PB1_ALT1, 4, 125, 250};  // TIM3_CH4
+    };
+  };
+}
+```
+
+**Usage with TimerPWM Library** (see main repo's TimerPWM examples):
 ```cpp
 #include <PWMOutputBank.h>
-#include "../../output/MTKS-MATEKH743.h"
+#include "output/MTKS-MATEKH743.h"
 
 PWMOutputBank servo_pwm;
 

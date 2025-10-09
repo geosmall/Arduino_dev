@@ -6,7 +6,7 @@ Successfully implemented a Python-based converter that transforms Betaflight uni
 
 ## Implementation Metrics
 
-- **Total Lines of Code:** ~1200 lines (Python)
+- **Total Lines of Code:** ~1500 lines (Python)
 - **Total Tests:** 53 tests (100% passing)
 - **Test Coverage:** All components (parser, validator, generator)
 - **Development Approach:** Test-driven development
@@ -178,16 +178,24 @@ Warnings: 0
 ### 1. ALT Pin Variant Handling
 **Problem:** Motor 4 (PB0) uses TIM3_CH3 via AF2, but PeripheralPins.c lists it as PB_0_ALT1
 
-**Solution:** Enhanced `validate_timer()` to check ALT variants:
-```python
-pin_base = pin.split('_')[0] + '_' + pin.split('_')[1]  # "PB_0"
-for tp in self.timer_pins:
-    tp_base = tp.pin.split('_ALT')[0]  # "PB_0_ALT1" -> "PB_0"
-    if tp_base == pin_base and tp.timer == timer and tp.af == af:
-        return tp.channel
-```
+**Solution:** Comprehensive ALT variant support:
+1. Added `alt_variant` field to `TimerPin` dataclass (e.g., "_ALT1", "_ALT2")
+2. Modified parsing to preserve ALT suffix instead of discarding it
+3. Created `get_pin_for_timer()` method to return correct pin format with ALT suffix
+4. Updated `validate_motors()` and `validate_servos()` to use new method
 
-### 2. Timer Info from Comments
+Result: Generated configs correctly show `PB0_ALT1` instead of bare `PB0` when alternate timer mapping is required.
+
+### 2. ConfigTypes.h Include Path
+**Problem:** Arduino IDE couldn't find ConfigTypes.h when using generated configs
+
+**Solution:** Use relative path from output directory to canonical source:
+```python
+lines.append('#include "../../../../targets/config/ConfigTypes.h"')
+```
+This ensures single source of truth without creating stale copies.
+
+### 3. Timer Info from Comments
 **Problem:** Timer assignments not always in resource lines
 
 **Solution:** Parse comment lines for timer info:
@@ -196,7 +204,7 @@ for tp in self.timer_pins:
 # Removed blanket comment skipping, parse all lines
 ```
 
-### 3. Automatic MCU Variant Detection
+### 4. Automatic MCU Variant Detection
 **Problem:** Different MCUs use different PeripheralPins.c files
 
 **Solution:** Map MCU type to variant path:
@@ -209,7 +217,7 @@ mcu_to_variant = {
 }
 ```
 
-### 4. Motor Timer Bank Grouping
+### 5. Motor Timer Bank Grouping
 **Problem:** TimerPWM library requires motors grouped by timer
 
 **Solution:** Group validated motors by timer name:
@@ -249,10 +257,10 @@ python3 convert.py data/JHEF-JHEF411.config output/NOXE_V3_generated.h
 ## Files Created
 
 ### Core Implementation
-1. `src/peripheral_pins.py` (270 lines) - PeripheralPins.c parser
-2. `src/betaflight_config.py` (280 lines) - Betaflight config parser
-3. `src/validator.py` (300 lines) - Configuration validator
-4. `src/code_generator.py` (350 lines) - C++ code generator
+1. `src/peripheral_pins.py` (412 lines) - PeripheralPins.c parser
+2. `src/betaflight_config.py` (293 lines) - Betaflight config parser
+3. `src/validator.py` (397 lines) - Configuration validator
+4. `src/code_generator.py` (416 lines) - C++ code generator
 5. `convert.py` (80 lines) - Main converter script
 
 ### Tests
@@ -271,8 +279,10 @@ python3 convert.py data/JHEF-JHEF411.config output/NOXE_V3_generated.h
 16. `IMPLEMENTATION_SUMMARY.md` - This document
 
 ### Test Data
-17. `data/JHEF-JHEF411.config` - Test input
-18. `output/NOXE_V3_generated.h` - Test output
+17. `data/JHEF-JHEF411.config` - JHEF411 test input
+18. `data/MTKS-MATEKH743.config` - MATEKH743 test input
+19. `output/JHEF-JHEF411.h` - JHEF411 generated output
+20. `output/MTKS-MATEKH743.h` - MATEKH743 generated output
 
 ## Future Enhancements
 

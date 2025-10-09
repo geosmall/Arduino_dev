@@ -110,6 +110,12 @@ set dshot_burst = ON
 - TIM1: Motors 1-3 (PA08, PA09, PA10)
 - TIM3: Motors 4-5 (PB00, PB04)
 
+**ALT variants required** (CRITICAL):
+- Motor 4 (PB00) uses `timer B00 AF2` for TIM3_CH3
+- PeripheralPins.c shows PB_0 default is TIM1_CH2N (AF1), not TIM3
+- Must use `PB0_ALT1` to access TIM3_CH3 (AF2)
+- Converter validates timer/AF against PeripheralPins.c and adds ALT suffix when needed
+
 **Protocol determines frequency**:
 - Standard PWM: 50-400 Hz (1000-2000 µs pulses)
 - OneShot125: 1-4 kHz (125-250 µs pulses)
@@ -162,7 +168,7 @@ namespace BoardConfig {
     namespace Bank2 {
       static inline TIM_TypeDef* const timer = TIM3;
 
-      static constexpr Bank1::Channel motor4 = {PB0, 3, 125, 250};  // TIM3_CH3
+      static constexpr Bank1::Channel motor4 = {PB0_ALT1, 3, 125, 250};  // TIM3_CH3 (ALT1 required)
       static constexpr Bank1::Channel motor5 = {PB4, 1, 125, 250};  // TIM3_CH1
     };
   };
@@ -222,7 +228,7 @@ namespace BoardConfig {
       {TIM1, PA8, 1, 125, 250},   // Motor 1
       {TIM1, PA9, 2, 125, 250},   // Motor 2
       {TIM1, PA10, 3, 125, 250},  // Motor 3
-      {TIM3, PB0, 3, 125, 250},   // Motor 4
+      {TIM3, PB0_ALT1, 3, 125, 250},   // Motor 4 (ALT1 required for TIM3)
       {TIM3, PB4, 1, 125, 250}    // Motor 5
     };
 
@@ -285,7 +291,7 @@ namespace BoardConfig {
     namespace TIM3_Bank {
       static inline TIM_TypeDef* const timer = TIM3;
 
-      static constexpr TIM1_Bank::Channel motor4 = {PB0, 3, 125, 250};
+      static constexpr TIM1_Bank::Channel motor4 = {PB0_ALT1, 3, 125, 250};  // ALT1 required
       static constexpr TIM1_Bank::Channel motor5 = {PB4, 1, 125, 250};
     };
   };
@@ -357,7 +363,7 @@ namespace BoardConfig {
     namespace TIM3_Bank {
       static inline TIM_TypeDef* const timer = TIM3;
 
-      static constexpr TIM1_Bank::Channel motor4 = {PB0, 3, 125, 250};  // TIM3_CH3
+      static constexpr TIM1_Bank::Channel motor4 = {PB0_ALT1, 3, 125, 250};  // TIM3_CH3 (ALT1 required)
       static constexpr TIM1_Bank::Channel motor5 = {PB4, 1, 125, 250};  // TIM3_CH1
     };
   };

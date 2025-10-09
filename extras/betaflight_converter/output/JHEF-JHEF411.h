@@ -1,13 +1,13 @@
 /*
  * Auto-generated BoardConfig from Betaflight unified target
- * Generated: 2025-10-08 07:45:36
+ * Generated: 2025-10-09 06:03:54
  * Generator: betaflight_target_converter.py
  */
 
 #pragma once
 
-// Copy this file to your sketch folder, or add targets/ to include path
-#include "ConfigTypes.h"  // Expects ConfigTypes.h in same directory
+// Include ConfigTypes.h from targets/config directory
+#include "../../../../targets/config/ConfigTypes.h"
 
 // Board: JHEF411
 // Manufacturer: JHEF
@@ -67,7 +67,7 @@ namespace BoardConfig {
         uint32_t max_us;
       };
 
-      static constexpr Channel motor4 = {PB0, 3, 0, 0};  // TIM3_CH3
+      static constexpr Channel motor4 = {PB0_ALT1, 3, 0, 0};  // TIM3_CH3
       static constexpr Channel motor5 = {PB4, 1, 0, 0};  // TIM3_CH1
     };
 

@@ -141,10 +141,10 @@ imu_gizmo ICM42688P // #define USE_GYRO_SPI_ICM42688P
 |--------|-----------|-----------------|-------|
 | **Architecture** | Two-stage (offline + runtime) | Compile-time only | We want full compile-time validation |
 | **Output Format** | Raw string literals | C++ constexpr structs | Type-safe, zero runtime overhead |
-| **Pin Format** | String parsing | Arduino pin macros | Direct hardware mapping |
+| **Pin Format** | String parsing | Arduino pin macros with ALT | Direct hardware mapping, ALT variants for timer conflicts |
 | **Bus Selection** | Runtime string parsing | Compile-time pin deduction | Our SPI/I2C uses actual pins |
 | **Sensor Detection** | Multiple gizmos, pick last | Single chip type | We detect at runtime via SPI |
-| **Validation** | Runtime errors | Compile-time errors | Catch misconfigurations early |
+| **Validation** | Runtime errors | Compile-time + PeripheralPins.c | Catch misconfigurations early, validate timer/AF |
 
 ## Our Converter Design Requirements
 

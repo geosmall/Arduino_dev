@@ -16,6 +16,12 @@ build_id.h
 *.swp
 *.tmp
 
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
 # OS generated files
 .DS_Store
 Thumbs.db

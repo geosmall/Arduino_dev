@@ -65,11 +65,12 @@ def convert_pinname_to_macro(pin: str) -> tuple[str, str]:
 @dataclass
 class TimerPin:
     """Timer pin configuration."""
-    pin: str        # e.g., "PB4" (Arduino macro format)
+    pin: str        # Base pin (e.g., "PB0")
     timer: str      # e.g., "TIM3"
     af: int         # Alternate function number (1-15)
     channel: int    # Timer channel (1-4)
     is_complementary: bool  # True for CHxN pins
+    alt_variant: str = ""  # e.g., "", "_ALT1", "_ALT2"
 
 
 @dataclass
@@ -133,7 +134,7 @@ class PeripheralPinMap:
         # Parse each line: {PB_4, TIM3, STM_PIN_DATA_EXT(..., GPIO_AF2_TIM3, 1, 0)}, // TIM3_CH1
         for match in Patterns.TIMER_ENTRY.finditer(tim_section.group(1)):
             pin_pinname = match.group(1)  # PB_4 or PB_4_ALT1 from PeripheralPins.c
-            pin, _ = convert_pinname_to_macro(pin_pinname)  # ("PB4", "_ALT1") - discard ALT for timers
+            pin, alt_variant = convert_pinname_to_macro(pin_pinname)  # ("PB4", "_ALT1")
             timer = match.group(2)
             af = int(match.group(3))
             channel = int(match.group(4))
@@ -144,7 +145,8 @@ class PeripheralPinMap:
                 timer=timer,
                 af=af,
                 channel=channel,
-                is_complementary=is_complementary
+                is_complementary=is_complementary,
+                alt_variant=alt_variant
             ))
 
     def _parse_spi(self, content: str):
@@ -252,6 +254,25 @@ class PeripheralPinMap:
             tp_base = tp.pin.split('_ALT')[0]  # "PB_0_ALT1" -> "PB_0" or "PB4_ALT1" -> "PB4"
             if tp_base == pin_base and tp.timer == timer and tp.af == af:
                 return tp.channel
+
+        return None
+
+    def get_pin_for_timer(self, base_pin: str, timer: str, af: int) -> Optional[str]:
+        """
+        Get correct pin format (with ALT suffix if needed) for timer/AF combination.
+
+        Args:
+            base_pin: Base pin name without ALT (e.g., "PB0")
+            timer: Timer name (e.g., "TIM3")
+            af: Alternate function number
+
+        Returns:
+            Pin with ALT suffix if needed (e.g., "PB0_ALT1"), or None if invalid
+        """
+        # Find matching timer pin
+        for tp in self.timer_pins:
+            if tp.pin == base_pin and tp.timer == timer and tp.af == af:
+                return base_pin + tp.alt_variant
 
         return None
 

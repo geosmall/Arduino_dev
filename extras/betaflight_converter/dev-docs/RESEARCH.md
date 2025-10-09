@@ -290,11 +290,51 @@ feature RX_PARALLEL_PWM              # Enable PWM receiver
 
 ## Pin Naming Convention
 
+### Betaflight Format
 Betaflight uses short pin names:
 - `A09` = PA9 (Port A, pin 9)
 - `B04` = PB4 (Port B, pin 4)
 - `C13` = PC13 (Port C, pin 13)
 - `E11` = PE11 (Port E, pin 11)
+
+### Arduino STM32 Pin Formats
+
+**Two distinct formats exist:**
+
+1. **PinName Enums** (HAL/low-level): `PA_0`, `PB_15`, `PB_0_ALT1`
+   - Used in PeripheralPins.c mapping tables
+   - Includes ALT variants for alternate peripheral functions
+   - Underscore separators: `P{port}_{pin}[_ALT{n}]`
+
+2. **Arduino Pin Macros** (Arduino API): `PA0`, `PB15`, `PB0_ALT1`
+   - Used in sketches and BoardConfig headers
+   - Can include ALT suffix when alternate timer mapping needed
+   - No underscore before pin number: `P{port}{pin}[_ALT{n}]`
+
+### ALT Pin Variants (CRITICAL)
+
+Some pins support multiple peripheral functions on different timers. When a pin's default timer mapping conflicts with Betaflight's assignment, an ALT variant must be used.
+
+**Example - Motor 4 on JHEF411:**
+```
+# Betaflight config
+resource MOTOR 4 B00
+timer B00 AF2         # Requests TIM3_CH3
+
+# PeripheralPins.c shows TWO mappings for PB_0:
+{PB_0, TIM1, ..._AF1_TIM1, 2, 1}    # Default: TIM1_CH2N (AF1)
+{PB_0_ALT1, TIM3, ..._AF2_TIM3, 3, 0}  # ALT1: TIM3_CH3 (AF2)
+
+# Generated config MUST use ALT variant:
+static constexpr Channel motor4 = {PB0_ALT1, 3, ...};  // ✅ Correct
+// NOT: {PB0, 3, ...};  // ❌ Wrong - would use TIM1_CH2N instead
+```
+
+**Converter Requirements:**
+1. Parse Betaflight timer assignments: `timer {pin} AF{n}`
+2. Cross-validate against PeripheralPins.c timer mappings
+3. If base pin doesn't support requested timer/AF, search for ALT variant
+4. Generate Arduino format with ALT suffix when needed: `PB0_ALT1`
 
 ## Timer and DMA Requirements
 

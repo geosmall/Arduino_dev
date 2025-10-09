@@ -520,6 +520,7 @@ Python tool that converts Betaflight unified target configurations into Arduino 
 **Key Features**:
 - **Parser→Validator→Generator Pipeline**: Clean architecture with 53 passing tests
 - **PeripheralPins.c Validation**: Cross-validates all pins against Arduino Core STM32 variants
+- **ALT Variant Handling**: Automatically detects and generates ALT pin variants (e.g., PB0_ALT1) for timer/AF conflicts
 - **Multi-Variant MCU Support**: Automatically finds correct variant for different chip packages
 - **Motor Timer Grouping**: Groups motors by timer banks for TimerPWM integration
 - **Cross-Platform**: Works on Windows, macOS, Linux with Python 3.7+

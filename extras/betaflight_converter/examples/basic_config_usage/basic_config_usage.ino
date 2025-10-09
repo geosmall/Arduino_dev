@@ -10,8 +10,9 @@
 #include <SPI.h>
 #include <Wire.h>
 
-// Include your generated BoardConfig header (copied to sketch folder)
-#include "JHEF-JHEF411.h"
+// Include generated BoardConfig header directly from output directory
+// This ensures we always use the latest generated config
+#include "../../output/JHEF-JHEF411.h"
 
 void setup() {
   Serial.begin(115200);

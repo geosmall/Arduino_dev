@@ -47,12 +47,15 @@ Shows how to:
    python3 convert.py data/YOUR-BOARD.config
    ```
 
-2. **Copy generated files** to your sketch folder:
-   - `output/YOUR-BOARD.h` - Generated BoardConfig
-   - `../../../targets/config/ConfigTypes.h` - Config type definitions
-
+2. **Include generated config** directly from output directory:
    ```cpp
-   #include "YOUR-BOARD.h"
+   // Reference the generated file directly (always up-to-date)
+   #include "../../output/JHEF-JHEF411.h"
+   ```
+
+   Or copy to your sketch folder if preferred:
+   ```cpp
+   #include "JHEF-JHEF411.h"
    ```
 
 3. **Access configuration** via `BoardConfig` namespace:

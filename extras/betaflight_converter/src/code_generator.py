@@ -29,8 +29,8 @@ class BoardConfigGenerator:
         # Include guard and includes
         lines.append("#pragma once")
         lines.append("")
-        lines.append("// Copy this file to your sketch folder, or add targets/ to include path")
-        lines.append('#include "ConfigTypes.h"  // Expects ConfigTypes.h in same directory')
+        lines.append("// Include ConfigTypes.h from targets/config directory")
+        lines.append('#include "../../../../targets/config/ConfigTypes.h"')
         lines.append("")
 
         # Comment with source info

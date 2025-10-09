@@ -52,8 +52,8 @@ class TestCodeGenerator(unittest.TestCase):
         # Should have header guard
         self.assertIn("#pragma once", code)
 
-        # Should include ConfigTypes
-        self.assertIn('#include "ConfigTypes.h"', code)
+        # Should include ConfigTypes (with relative path)
+        self.assertIn('#include "../../../../targets/config/ConfigTypes.h"', code)
 
         # Should have namespace
         self.assertIn("namespace BoardConfig {", code)

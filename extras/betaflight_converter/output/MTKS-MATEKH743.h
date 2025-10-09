@@ -1,13 +1,13 @@
 /*
  * Auto-generated BoardConfig from Betaflight unified target
- * Generated: 2025-10-08 07:45:39
+ * Generated: 2025-10-09 06:03:54
  * Generator: betaflight_target_converter.py
  */
 
 #pragma once
 
-// Copy this file to your sketch folder, or add targets/ to include path
-#include "ConfigTypes.h"  // Expects ConfigTypes.h in same directory
+// Include ConfigTypes.h from targets/config directory
+#include "../../../../targets/config/ConfigTypes.h"
 
 // Board: MATEKH743
 // Manufacturer: MTKS
@@ -86,8 +86,8 @@ namespace BoardConfig {
         uint32_t max_us;
       };
 
-      static constexpr Channel motor1 = {PB0, 3, 125, 250};  // TIM3_CH3
-      static constexpr Channel motor2 = {PB1, 4, 125, 250};  // TIM3_CH4
+      static constexpr Channel motor1 = {PB0_ALT1, 3, 125, 250};  // TIM3_CH3
+      static constexpr Channel motor2 = {PB1_ALT1, 4, 125, 250};  // TIM3_CH4
     };
 
     // TIM4 Bank: Motors 7, 8
@@ -116,10 +116,10 @@ namespace BoardConfig {
         uint32_t max_us;
       };
 
-      static constexpr Channel motor3 = {PA0, 1, 125, 250};  // TIM5_CH1
-      static constexpr Channel motor4 = {PA1, 2, 125, 250};  // TIM5_CH2
-      static constexpr Channel motor5 = {PA2, 3, 125, 250};  // TIM5_CH3
-      static constexpr Channel motor6 = {PA3, 4, 125, 250};  // TIM5_CH4
+      static constexpr Channel motor3 = {PA0_ALT1, 1, 125, 250};  // TIM5_CH1
+      static constexpr Channel motor4 = {PA1_ALT1, 2, 125, 250};  // TIM5_CH2
+      static constexpr Channel motor5 = {PA2_ALT1, 3, 125, 250};  // TIM5_CH3
+      static constexpr Channel motor6 = {PA3_ALT1, 4, 125, 250};  // TIM5_CH4
     };
 
   };
