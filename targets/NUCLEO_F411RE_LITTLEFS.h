@@ -50,5 +50,6 @@ namespace BoardConfig {
 
     static constexpr Channel esc1 = {PB6, 1, 125, 250};  // TIM4_CH1 (D10) - ESC 1
     static constexpr Channel esc2 = {PB7, 2, 125, 250};  // TIM4_CH2 (CN7-21) - ESC 2
+    static constexpr Channel input_capture = {PB10, 3, 125, 250};  // TIM2_CH3 (D6) - Input capture
   };
 }

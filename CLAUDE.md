@@ -510,6 +510,12 @@ Hardware timer-based PWM library for high-resolution (1µs) servo and ESC contro
 - Arduino Servo compatible API (Write method supports 0-180° or µs)
 - Multi-channel support (up to 4 channels per timer)
 - Dual timer support (servos + ESCs simultaneously)
+- **Hardware validated**: PWM channel enable (resumeChannel) correctly implemented per AN4013 Section 2.5
+
+**Implementation Notes**:
+- PWMOutputBank correctly enables channel output via `resumeChannel()` after configuration
+- Per STM32 timer documentation (AN4013 Section 2.5), PWM requires both `resumeChannel(channel)` (CCxE bit) and `resume()` (counter start)
+- See `libraries/TimerPWM/APPROACH.md` for complete implementation details and validation results
 
 ### Betaflight Config Converter ✅ **COMPLETED**
 
@@ -577,25 +583,27 @@ esc_pwm.SetPulseWidth(esc_ch.ch, 187);  // 187 µs midpoint
 esc_pwm.Start();
 ```
 
-**Examples**:
+**Examples** (All use consistent BoardConfig pin assignments):
 - **PWM_Verification**: Single timer validation with input capture
-  - TIM3 @ 50 Hz validated via TIM2 input capture (D5 → A0 jumper)
+  - PWM: PB4/D5 (TIM3_CH1) @ 50 Hz → Capture: PA0/A0 (TIM2_CH1)
   - Hardware measurement: 49.50 Hz ✅ PASS (±2% tolerance)
   - Demonstrates timeout/fail behavior for missing jumpers
   - Deterministic HIL testing with exit wildcard
 
 - **DualTimerPWM**: Demo of simultaneous servo and ESC control
-  - Servo on TIM3 @ 50 Hz (1000-2000 µs pulses)
-  - ESCs on TIM4 @ 1 kHz (125-250 µs OneShot125 pulses)
+  - Servo: PB4/D5 (TIM3) @ 50 Hz (1000-2000 µs pulses)
+  - ESC1: PB6/D10 (TIM4) @ 1 kHz (125-250 µs OneShot125 pulses)
+  - ESC2: PB7/CN7-21 (TIM4) @ 1 kHz
   - Shows practical dual timer operation for flight controllers
 
 - **DualTimerPWM_Verification**: Dual timer hardware validation
-  - TIM3 @ 50 Hz + TIM4 @ 1 kHz validated simultaneously
-  - TIM2 dual-channel input capture (D5 → A0, D10 → D6 jumpers)
+  - Servo PWM: PB4/D5 (TIM3) → Capture: PA0/A0 (TIM2_CH1)
+  - ESC PWM: PB6/D10 (TIM4) → Capture: PB10/D6 (TIM2_CH3)
   - Hardware measurements:
     - Servo: 49.50 Hz ✅ PASS (49-51 Hz tolerance)
     - ESC: 990.10 Hz ✅ PASS (980-1020 Hz tolerance)
   - Proves independent timer operation without crosstalk
+  - All pins configured via BoardConfig for consistent test rig setup
 
 **Hardware Validation Results**:
 - ✅ **Single Timer**: PWM_Verification - 49.50 Hz measured (±2% spec)
@@ -604,8 +612,12 @@ esc_pwm.Start();
 - **Test Features**: 15-second timeout for missing jumpers, helpful error messages
 
 **Documentation**:
-- `libraries/TimerPWM/APPROACH.md` - Design rationale and technical decisions
-- `targets/NUCLEO_F411RE_LITTLEFS.h` - Hardware configuration
+- `libraries/TimerPWM/APPROACH.md` - Design rationale, technical decisions, and channel enable fix
+- `doc/TIMERS.md` - Comprehensive STM32 timer architecture and API reference
+- `doc/TIMERS_PWM_OUT.md` - Practical servo/ESC PWM configuration guide with correct channel enable steps
+- `targets/NUCLEO_F411RE_LITTLEFS.h` - Hardware configuration with standardized pin assignments
+
+**Important**: All timer PWM examples correctly demonstrate the required `resumeChannel()` call per STM32 documentation. Manual PWM configuration requires both channel enable (`resumeChannel()`) and counter start (`resume()`).
 
 ## Future Projects
 
