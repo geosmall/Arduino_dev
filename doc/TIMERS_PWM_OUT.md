@@ -120,23 +120,27 @@ servo_timer->setOverflow(period_us, MICROSEC_FORMAT);  // ARR = 4999
 // Channel 1: PA_6 (TIM3_CH1) - 1500 µs (center position)
 servo_timer->setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA_6);
 servo_timer->setCaptureCompare(1, 1500, MICROSEC_COMPARE_FORMAT);
+servo_timer->resumeChannel(1);  // Enable channel output (CCxE bit)
 
 // Channel 2: PA_7 (TIM3_CH2) - 1000 µs (min position)
 servo_timer->setMode(2, TIMER_OUTPUT_COMPARE_PWM1, PA_7);
 servo_timer->setCaptureCompare(2, 1000, MICROSEC_COMPARE_FORMAT);
+servo_timer->resumeChannel(2);
 
 // Channel 3: PB_0 (TIM3_CH3) - 2000 µs (max position)
 servo_timer->setMode(3, TIMER_OUTPUT_COMPARE_PWM1, PB_0);
 servo_timer->setCaptureCompare(3, 2000, MICROSEC_COMPARE_FORMAT);
+servo_timer->resumeChannel(3);
 
 // Channel 4: PB_1 (TIM3_CH4) - 1750 µs
 servo_timer->setMode(4, TIMER_OUTPUT_COMPARE_PWM1, PB_1);
 servo_timer->setCaptureCompare(4, 1750, MICROSEC_COMPARE_FORMAT);
+servo_timer->resumeChannel(4);
 ```
 
 **Step 4: Start PWM Output**
 ```cpp
-servo_timer->resume();  // All 4 channels start simultaneously
+servo_timer->resume();  // Start timer counter
 ```
 
 ### Runtime Pulse Width Updates
@@ -172,12 +176,13 @@ void setup() {
   servo_timer->setMode(3, TIMER_OUTPUT_COMPARE_PWM1, PB_0);
   servo_timer->setMode(4, TIMER_OUTPUT_COMPARE_PWM1, PB_1);
 
-  // Set initial positions (all center)
+  // Set initial positions (all center) and enable outputs
   for (int ch = 1; ch <= 4; ch++) {
     servo_timer->setCaptureCompare(ch, 1500, MICROSEC_COMPARE_FORMAT);
+    servo_timer->resumeChannel(ch);  // Enable channel output
   }
 
-  servo_timer->resume();
+  servo_timer->resume();  // Start timer counter
 }
 
 void loop() {
@@ -221,23 +226,27 @@ esc_timer->setOverflow(period_us, MICROSEC_FORMAT);  // ARR = 999
 // Channel 1: PA_0 (TIM5_CH1) - Motor 1
 esc_timer->setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA_0);
 esc_timer->setCaptureCompare(1, 125, MICROSEC_COMPARE_FORMAT);  // 0% throttle
+esc_timer->resumeChannel(1);  // Enable channel output
 
 // Channel 2: PA_1 (TIM5_CH2) - Motor 2
 esc_timer->setMode(2, TIMER_OUTPUT_COMPARE_PWM1, PA_1);
 esc_timer->setCaptureCompare(2, 187, MICROSEC_COMPARE_FORMAT);  // 50% throttle
+esc_timer->resumeChannel(2);
 
 // Channel 3: PA_2 (TIM5_CH3) - Motor 3
 esc_timer->setMode(3, TIMER_OUTPUT_COMPARE_PWM1, PA_2);
 esc_timer->setCaptureCompare(3, 250, MICROSEC_COMPARE_FORMAT);  // 100% throttle
+esc_timer->resumeChannel(3);
 
 // Channel 4: PA_3 (TIM5_CH4) - Motor 4
 esc_timer->setMode(4, TIMER_OUTPUT_COMPARE_PWM1, PA_3);
 esc_timer->setCaptureCompare(4, 156, MICROSEC_COMPARE_FORMAT);  // 25% throttle
+esc_timer->resumeChannel(4);
 ```
 
 **Step 4: Start PWM**
 ```cpp
-esc_timer->resume();
+esc_timer->resume();  // Start timer counter
 ```
 
 ### Throttle Conversion Helper
@@ -281,12 +290,13 @@ void setup() {
   esc_timer->setMode(3, TIMER_OUTPUT_COMPARE_PWM1, PA_2);
   esc_timer->setMode(4, TIMER_OUTPUT_COMPARE_PWM1, PA_3);
 
-  // Initialize all ESCs to 0% throttle (125 µs)
+  // Initialize all ESCs to 0% throttle (125 µs) and enable outputs
   for (int ch = 1; ch <= 4; ch++) {
     esc_timer->setCaptureCompare(ch, throttleToOneShot125(0), MICROSEC_COMPARE_FORMAT);
+    esc_timer->resumeChannel(ch);  // Enable channel output
   }
 
-  esc_timer->resume();
+  esc_timer->resume();  // Start timer counter
 
   // ESC calibration sequence (if needed)
   delay(1000);  // Wait for ESCs to initialize
@@ -459,7 +469,26 @@ timer->refresh();      // Force register update
 
 ## Best Practices
 
-### 1. Always Use Dynamic Allocation
+### 1. Enable Channels for Manual PWM Configuration
+```cpp
+// ✅ GOOD: Manual configuration with channel enable
+timer->setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA_6);
+timer->setCaptureCompare(1, 1500, MICROSEC_COMPARE_FORMAT);
+timer->resumeChannel(1);  // Enable channel output (CCxE bit)
+timer->resume();          // Start timer counter
+
+// ❌ BAD: Missing channel enable - no PWM output!
+timer->setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA_6);
+timer->setCaptureCompare(1, 1500, MICROSEC_COMPARE_FORMAT);
+timer->resume();  // Counter runs but channel output disabled
+
+// ✅ GOOD: setPWM() handles both automatically
+timer->setPWM(1, PA_6, 200, 50);  // Calls resumeChannel() internally
+```
+
+**Note**: Per STM32 timer documentation (AN4013 Section 2.5), PWM generation requires enabling the capture/compare output (CCxE bit) via `resumeChannel()`. The all-in-one `setPWM()` method handles this automatically, but manual configuration requires explicit `resumeChannel()` call.
+
+### 2. Always Use Dynamic Allocation
 ```cpp
 // ✅ GOOD: Persists after setup()
 HardwareTimer *timer = new HardwareTimer(TIM3);
@@ -468,7 +497,7 @@ HardwareTimer *timer = new HardwareTimer(TIM3);
 HardwareTimer timer(TIM3);
 ```
 
-### 2. Query Timer Clock Dynamically
+### 3. Query Timer Clock Dynamically
 ```cpp
 // ✅ GOOD: Portable across boards/configs
 uint32_t timer_clk = timer->getTimerClkFreq();
@@ -478,7 +507,7 @@ uint32_t PSC = (timer_clk / 1'000'000) - 1;
 uint32_t PSC = 49;  // Only works for 50 MHz timer clock
 ```
 
-### 3. Use Microsecond Format for Clarity
+### 4. Use Microsecond Format for Clarity
 ```cpp
 // ✅ GOOD: Clear intent
 timer->setOverflow(5000, MICROSEC_FORMAT);           // 5 ms period
@@ -489,7 +518,7 @@ timer->setOverflow(4999, TICK_FORMAT);
 timer->setCaptureCompare(1, 1499, TICK_COMPARE_FORMAT);
 ```
 
-### 4. No pinMode() Needed
+### 5. No pinMode() Needed
 ```cpp
 // ✅ GOOD: HardwareTimer handles GPIO config
 timer->setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA_6);
@@ -499,7 +528,7 @@ pinMode(PA_6, OUTPUT);
 timer->setMode(1, TIMER_OUTPUT_COMPARE_PWM1, PA_6);
 ```
 
-### 5. Update During Pause for Major Changes
+### 6. Update During Pause for Major Changes
 ```cpp
 // ✅ GOOD: Safe reconfiguration
 timer->pause();
@@ -512,7 +541,7 @@ timer->resume();
 timer->setCaptureCompare(1, new_pulse, MICROSEC_COMPARE_FORMAT);
 ```
 
-### 6. Constrain User Inputs
+### 7. Constrain User Inputs
 ```cpp
 // ✅ GOOD: Safety limits
 uint32_t servo_pulse_us = constrain(user_input, 1000, 2000);
