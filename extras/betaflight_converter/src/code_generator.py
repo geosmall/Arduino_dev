@@ -183,7 +183,7 @@ class BoardConfigGenerator:
 
         lines = [
             f"  // IMU: {chip_comment} on {spi_bus.bus_name}",
-            f"  static constexpr SPIConfig imu_spi{{{spi_bus.mosi}, {spi_bus.miso}, {spi_bus.sclk}, {cs_pin}, 8000000, CS_Mode::HARDWARE}};",
+            f"  static constexpr SPIConfig imu_spi{{{spi_bus.mosi}, {spi_bus.miso}, {spi_bus.sclk}, {cs_pin}, 8000000}};",
             f"  static constexpr IMUConfig imu{{imu_spi, {int_pin}, 1000000}};",
             ""
         ]

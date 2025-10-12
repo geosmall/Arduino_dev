@@ -45,8 +45,12 @@ volatile uint32_t motor4_period_us = 0;
 volatile bool motor1_ready = false;
 volatile bool motor4_ready = false;
 
+volatile uint32_t motor1_callback_count = 0;
+volatile uint32_t motor4_callback_count = 0;
+
 void motor1CaptureCallback() {
   // TIM1 motor measurement on TIM2_CH1
+  motor1_callback_count++;
   static uint32_t last_capture = 0;
   uint32_t current_capture = tim2.getCaptureCompare(1);
 
@@ -62,6 +66,7 @@ void motor1CaptureCallback() {
 
 void motor4CaptureCallback() {
   // TIM3 motor measurement on TIM2_CH2
+  motor4_callback_count++;
   static uint32_t last_capture = 0;
   uint32_t current_capture = tim2.getCaptureCompare(2);
 
@@ -99,8 +104,8 @@ void setup() {
     while (1);
   }
 
-  // Set motor to off/idle (0 µs for DSHOT)
-  motor_tim1.SetPulseWidth(motor1.ch, 100);  // Small pulse for measurement
+  // Set motor to 50% duty cycle for reliable measurement
+  motor_tim1.SetPulseWidth(motor1.ch, 500);  // 500 µs @ 1 kHz = 50% duty
   motor_tim1.Start();
   CI_LOG("✓ Motor1 (TIM1): PA8 @ 1000 Hz\n\n");
 
@@ -117,23 +122,26 @@ void setup() {
     while (1);
   }
 
-  // Set motor to off/idle
-  motor_tim3.SetPulseWidth(motor4.ch, 100);  // Small pulse for measurement
+  // Set motor to 50% duty cycle for reliable measurement
+  motor_tim3.SetPulseWidth(motor4.ch, 500);  // 500 µs @ 1 kHz = 50% duty
   motor_tim3.Start();
   CI_LOG("✓ Motor4 (TIM3): PB0 @ 1000 Hz\n\n");
 
   // ========== Configure Input Capture (TIM2 with 2 channels) ==========
-  // Configure timer base
-  tim2.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick rate
-  tim2.setOverflow(0xFFFFFFFF);  // Max period (32-bit timer)
-
   // Configure CH1 for Motor1 (TIM1) measurement
   tim2.setMode(1, TIMER_INPUT_CAPTURE_RISING, PA0);
-  tim2.attachInterrupt(1, motor1CaptureCallback);
-  CI_LOG("✓ Motor1 Capture: PA0 (TIM2_CH1)\n");
 
   // Configure CH2 for Motor4 (TIM3) measurement
   tim2.setMode(2, TIMER_INPUT_CAPTURE_RISING, PA1);
+
+  // Configure timer base (after setMode)
+  tim2.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick rate
+  tim2.setOverflow(0xFFFFFFFF);  // Max period (32-bit timer)
+
+  // Attach interrupt callbacks
+  tim2.attachInterrupt(1, motor1CaptureCallback);
+  CI_LOG("✓ Motor1 Capture: PA0 (TIM2_CH1)\n");
+
   tim2.attachInterrupt(2, motor4CaptureCallback);
   CI_LOG("✓ Motor4 Capture: PA1 (TIM2_CH2)\n");
 
@@ -158,6 +166,7 @@ void loop() {
   const uint32_t TIMEOUT_MS = 15000;
   if (millis() - start_time > TIMEOUT_MS && measurement_count == 0) {
     CI_LOG("\n✗ TIMEOUT: No measurements received after 15 seconds\n");
+    CI_LOGF("Callback counts: Motor1=%lu, Motor4=%lu\n", motor1_callback_count, motor4_callback_count);
     CI_LOG("Check jumper connections:\n");
     CI_LOG("  1. PA8 → PA0 (Motor1/TIM1)\n");
     CI_LOG("  2. PB0 → PA1 (Motor4/TIM3)\n");

@@ -45,7 +45,10 @@ Generating BoardConfig: output/JHEF-JHEF411.h
 ### Testing
 
 ```bash
-# Install pytest (one-time)
+# Install pytest (one-time) - Recommended
+pipx install pytest
+
+# Or via pip (if pipx not available)
 pip install pytest
 
 # Run tests

@@ -1,6 +1,6 @@
 /*
  * Auto-generated BoardConfig from Betaflight unified target
- * Generated: 2025-10-09 06:03:54
+ * Generated: 2025-10-12 06:48:21
  * Generator: betaflight_target_converter.py
  */
 
@@ -15,7 +15,7 @@
 // Gyro: MPU6500, MPU6000, ICM42688P, ICM42605
 namespace BoardConfig {
   // IMU: MPU6500, MPU6000, ICM42688P, ICM42605 on SPI1
-  static constexpr SPIConfig imu_spi{PD7, PA6, PA5, PC15, 8000000, CS_Mode::HARDWARE};
+  static constexpr SPIConfig imu_spi{PD7, PA6, PA5, PC15, 8000000};
   static constexpr IMUConfig imu{imu_spi, PB2, 1000000};
 
   // I2C1: Airspeed sensor, external compass

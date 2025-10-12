@@ -14,11 +14,13 @@ find tests/ libraries/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || tr
 echo "Removing auto-generated build_id.h files..."
 find . -name "build_id.h" -delete 2>/dev/null || true
 
-# Remove binary artifacts
+# Remove binary artifacts (excluding library documentation)
 echo "Removing binary artifacts..."
 find . -name "*.bin" -delete 2>/dev/null || true
 find . -name "*.hex" -delete 2>/dev/null || true
 find . -name "*.elf" -delete 2>/dev/null || true
+# Remove .map files but exclude library docs (e.g., Doxygen HTML imagemaps)
+find . -name "*.map" -not -path "*/libraries/*/docs/*" -delete 2>/dev/null || true
 
 # Remove Arduino CLI cache artifacts (if any leaked into repo)
 echo "Removing Arduino CLI artifacts..."

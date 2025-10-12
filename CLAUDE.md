@@ -531,6 +531,16 @@ Python tool that converts Betaflight unified target configurations into Arduino 
 - **Motor Timer Grouping**: Groups motors by timer banks for TimerPWM integration
 - **Cross-Platform**: Works on Windows, macOS, Linux with Python 3.7+
 
+**Testing**:
+```bash
+# Install pytest (one-time) - Recommended
+pipx install pytest
+
+# Run tests from converter directory
+cd extras/betaflight_converter && pytest -v
+# Expected: 53 tests passing
+```
+
 **Supported MCUs**:
 - STM32F411 (F411CE - BlackPill, JHEF411 - NOXE V3)
 - STM32F405 (F405RG - common in flight controllers)
@@ -554,12 +564,32 @@ python3 convert.py data/MTKS-MATEKH743.config  # Generates output/MTKS-MATEKH743
 - Motors (DSHOT/OneShot) → `Motor` namespace
 
 **Validated Targets**:
-- ✅ JHEF-JHEF411 (NOXE V3) - 5 motors, SPI flash, dual SPI buses → `output/JHEF-JHEF411.h`
+- ✅ JHEF-JHEF411 (NOXE V3) - 5 motors, SPI flash, dual SPI buses
+  - Generated config: `output/JHEF-JHEF411.h` (8MHz SPI for hardwired boards)
+  - HIL test config: `targets/NUCLEO_F411RE_JHEF411.h` (1MHz SPI for jumper wire testing)
 - ✅ MTKS-MATEKH743 (H743-WLITE) - 8 motors, 2 servos, dual gyros, 7 UARTs, SD card → `output/MTKS-MATEKH743.h`
 
 **Naming Convention**: Follows madflight - output filename matches config filename (e.g., `JHEF-JHEF411.config` → `JHEF-JHEF411.h`)
 
+**CS Mode Selection**: Generator uses software chip select (default) for maximum library compatibility. Hardware CS mode removed in commit fixing ICM42688P library integration.
+
 **Documentation**: See `extras/betaflight_converter/README.md` for quick start
+
+**Converter Examples**:
+- **example-icm42688p-minimal**: Basic ICM42688P WHO_AM_I verification using generated config
+  - Tests SPI communication and chip detection
+  - Validates generated IMU config (SPI pins, CS, frequency)
+  - Expected: 5 continuous WHO_AM_I reads returning 0x47
+- **simple_pwm_test**: Direct HardwareTimer PWM generation with digitalRead() verification
+  - TIM1 (PA8) and TIM3 (PB0) @ 1kHz, 50% duty cycle
+  - Uses digitalRead() polling for duty cycle measurement
+  - Expected: ~49% duty cycle on both pins
+  - Status: ✅ PASSING (48.8% / 48.7% measured)
+- **motor_pwm_verification**: PWMOutputBank with TIM2 input capture measurement
+  - Uses PWMOutputBank to generate PWM on Motor1 (PA8/TIM1) and Motor4 (PB0/TIM3)
+  - Uses TIM2 input capture on PA0/PA1 to measure actual frequencies
+  - Status: ⚠️ KNOWN ISSUE - Input capture callbacks never fire despite PWM signals present
+  - Note: digitalRead confirms PWM present, but TIM2 input capture doesn't detect edges
 
 **Usage Example**:
 ```cpp

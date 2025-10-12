@@ -2,12 +2,15 @@
  * Auto-generated BoardConfig from Betaflight unified target
  * Generated: 2025-10-12 06:47:32
  * Generator: betaflight_target_converter.py
+ *
+ * Modified for NUCLEO_F411RE HIL testing:
+ * - SPI frequencies reduced to 1 MHz (jumper wire compatible)
  */
 
 #pragma once
 
 // Include ConfigTypes.h from targets/config directory
-#include "../../../../targets/config/ConfigTypes.h"
+#include "config/ConfigTypes.h"
 
 // Board: JHEF411
 // Manufacturer: JHEF
@@ -15,10 +18,10 @@
 // Gyro: MPU6000, ICM42688P
 namespace BoardConfig {
   // Storage: W25Q128FV SPI flash on SPI2
-  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PB15, PB14, PB13, PB2, 8000000};
+  static constexpr StorageConfig storage{StorageBackend::LITTLEFS, PB15, PB14, PB13, PB2, 1000000};
 
   // IMU: MPU6000, ICM42688P on SPI1
-  static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 8000000};
+  static constexpr SPIConfig imu_spi{PA7, PA6, PA5, PA4, 1000000};
   static constexpr IMUConfig imu{imu_spi, PB3, 1000000};
 
   // I2C1: Environmental sensors
