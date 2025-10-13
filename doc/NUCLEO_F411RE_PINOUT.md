@@ -4,7 +4,7 @@ Complete pin mapping for STM32 NUCLEO-F411RE development board.
 
 ## Arduino Connector Pins
 
-### CN6 - Left Arduino Shield Connector (1×8 female socket)
+### CN6 - Left Arduino Shield Connector (Power)
 Located between CN7 morpho header and Arduino connectors, provides power and I2C:
 
 | Pin | Function | Notes |
@@ -73,99 +73,51 @@ Located between CN7 morpho header and Arduino connectors, provides power and I2C
 
 ### CN7 - Left Morpho Header (2×19 pins)
 
-#### Odd Row (Pins 1, 3, 5, ..., 37)
-| Pin | STM32 Pin | Function |
-|-----|-----------|----------|
-| 1   | PC10      | SPI3_SCK, USART3_TX, SDIO_D2 |
-| 3   | PC12      | SPI3_MOSI, USART3_CK, SDIO_CK |
-| 5   | VDD       | +3.3V Power |
-| 7   | BOOT0     | Boot mode select |
-| 9   | NC        | Not connected |
-| 11  | NC        | Not connected |
-| 13  | PA13      | SWDIO (Debug) |
-| 15  | PA14      | SWCLK (Debug) |
-| 17  | PA15      | SPI1_NSS, SPI3_NSS, TIM2_CH1 |
-| 19  | GND       | Ground |
-| 21  | PB7       | I2C1_SDA, USART1_RX, TIM4_CH2 |
-| 23  | PC13      | RTC_OUT, User button |
-| 25  | PC14      | OSC32_IN (RTC crystal) |
-| 27  | PC15      | OSC32_OUT (RTC crystal) |
-| 29  | PH0       | OSC_IN (External oscillator) |
-| 31  | PH1       | OSC_OUT (External oscillator) |
-| 33  | VBAT      | Battery backup power |
-| 35  | PC2       | ADC1_IN12, SPI2_MISO |
-| 37  | PC3       | ADC1_IN13, SPI2_MOSI |
-
-#### Even Row (Pins 2, 4, 6, ..., 38)
-| Pin | STM32 Pin | Function |
-|-----|-----------|----------|
-| 2   | PC11      | SPI3_MISO, USART3_RX, SDIO_D3 |
-| 4   | PD2       | USART5_RX, TIM3_ETR, SDIO_CMD |
-| 6   | E5V       | External 5V power |
-| 8   | GND       | Ground |
-| 10  | NC        | Not connected |
-| 12  | IOREF     | I/O reference voltage |
-| 14  | RESET     | System reset |
-| 16  | +3V3      | +3.3V Power |
-| 18  | +5V       | +5V Power |
-| 20  | GND       | Ground |
-| 22  | GND       | Ground |
-| 24  | VIN       | External power input |
-| 26  | NC        | Not connected |
-| 28  | PA0       | A0 (see CN8) |
-| 30  | PA1       | A1 (see CN8) |
-| 32  | PA4       | A2 (see CN8) |
-| 34  | PB0       | A3 (see CN8) |
-| 36  | PC1       | A4 (see CN8) |
-| 38  | PC0       | A5 (see CN8) |
+| Odd Pin | STM32 Pin | Function | Even Pin | STM32 Pin | Function |
+|---------|-----------|----------|----------|-----------|----------|
+| 1  | PC10  | SPI3_SCK, USART3_TX, SDIO_D2 | 2  | PC11  | SPI3_MISO, USART3_RX, SDIO_D3 |
+| 3  | PC12  | SPI3_MOSI, USART3_CK, SDIO_CK | 4  | PD2   | USART5_RX, TIM3_ETR, SDIO_CMD |
+| 5  | VDD   | +3.3V Power | 6  | E5V   | External 5V power |
+| 7  | BOOT0 | Boot mode select | 8  | GND   | Ground |
+| 9  | NC    | Not connected | 10 | NC    | Not connected |
+| 11 | NC    | Not connected | 12 | IOREF | I/O reference voltage |
+| 13 | PA13  | SWDIO (Debug) | 14 | RESET | System reset |
+| 15 | PA14  | SWCLK (Debug) | 16 | +3V3  | +3.3V Power |
+| 17 | PA15  | SPI1_NSS, SPI3_NSS, TIM2_CH1 | 18 | +5V   | +5V Power |
+| 19 | GND   | Ground | 20 | GND   | Ground |
+| 21 | PB7   | I2C1_SDA, USART1_RX, TIM4_CH2 | 22 | GND   | Ground |
+| 23 | PC13  | RTC_OUT, User button | 24 | VIN   | External power input |
+| 25 | PC14  | OSC32_IN (RTC crystal) | 26 | NC    | Not connected |
+| 27 | PC15  | OSC32_OUT (RTC crystal) | 28 | PA0   | A0 (see CN8) |
+| 29 | PH0   | OSC_IN (External oscillator) | 30 | PA1   | A1 (see CN8) |
+| 31 | PH1   | OSC_OUT (External oscillator) | 32 | PA4   | A2 (see CN8) |
+| 33 | VBAT  | Battery backup power | 34 | PB0   | A3 (see CN8) |
+| 35 | PC2   | ADC1_IN12, SPI2_MISO | 36 | PC1   | A4 (see CN8) |
+| 37 | PC3   | ADC1_IN13, SPI2_MOSI | 38 | PC0   | A5 (see CN8) |
 
 ### CN10 - Right Morpho Header (2×19 pins)
 
-#### Odd Row (Pins 1, 3, 5, ..., 37)
-| Pin | STM32 Pin | Function |
-|-----|-----------|----------|
-| 1   | PC9       | TIM3_CH4, TIM8_CH4, I2C3_SDA, SDIO_D1 |
-| 3   | PB8       | D15 (see CN9) |
-| 5   | PB9       | D14 (see CN9) |
-| 7   | AVDD      | Analog power supply |
-| 9   | GND       | Ground |
-| 11  | PA5       | D13 (see CN9) |
-| 13  | PA6       | D12 (see CN9) |
-| 15  | PA7       | D11 (see CN9) |
-| 17  | PB6       | D10 (see CN9) |
-| 19  | PC7       | D9 (see CN9) |
-| 21  | PA9       | D8 (see CN9) |
-| 23  | PA8       | D7 (see CN9) |
-| 25  | PB10      | D6 (see CN9) |
-| 27  | PB4       | D5 (see CN9) |
-| 29  | PB5       | D4 (see CN9) |
-| 31  | PB3       | D3 (see CN9) |
-| 33  | PA10      | D2 (see CN9) |
-| 35  | PA2       | D1 (see CN9) |
-| 37  | PA3       | D0 (see CN9) |
-
-#### Even Row (Pins 2, 4, 6, ..., 38)
-| Pin | STM32 Pin | Function |
-|-----|-----------|----------|
-| 2   | PC8       | TIM3_CH3, TIM8_CH3, SDIO_D0 |
-| 4   | PC6       | TIM3_CH1, TIM8_CH1, USART6_TX, I2S2_MCK |
-| 6   | PC5       | ADC1_IN15 |
-| 8   | U5V       | USB 5V power |
-| 10  | NC        | Not connected |
-| 12  | PA12      | USB_DP, TIM1_ETR, USART1_RTS |
-| 14  | PA11      | USB_DM, TIM1_CH4, USART1_CTS |
-| 16  | PB12      | SPI2_NSS, I2C2_SMBA, TIM1_BKIN, USART3_CK |
-| 18  | NC        | Not connected |
-| 20  | GND       | Ground |
-| 22  | PB2       | Boot1 |
-| 24  | PB1       | ADC1_IN9, TIM1_CH3N, TIM3_CH4 |
-| 26  | PB15      | SPI2_MOSI, TIM1_CH3N |
-| 28  | PB14      | SPI2_MISO, TIM1_CH2N |
-| 30  | PB13      | SPI2_SCK, TIM1_CH1N |
-| 32  | AGND      | Analog ground |
-| 34  | PC4       | ADC1_IN14 |
-| 36  | NC        | Not connected |
-| 38  | NC        | Not connected |
+| Odd Pin | STM32 Pin | Function | Even Pin | STM32 Pin | Function |
+|---------|-----------|----------|----------|-----------|----------|
+| 1  | PC9  | TIM3_CH4, TIM8_CH4, I2C3_SDA, SDIO_D1 | 2  | PC8  | TIM3_CH3, TIM8_CH3, SDIO_D0 |
+| 3  | PB8  | D15 (see CN9) | 4  | PC6  | TIM3_CH1, TIM8_CH1, USART6_TX, I2S2_MCK |
+| 5  | PB9  | D14 (see CN9) | 6  | PC5  | ADC1_IN15 |
+| 7  | AVDD | Analog power supply | 8  | U5V  | USB 5V power |
+| 9  | GND  | Ground | 10 | NC   | Not connected |
+| 11 | PA5  | D13 (see CN9) | 12 | PA12 | USB_DP, TIM1_ETR, USART1_RTS |
+| 13 | PA6  | D12 (see CN9) | 14 | PA11 | USB_DM, TIM1_CH4, USART1_CTS |
+| 15 | PA7  | D11 (see CN9) | 16 | PB12 | SPI2_NSS, I2C2_SMBA, TIM1_BKIN, USART3_CK |
+| 17 | PB6  | D10 (see CN9) | 18 | NC   | Not connected |
+| 19 | PC7  | D9 (see CN9) | 20 | GND  | Ground |
+| 21 | PA9  | D8 (see CN9) | 22 | PB2  | Boot1 |
+| 23 | PA8  | D7 (see CN9) | 24 | PB1  | ADC1_IN9, TIM1_CH3N, TIM3_CH4 |
+| 25 | PB10 | D6 (see CN9) | 26 | PB15 | SPI2_MOSI, TIM1_CH3N |
+| 27 | PB4  | D5 (see CN9) | 28 | PB14 | SPI2_MISO, TIM1_CH2N |
+| 29 | PB5  | D4 (see CN9) | 30 | PB13 | SPI2_SCK, TIM1_CH1N |
+| 31 | PB3  | D3 (see CN9) | 32 | AGND | Analog ground |
+| 33 | PA10 | D2 (see CN9) | 34 | PC4  | ADC1_IN14 |
+| 35 | PA2  | D1 (see CN9) | 36 | NC   | Not connected |
+| 37 | PA3  | D0 (see CN9) | 38 | NC   | Not connected |
 
 ## Special Function Pins
 
@@ -258,7 +210,7 @@ Located between CN7 morpho header and Arduino connectors, provides power and I2C
 
 ### I2C2
 - **SCL**: PB10 (D6)
-- **SDA**: (Not available on headers)
+- **SDA**: PB3 (D3)
 
 ### I2C3
 - **SCL**: PA8 (D7)
@@ -275,11 +227,12 @@ Located between CN7 morpho header and Arduino connectors, provides power and I2C
 - **RX**: PA3 (D0)
 
 ### USART3
-- **TX**: PC10
-- **RX**: PC11
+- **TX**: PC10 (CN7-1)
+- **RX**: PC11 (CN7-2)
 
 ### USART6
 - **TX**: PC6
+- **RX**: PC7 (D9)
 
 ## ADC Channels
 
@@ -289,14 +242,16 @@ All ADC channels are on ADC1:
 |-------------|-----------|-------------|
 | A0          | PA0       | IN0         |
 | A1          | PA1       | IN1         |
+| D1          | PA2       | IN2         |
+| D0          | PA3       | IN3         |
 | A2          | PA4       | IN4         |
-| A3          | PB0       | IN8         |
-| A4          | PC1       | IN11        |
-| A5          | PC0       | IN10        |
-| D11         | PA7       | IN7         |
-| D12         | PA6       | IN6         |
 | D13         | PA5       | IN5         |
+| D12         | PA6       | IN6         |
+| D11         | PA7       | IN7         |
+| A3          | PB0       | IN8         |
 | -           | PB1       | IN9         |
+| A5          | PC0       | IN10        |
+| A4          | PC1       | IN11        |
 | -           | PC2       | IN12        |
 | -           | PC3       | IN13        |
 | -           | PC4       | IN14        |
