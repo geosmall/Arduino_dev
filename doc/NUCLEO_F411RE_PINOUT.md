@@ -190,7 +190,7 @@ Located between CN7 morpho header and Arduino connectors, provides power and I2C
 ## Timer Channel Availability
 
 ### Timer 1 (Advanced Control)
-- CH1: PA8 (D7), PA7_ALT (D11)
+- CH1: PA8 (D7)
 - CH2: PA9 (D8)
 - CH3: PA10 (D2)
 - CH4: PA11 (USB_DM)
@@ -206,9 +206,9 @@ Located between CN7 morpho header and Arduino connectors, provides power and I2C
 
 ### Timer 3 (General Purpose)
 - CH1: PA6 (D12), PB4 (D5), PC6
-- CH2: PA7 (D11), PB5 (D4), PC7 (D9)
-- CH3: PB0 (A3), PC8
-- CH4: PB1, PC9
+- CH2: PA7_ALT1 (D11), PB5 (D4), PC7 (D9)
+- CH3: PB0_ALT1 (A3), PC8
+- CH4: PB1_ALT1, PC9
 
 ### Timer 4 (General Purpose)
 - CH1: PB6 (D10)
@@ -312,11 +312,12 @@ All ADC channels are on ADC1:
 ## Notes
 
 1. **Pin Conflicts**: Some pins have multiple functions. Check PeripheralPins.c for ALT variants.
-2. **PWM Channels**: D9 and D11 both use TIM3_CH2 - cannot be used simultaneously for PWM.
-3. **ST-LINK UART**: USART2 (PA2/PA3) is connected to ST-LINK for USB serial communication.
-4. **LED Pin**: PA5 (D13) has an onboard LED - may affect ADC/DAC readings.
-5. **User Button**: PC13 has an onboard button and RTC output - use carefully.
-6. **USB Pins**: PA11/PA12 are dedicated to USB - avoid using for other purposes if USB is needed.
+2. **ALT Variants Required**: Some timer channels REQUIRE ALT variants (e.g., PB0_ALT1 for TIM3_CH3, PA7_ALT1 for TIM3_CH2). Using the base pin (PB0, PA7) will select the default timer mapping (TIM1_CH2N, TIM1_CH1N respectively).
+3. **PWM Channels**: D9 and D11 both use TIM3_CH2 - cannot be used simultaneously for PWM.
+4. **ST-LINK UART**: USART2 (PA2/PA3) is connected to ST-LINK for USB serial communication.
+5. **LED Pin**: PA5 (D13) has an onboard LED - may affect ADC/DAC readings.
+6. **User Button**: PC13 has an onboard button and RTC output - use carefully.
+7. **USB Pins**: PA11/PA12 are dedicated to USB - avoid using for other purposes if USB is needed.
 
 ## References
 
