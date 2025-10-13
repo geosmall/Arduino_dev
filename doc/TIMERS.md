@@ -92,19 +92,27 @@ void setPWM(uint32_t channel, PinName pin,
             callback_function_t CompareCallback = nullptr);
 ```
 
-Internally calls: `setMode()` → `setOverflow()` → `setCaptureCompare()` → `resume()`
+Internally calls: `setMode()` → `setOverflow()` → `setCaptureCompare()` → `resumeChannel()` → `resume()`
+
+**Note**: `setPWM()` handles both channel enable (`resumeChannel()`) and counter start (`resume()`). When manually configuring PWM, you must call both methods explicitly.
 
 ### Timer Control
 
 ```cpp
-void resume();              // Start timer and all channels
-void pause();               // Stop timer and all channels
-void resumeChannel(uint32_t channel);  // Start specific channel
-void pauseChannel(uint32_t channel);   // Stop specific channel
+void resume();              // Start timer counter (global)
+void pause();               // Stop timer counter (global)
+void resumeChannel(uint32_t channel);  // Enable channel output (CCxE bit)
+void pauseChannel(uint32_t channel);   // Disable channel output (CCxE bit)
 void refresh();             // Force register update (trigger UG event)
-bool isRunning();           // Check if timer is running
+bool isRunning();           // Check if timer counter is running
 bool isRunningChannel(uint32_t channel);
 ```
+
+**Important**: For PWM generation, you need **both**:
+1. `resumeChannel(channel)` - Enables the channel output (sets CCxE bit per AN4013 Section 2.5)
+2. `resume()` - Starts the timer counter
+
+The `setPWM()` method handles both automatically. When manually configuring PWM, you must call both methods.
 
 ### Format Enums
 
@@ -806,7 +814,13 @@ void setup() {
   timer->setCaptureCompare(3, 2000, MICROSEC_COMPARE_FORMAT);  // 2.0 ms
   timer->setCaptureCompare(4, 1250, MICROSEC_COMPARE_FORMAT);  // 1.25 ms
 
-  // 4. Start PWM
+  // 4. Enable channel outputs (CCxE bit - required for PWM generation)
+  timer->resumeChannel(1);
+  timer->resumeChannel(2);
+  timer->resumeChannel(3);
+  timer->resumeChannel(4);
+
+  // 5. Start timer counter
   timer->resume();
 }
 ```

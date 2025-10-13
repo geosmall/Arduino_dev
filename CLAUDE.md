@@ -510,6 +510,86 @@ Hardware timer-based PWM library for high-resolution (1µs) servo and ESC contro
 - Arduino Servo compatible API (Write method supports 0-180° or µs)
 - Multi-channel support (up to 4 channels per timer)
 - Dual timer support (servos + ESCs simultaneously)
+- **Hardware validated**: PWM channel enable (resumeChannel) correctly implemented per AN4013 Section 2.5
+
+**Implementation Notes**:
+- PWMOutputBank correctly enables channel output via `resumeChannel()` after configuration
+- Per STM32 timer documentation (AN4013 Section 2.5), PWM requires both `resumeChannel(channel)` (CCxE bit) and `resume()` (counter start)
+- See `libraries/TimerPWM/APPROACH.md` for complete implementation details and validation results
+
+### Betaflight Config Converter ✅ **COMPLETED**
+
+Python tool that converts Betaflight unified target configurations into Arduino STM32 BoardConfig headers with comprehensive validation.
+
+**Location**: `extras/betaflight_converter/`
+
+**Key Features**:
+- **Parser→Validator→Generator Pipeline**: Clean architecture with 53 passing tests
+- **PeripheralPins.c Validation**: Cross-validates all pins against Arduino Core STM32 variants
+- **ALT Variant Handling**: Automatically detects and generates ALT pin variants (e.g., PB0_ALT1) for timer/AF conflicts
+- **Multi-Variant MCU Support**: Automatically finds correct variant for different chip packages
+- **Motor Timer Grouping**: Groups motors by timer banks for TimerPWM integration
+- **Cross-Platform**: Works on Windows, macOS, Linux with Python 3.7+
+
+**Testing**:
+```bash
+# Install pytest (one-time) - Recommended
+pipx install pytest
+
+# Run tests from converter directory
+cd extras/betaflight_converter && pytest -v
+# Expected: 53 tests passing
+```
+
+**Supported MCUs**:
+- STM32F411 (F411CE - BlackPill, JHEF411 - NOXE V3)
+- STM32F405 (F405RG - common in flight controllers)
+- STM32F745 (F7 series)
+- STM32H743 (H743VIH6 - Matek H743-WLITE, H743ZIT6 - Nucleo boards)
+
+**Usage**:
+```bash
+cd extras/betaflight_converter
+python3 convert.py data/MTKS-MATEKH743.config  # Generates output/MTKS-MATEKH743.h
+```
+
+**Generated Configs Include**:
+- Storage (SPI flash/SD card) → `StorageConfig`
+- IMU (gyro + interrupt) → `IMUConfig`
+- I2C sensors → `I2CConfig`
+- UARTs → `UARTConfig`
+- ADC battery monitoring → `ADCConfig`
+- Status LEDs → `LEDConfig`
+- Servos (50 Hz PWM) → `Servo` namespace
+- Motors (DSHOT/OneShot) → `Motor` namespace
+
+**Validated Targets**:
+- ✅ JHEF-JHEF411 (NOXE V3) - 5 motors, SPI flash, dual SPI buses
+  - Generated config: `output/JHEF-JHEF411.h` (8MHz SPI for hardwired boards)
+  - HIL test config: `targets/NUCLEO_F411RE_JHEF411.h` (1MHz SPI for jumper wire testing)
+- ✅ MTKS-MATEKH743 (H743-WLITE) - 8 motors, 2 servos, dual gyros, 7 UARTs, SD card → `output/MTKS-MATEKH743.h`
+
+**Naming Convention**: Follows madflight - output filename matches config filename (e.g., `JHEF-JHEF411.config` → `JHEF-JHEF411.h`)
+
+**CS Mode Selection**: Generator uses software chip select (default) for maximum library compatibility. Hardware CS mode removed in commit fixing ICM42688P library integration.
+
+**Documentation**: See `extras/betaflight_converter/README.md` for quick start
+
+**Converter Examples**:
+- **example-icm42688p-minimal**: Basic ICM42688P WHO_AM_I verification using generated config
+  - Tests SPI communication and chip detection
+  - Validates generated IMU config (SPI pins, CS, frequency)
+  - Expected: 5 continuous WHO_AM_I reads returning 0x47
+- **simple_pwm_test**: Direct HardwareTimer PWM generation with digitalRead() verification
+  - TIM1 (PA8) and TIM3 (PB0) @ 1kHz, 50% duty cycle
+  - Uses digitalRead() polling for duty cycle measurement
+  - Expected: ~49% duty cycle on both pins
+  - Status: ✅ PASSING (48.8% / 48.7% measured)
+- **motor_pwm_verification**: PWMOutputBank with TIM2 input capture measurement
+  - Uses PWMOutputBank to generate PWM on Motor1 (PA8/TIM1) and Motor4 (PB0/TIM3)
+  - Uses TIM2 input capture on PA0/PA1 to measure actual frequencies
+  - Status: ⚠️ KNOWN ISSUE - Input capture callbacks never fire despite PWM signals present
+  - Note: digitalRead confirms PWM present, but TIM2 input capture doesn't detect edges
 
 **Usage Example**:
 ```cpp
@@ -533,25 +613,27 @@ esc_pwm.SetPulseWidth(esc_ch.ch, 187);  // 187 µs midpoint
 esc_pwm.Start();
 ```
 
-**Examples**:
+**Examples** (All use consistent BoardConfig pin assignments):
 - **PWM_Verification**: Single timer validation with input capture
-  - TIM3 @ 50 Hz validated via TIM2 input capture (D5 → A0 jumper)
+  - PWM: PB4/D5 (TIM3_CH1) @ 50 Hz → Capture: PA0/A0 (TIM2_CH1)
   - Hardware measurement: 49.50 Hz ✅ PASS (±2% tolerance)
   - Demonstrates timeout/fail behavior for missing jumpers
   - Deterministic HIL testing with exit wildcard
 
 - **DualTimerPWM**: Demo of simultaneous servo and ESC control
-  - Servo on TIM3 @ 50 Hz (1000-2000 µs pulses)
-  - ESCs on TIM4 @ 1 kHz (125-250 µs OneShot125 pulses)
+  - Servo: PB4/D5 (TIM3) @ 50 Hz (1000-2000 µs pulses)
+  - ESC1: PB6/D10 (TIM4) @ 1 kHz (125-250 µs OneShot125 pulses)
+  - ESC2: PB7/CN7-21 (TIM4) @ 1 kHz
   - Shows practical dual timer operation for flight controllers
 
 - **DualTimerPWM_Verification**: Dual timer hardware validation
-  - TIM3 @ 50 Hz + TIM4 @ 1 kHz validated simultaneously
-  - TIM2 dual-channel input capture (D5 → A0, D10 → D6 jumpers)
+  - Servo PWM: PB4/D5 (TIM3) → Capture: PA0/A0 (TIM2_CH1)
+  - ESC PWM: PB6/D10 (TIM4) → Capture: PB10/D6 (TIM2_CH3)
   - Hardware measurements:
     - Servo: 49.50 Hz ✅ PASS (49-51 Hz tolerance)
     - ESC: 990.10 Hz ✅ PASS (980-1020 Hz tolerance)
   - Proves independent timer operation without crosstalk
+  - All pins configured via BoardConfig for consistent test rig setup
 
 **Hardware Validation Results**:
 - ✅ **Single Timer**: PWM_Verification - 49.50 Hz measured (±2% spec)
@@ -560,8 +642,12 @@ esc_pwm.Start();
 - **Test Features**: 15-second timeout for missing jumpers, helpful error messages
 
 **Documentation**:
-- `libraries/TimerPWM/APPROACH.md` - Design rationale and technical decisions
-- `targets/NUCLEO_F411RE_LITTLEFS.h` - Hardware configuration
+- `libraries/TimerPWM/APPROACH.md` - Design rationale, technical decisions, and channel enable fix
+- `doc/TIMERS.md` - Comprehensive STM32 timer architecture and API reference
+- `doc/TIMERS_PWM_OUT.md` - Practical servo/ESC PWM configuration guide with correct channel enable steps
+- `targets/NUCLEO_F411RE_LITTLEFS.h` - Hardware configuration with standardized pin assignments
+
+**Important**: All timer PWM examples correctly demonstrate the required `resumeChannel()` call per STM32 documentation. Manual PWM configuration requires both channel enable (`resumeChannel()`) and counter start (`resume()`).
 
 ## Future Projects
 

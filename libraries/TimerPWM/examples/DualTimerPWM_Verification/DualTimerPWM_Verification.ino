@@ -137,8 +137,9 @@ void setup() {
   CI_LOG("✓ Servo Capture: PA0 (A0, TIM2_CH1)\n");
 
   // Configure CH3 for ESC measurement
-  tim2.setMode(3, TIMER_INPUT_CAPTURE_RISING, PB10);
-  tim2.attachInterrupt(3, escCaptureCallback);
+  auto& esc_cap = BoardConfig::ESC::input_capture;
+  tim2.setMode(esc_cap.ch, TIMER_INPUT_CAPTURE_RISING, esc_cap.pin);
+  tim2.attachInterrupt(esc_cap.ch, escCaptureCallback);
   CI_LOG("✓ ESC Capture: PB10 (D6, TIM2_CH3)\n");
 
   // Start the timer

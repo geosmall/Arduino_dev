@@ -21,6 +21,7 @@ This repository contains a **fork of the STM32 Arduino Core** with simplified va
 - **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved)
 - **Unified Storage Systems**: LittleFS (SPI flash), SDFS (SD card), and Generic Storage abstraction with minIni configuration management
 - **IMU Integration**: High-level C++ wrapper (IMU library) and low-level TDK drivers (ICM42688P) with chip detection and manufacturer self-test
+- **Betaflight Config Converter**: Python tool converting Betaflight unified targets to BoardConfig headers with PeripheralPins.c validation and ALT variant handling
 - **libPrintf Integration**: Embedded printf library eliminating nanofp complexity with 20KB+ binary savings
 - **AUnit Testing Framework**: Comprehensive unit testing with HIL integration (22 tests across storage systems)
 - **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
@@ -110,6 +111,8 @@ make check          # Verify environment
 │   ├── SDFS/              # SD filesystem v1.0.0 with LittleFS-compatible API
 │   ├── STM32RTC/          # Real-time clock library
 │   └── Storage/           # Generic storage abstraction for LittleFS/SDFS
+├── extras/
+│   └── betaflight_converter/  # Betaflight → BoardConfig converter with validation
 ├── scripts/               # Build and test automation
 ├── HIL_RTT_Test/          # Hardware-in-loop test framework
 └── test_logs/             # Test execution logs and artifacts
@@ -178,6 +181,7 @@ void setup() {
 - **✅ Complete**: Storage systems (LittleFS, SDFS, Storage abstraction), configuration management (minIni), build/HIL framework, libPrintf integration
 - **✅ Complete**: IMU library (high-level wrapper with chip detection, context-based design, interrupt support)
 - **✅ Complete**: ICM42688P library (low-level TDK drivers with self-test and data acquisition)
+- **✅ Complete**: Betaflight Config Converter (Python tool with PeripheralPins.c validation, ALT variant handling, 53 passing tests)
 - **📋 Future**: Additional IMU sensor support (MPU-6000, MPU-9250)
 
 ## Documentation

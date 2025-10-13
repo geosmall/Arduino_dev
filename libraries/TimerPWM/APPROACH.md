@@ -242,6 +242,38 @@ Example @ 1 MHz counter:
 
 ---
 
+## PWMOutputBank Implementation Notes
+
+### Channel Enable Fix (October 2025)
+
+**Problem**: Initial PWMOutputBank implementation configured PWM mode and pulse width correctly but generated no output signals (0% duty cycle measured via hardware testing).
+
+**Root Cause**: Missing channel enable step in `AttachChannel()` method. Per STM32 timer documentation (AN4013 Section 2.5), PWM generation requires:
+1. Configure PWM mode (OCxM bits) ✓ - via `setMode()`
+2. Set pulse width (CCRx value) ✓ - via `setCaptureCompare()`
+3. **Enable capture/compare output (CCxE bit)** ✗ - **was missing**
+
+**Fix**: Added `_timer->resumeChannel(channel)` call in `AttachChannel()` after PWM configuration:
+
+```cpp
+// Configure timer channel for PWM output
+_timer->setMode(channel, TIMER_OUTPUT_COMPARE_PWM1, pin);
+
+// Set initial pulse width using MICROSEC_COMPARE_FORMAT
+_timer->setCaptureCompare(channel, min_us, MICROSEC_COMPARE_FORMAT);
+
+// Enable PWM output on this channel (CCxE bit per AN4013 Section 2.5)
+_timer->resumeChannel(channel);
+```
+
+**Verification**: Hardware-in-loop testing with jumper wires (PA8→PA0, PB0→PA1):
+- Before fix: 0 HIGH samples (no PWM signal)
+- After fix: 4868-4888 HIGH samples out of 10000 (48.7%-48.9% duty cycle) ✓ PASS
+
+**API Note**: `HardwareTimer::resume()` starts the counter (no parameters), while `HardwareTimer::resumeChannel(uint32_t channel)` enables specific channel output. PWMOutputBank requires both - `Start()` calls `resume()`, `AttachChannel()` calls `resumeChannel(channel)`.
+
+---
+
 ## Reference Material
 
 ### Local Documentation
@@ -253,4 +285,5 @@ Example @ 1 MHz counter:
 - [HardwareTimer Wiki](https://github.com/stm32duino/Arduino_Core_STM32/wiki/HardwareTimer-library)
 - [STM32Examples PWM_FullConfiguration](https://github.com/stm32duino/STM32Examples/blob/main/examples/Peripherals/HardwareTimer/PWM_FullConfiguration/)
 - [Arduino Servo Library](https://github.com/arduino-libraries/Servo)
+- [AN4013: Introduction to Timers for STM32 MCUs](https://www.st.com/resource/en/application_note/an4013-introduction-to-timers-for-stm32-mcus-stmicroelectronics.pdf)
 - STM32F4 Reference Manual RM0383 (Timers: Chapter 13-18)

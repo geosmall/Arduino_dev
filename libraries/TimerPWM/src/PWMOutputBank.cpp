@@ -132,6 +132,9 @@ bool PWMOutputBank::AttachChannel(uint32_t channel, uint32_t pin,
   // Set initial pulse width using MICROSEC_COMPARE_FORMAT
   _timer->setCaptureCompare(channel, min_us, MICROSEC_COMPARE_FORMAT);
 
+  // Enable PWM output on this channel (CCxE bit per AN4013 Section 2.5)
+  _timer->resumeChannel(channel);
+
   return true;
 }
 
