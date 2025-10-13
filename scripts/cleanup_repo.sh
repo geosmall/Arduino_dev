@@ -8,7 +8,7 @@ echo "=== Repository Cleanup ==="
 
 # Remove sketch build directories (excluding cmake examples)
 echo "Removing sketch build directories..."
-find tests/ libraries/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
+find tests/ libraries/ extras/ -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Remove auto-generated build_id.h files
 echo "Removing auto-generated build_id.h files..."

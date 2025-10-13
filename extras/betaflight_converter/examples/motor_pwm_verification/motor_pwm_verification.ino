@@ -12,8 +12,8 @@
  * - Capture Timer: TIM2 (dual channel input capture)
  *
  * Jumper Connections:
- * 1. PA8 → PA0 (Motor1/TIM1 output to TIM2_CH1 input capture)
- * 2. PB0 → PA1 (Motor4/TIM3 output to TIM2_CH2 input capture)
+ * 1. D7/PA8 → A0/PA0 (Motor1/TIM1 output to TIM2_CH1)
+ * 2. A3/PB0 → D6/PB10 (Motor4/TIM3 output to TIM2_CH3)
  *
  * Validation Criteria:
  * - Motor frequency: 1000 Hz ± 2% (980-1020 Hz)
@@ -31,9 +31,9 @@ PWMOutputBank motor_tim3;
 
 // Input Capture Timer
 // HOW THIS TEST WORKS:
-// 1. TIM1 generates motor1 PWM on PA8 (1000 Hz)
-// 2. TIM3 generates motor4 PWM on PB0 (1000 Hz)
-// 3. Jumper wires: PA8 → PA0 (TIM2_CH1), PB0 → PA1 (TIM2_CH2)
+// 1. TIM1 generates motor1 PWM on D7/PA8 (1000 Hz)
+// 2. TIM3 generates motor4 PWM on A3/PB0 (1000 Hz)
+// 3. Jumper wires: D7/PA8 → A0/PA0 (TIM2_CH1), A3/PB0 → D6/PB10 (TIM2_CH3)
 // 4. TIM2 input capture on 2 channels measures both frequencies
 // 5. Separate callbacks validate each motor bank independently
 // 6. Proves timer grouping from Betaflight converter works correctly
@@ -52,7 +52,7 @@ void motor1CaptureCallback() {
   // TIM1 motor measurement on TIM2_CH1
   motor1_callback_count++;
   static uint32_t last_capture = 0;
-  uint32_t current_capture = tim2.getCaptureCompare(1);
+  uint32_t current_capture = tim2.getCaptureCompare(1);  // CH1
 
   uint32_t period_us = current_capture - last_capture;
   last_capture = current_capture;
@@ -65,10 +65,10 @@ void motor1CaptureCallback() {
 }
 
 void motor4CaptureCallback() {
-  // TIM3 motor measurement on TIM2_CH2
+  // TIM3 motor measurement on TIM2_CH3
   motor4_callback_count++;
   static uint32_t last_capture = 0;
-  uint32_t current_capture = tim2.getCaptureCompare(2);
+  uint32_t current_capture = tim2.getCaptureCompare(3);  // CH3
 
   uint32_t period_us = current_capture - last_capture;
   last_capture = current_capture;
@@ -91,7 +91,7 @@ void setup() {
   CI_BUILD_INFO();
   CI_LOG("\n");
 
-  // ========== Configure TIM1 Motor Bank ==========
+  // ========== Configure TIM1 Motor Bank (using generated config) ==========
   CI_LOGF("Initializing Motor TIM1 Bank @ %lu Hz...\n", BoardConfig::Motor::frequency_hz);
   if (!motor_tim1.Init(BoardConfig::Motor::TIM1_Bank::timer, BoardConfig::Motor::frequency_hz)) {
     CI_LOG("ERROR: TIM1 Motor Init failed\n");
@@ -99,17 +99,17 @@ void setup() {
   }
 
   auto& motor1 = BoardConfig::Motor::TIM1_Bank::motor1;
-  if (!motor_tim1.AttachChannel(motor1.ch, motor1.pin, motor1.min_us, motor1.max_us)) {
+  // For verification test: use 0-1000 µs range (not DSHOT ranges from config)
+  if (!motor_tim1.AttachChannel(motor1.ch, motor1.pin, 0, 1000)) {
     CI_LOG("ERROR: Motor1 AttachChannel failed\n");
     while (1);
   }
 
-  // Set motor to 50% duty cycle for reliable measurement
   motor_tim1.SetPulseWidth(motor1.ch, 500);  // 500 µs @ 1 kHz = 50% duty
   motor_tim1.Start();
-  CI_LOG("✓ Motor1 (TIM1): PA8 @ 1000 Hz\n\n");
+  CI_LOGF("✓ Motor1 (TIM1): CH%lu on pin 0x%02lX @ %lu Hz\n\n", motor1.ch, motor1.pin, BoardConfig::Motor::frequency_hz);
 
-  // ========== Configure TIM3 Motor Bank ==========
+  // ========== Configure TIM3 Motor Bank (using generated config) ==========
   CI_LOGF("Initializing Motor TIM3 Bank @ %lu Hz...\n", BoardConfig::Motor::frequency_hz);
   if (!motor_tim3.Init(BoardConfig::Motor::TIM3_Bank::timer, BoardConfig::Motor::frequency_hz)) {
     CI_LOG("ERROR: TIM3 Motor Init failed\n");
@@ -117,41 +117,37 @@ void setup() {
   }
 
   auto& motor4 = BoardConfig::Motor::TIM3_Bank::motor4;
-  if (!motor_tim3.AttachChannel(motor4.ch, motor4.pin, motor4.min_us, motor4.max_us)) {
+  // For verification test: use 0-1000 µs range (not DSHOT ranges from config)
+  if (!motor_tim3.AttachChannel(motor4.ch, motor4.pin, 0, 1000)) {
     CI_LOG("ERROR: Motor4 AttachChannel failed\n");
     while (1);
   }
 
-  // Set motor to 50% duty cycle for reliable measurement
   motor_tim3.SetPulseWidth(motor4.ch, 500);  // 500 µs @ 1 kHz = 50% duty
   motor_tim3.Start();
-  CI_LOG("✓ Motor4 (TIM3): PB0 @ 1000 Hz\n\n");
+  CI_LOGF("✓ Motor4 (TIM3): CH%lu on pin 0x%02lX @ %lu Hz\n\n", motor4.ch, motor4.pin, BoardConfig::Motor::frequency_hz);
 
   // ========== Configure Input Capture (TIM2 with 2 channels) ==========
-  // Configure CH1 for Motor1 (TIM1) measurement
-  tim2.setMode(1, TIMER_INPUT_CAPTURE_RISING, PA0);
-
-  // Configure CH2 for Motor4 (TIM3) measurement
-  tim2.setMode(2, TIMER_INPUT_CAPTURE_RISING, PA1);
-
-  // Configure timer base (after setMode)
+  // Configure timer base FIRST (critical for input capture to work!)
   tim2.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick rate
   tim2.setOverflow(0xFFFFFFFF);  // Max period (32-bit timer)
 
-  // Attach interrupt callbacks
+  // THEN configure channels
+  tim2.setMode(1, TIMER_INPUT_CAPTURE_RISING, PA0);  // CH1: A0/PA0
   tim2.attachInterrupt(1, motor1CaptureCallback);
-  CI_LOG("✓ Motor1 Capture: PA0 (TIM2_CH1)\n");
+  CI_LOG("✓ Motor1 Capture: A0/PA0 (TIM2_CH1)\n");
 
-  tim2.attachInterrupt(2, motor4CaptureCallback);
-  CI_LOG("✓ Motor4 Capture: PA1 (TIM2_CH2)\n");
+  tim2.setMode(3, TIMER_INPUT_CAPTURE_RISING, PB10);  // CH3: D6/PB10
+  tim2.attachInterrupt(3, motor4CaptureCallback);
+  CI_LOG("✓ Motor4 Capture: D6/PB10 (TIM2_CH3)\n");
 
   // Start the timer
   tim2.resume();
   CI_LOG("\n");
 
   CI_LOG("Jumper Connections Required:\n");
-  CI_LOG("1. PA8 → PA0 (Motor1/TIM1 to capture)\n");
-  CI_LOG("2. PB0 → PA1 (Motor4/TIM3 to capture)\n\n");
+  CI_LOG("1. D7/PA8 → A0/PA0 (Motor1/TIM1 to TIM2_CH1)\n");
+  CI_LOG("2. A3/PB0 → D6/PB10 (Motor4/TIM3 to TIM2_CH3)\n\n");
 
   CI_READY_TOKEN();
 }
@@ -168,8 +164,8 @@ void loop() {
     CI_LOG("\n✗ TIMEOUT: No measurements received after 15 seconds\n");
     CI_LOGF("Callback counts: Motor1=%lu, Motor4=%lu\n", motor1_callback_count, motor4_callback_count);
     CI_LOG("Check jumper connections:\n");
-    CI_LOG("  1. PA8 → PA0 (Motor1/TIM1)\n");
-    CI_LOG("  2. PB0 → PA1 (Motor4/TIM3)\n");
+    CI_LOG("  1. D7/PA8 → A0/PA0 (Motor1/TIM1)\n");
+    CI_LOG("  2. A3/PB0 → D6/PB10 (Motor4/TIM3)\n");
     CI_LOG("*STOP*\n");
     while(1); // Halt
   }
