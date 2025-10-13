@@ -580,16 +580,11 @@ python3 convert.py data/MTKS-MATEKH743.config  # Generates output/MTKS-MATEKH743
   - Tests SPI communication and chip detection
   - Validates generated IMU config (SPI pins, CS, frequency)
   - Expected: 5 continuous WHO_AM_I reads returning 0x47
-- **simple_pwm_test**: Direct HardwareTimer PWM generation with digitalRead() verification
-  - TIM1 (PA8) and TIM3 (PB0) @ 1kHz, 50% duty cycle
-  - Uses digitalRead() polling for duty cycle measurement
-  - Expected: ~49% duty cycle on both pins
-  - Status: ✅ PASSING (48.8% / 48.7% measured)
 - **motor_pwm_verification**: PWMOutputBank with TIM2 input capture measurement
   - Uses PWMOutputBank to generate PWM on Motor1 (PA8/TIM1) and Motor4 (PB0/TIM3)
   - Uses TIM2 input capture on PA0/PA1 to measure actual frequencies
-  - Status: ⚠️ KNOWN ISSUE - Input capture callbacks never fire despite PWM signals present
-  - Note: digitalRead confirms PWM present, but TIM2 input capture doesn't detect edges
+  - Demonstrates timer bank grouping from Betaflight converter
+  - Hardware validation following embedded validation standards
 
 **Usage Example**:
 ```cpp
