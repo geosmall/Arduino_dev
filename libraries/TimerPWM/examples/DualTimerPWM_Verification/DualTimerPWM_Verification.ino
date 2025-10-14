@@ -97,7 +97,7 @@ void setup() {
     while (1);
   }
 
-  auto& servo_ch = BoardConfig::Servo::pwm_output;
+  auto& servo_ch = BoardConfig::Servo::servo1;
   if (!servo_pwm.AttachChannel(servo_ch.ch, servo_ch.pin, servo_ch.min_us, servo_ch.max_us)) {
     CI_LOG("ERROR: Servo PWM AttachChannel failed\n");
     while (1);
@@ -130,16 +130,18 @@ void setup() {
   tim2.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick rate
   tim2.setOverflow(0xFFFFFFFF);  // Max period (32-bit timer)
 
-  // Configure CH1 for servo measurement
-  auto& servo_cap = BoardConfig::Servo::input_capture;
-  tim2.setMode(servo_cap.ch, TIMER_INPUT_CAPTURE_RISING, servo_cap.pin);
-  tim2.attachInterrupt(servo_cap.ch, servoCaptureCallback);
+  // Configure CH1 for servo measurement (local pin definitions, not in target config)
+  const uint32_t SERVO_CAPTURE_PIN = PA0;  // TIM2_CH1 (Arduino A0)
+  const uint32_t SERVO_CAPTURE_CH = 1;
+  tim2.setMode(SERVO_CAPTURE_CH, TIMER_INPUT_CAPTURE_RISING, SERVO_CAPTURE_PIN);
+  tim2.attachInterrupt(SERVO_CAPTURE_CH, servoCaptureCallback);
   CI_LOG("✓ Servo Capture: PA0 (A0, TIM2_CH1)\n");
 
-  // Configure CH3 for ESC measurement
-  auto& esc_cap = BoardConfig::ESC::input_capture;
-  tim2.setMode(esc_cap.ch, TIMER_INPUT_CAPTURE_RISING, esc_cap.pin);
-  tim2.attachInterrupt(esc_cap.ch, escCaptureCallback);
+  // Configure CH3 for ESC measurement (local pin definitions, not in target config)
+  const uint32_t ESC_CAPTURE_PIN = PB10;  // TIM2_CH3 (Arduino D6)
+  const uint32_t ESC_CAPTURE_CH = 3;
+  tim2.setMode(ESC_CAPTURE_CH, TIMER_INPUT_CAPTURE_RISING, ESC_CAPTURE_PIN);
+  tim2.attachInterrupt(ESC_CAPTURE_CH, escCaptureCallback);
   CI_LOG("✓ ESC Capture: PB10 (D6, TIM2_CH3)\n");
 
   // Start the timer

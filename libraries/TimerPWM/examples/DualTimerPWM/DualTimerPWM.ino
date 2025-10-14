@@ -29,7 +29,7 @@ void setup() {
 
   // Initialize Servo PWM Bank (TIM3 @ 50 Hz)
   CI_LOGF("Initializing Servo PWM (TIM3 @ %lu Hz)...\n", BoardConfig::Servo::frequency_hz);
-  auto& servo_ch = BoardConfig::Servo::pwm_output;
+  auto& servo_ch = BoardConfig::Servo::servo1;
   if (!servo_pwm.Init(BoardConfig::Servo::timer, BoardConfig::Servo::frequency_hz)) {
     CI_LOG("ERROR: Servo PWM Init failed\n");
     while (1);
@@ -71,9 +71,12 @@ void setup() {
 }
 
 void loop() {
+  static int sweep_count = 0;
+  const int MAX_SWEEPS = 3;  // Run 3 complete sweep cycles then exit
+
   // Sweep servo from 1000 to 2000 µs
   for (uint32_t pulse = 1000; pulse <= 2000; pulse += 10) {
-    servo_pwm.SetPulseWidth(BoardConfig::Servo::pwm_output.ch, pulse);
+    servo_pwm.SetPulseWidth(BoardConfig::Servo::servo1.ch, pulse);
     CI_LOGF("Servo: %4lu µs | ", pulse);
 
     // Map servo position to ESC range (1000-2000 → 125-250)
@@ -87,7 +90,7 @@ void loop() {
 
   // Sweep back
   for (uint32_t pulse = 2000; pulse >= 1000; pulse -= 10) {
-    servo_pwm.SetPulseWidth(BoardConfig::Servo::pwm_output.ch, pulse);
+    servo_pwm.SetPulseWidth(BoardConfig::Servo::servo1.ch, pulse);
     CI_LOGF("Servo: %4lu µs | ", pulse);
 
     uint32_t esc_pulse = map(pulse, 1000, 2000, 125, 250);
@@ -96,5 +99,14 @@ void loop() {
     CI_LOGF("ESC1/ESC2: %3lu µs\n", esc_pulse);
 
     delay(20);
+  }
+
+  sweep_count++;
+  CI_LOGF("\nSweep cycle %d/%d complete\n\n", sweep_count, MAX_SWEEPS);
+
+  if (sweep_count >= MAX_SWEEPS) {
+    CI_LOG("Demo complete - 3 sweep cycles finished\n");
+    CI_LOG("*STOP*\n");
+    while(1);  // Halt for HIL framework
   }
 }
