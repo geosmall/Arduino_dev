@@ -20,7 +20,7 @@ namespace BoardConfig {
   // I2C: Available for additional sensors (if needed)
   static constexpr I2CConfig sensors{PB9, PB8, 400000};
 
-  // Servo: TIM3 @ 50 Hz (hardware validated with PWM_Verification)
+  // Servo: TIM3 @ 50 Hz
   namespace Servo {
     static inline TIM_TypeDef* const timer = TIM3;
     static constexpr uint32_t frequency_hz = 50;
@@ -32,8 +32,7 @@ namespace BoardConfig {
       uint32_t max_us;
     };
 
-    static constexpr Channel pwm_output = {PB4, 1, 1000, 2000};  // TIM3_CH1 (D5) - PWM output
-    static constexpr Channel input_capture = {PA0, 1, 1000, 2000};  // TIM2_CH1 (A0) - Input capture
+    static constexpr Channel servo1 = {PB4, 1, 1000, 2000};  // TIM3_CH1 (D5)
   };
 
   // ESC: TIM4 @ 1000 Hz (OneShot125 protocol)
@@ -48,8 +47,7 @@ namespace BoardConfig {
       uint32_t max_us;
     };
 
-    static constexpr Channel esc1 = {PB6, 1, 125, 250};  // TIM4_CH1 (D10) - ESC 1
-    static constexpr Channel esc2 = {PB7, 2, 125, 250};  // TIM4_CH2 (CN7-21) - ESC 2
-    static constexpr Channel input_capture = {PB10, 3, 125, 250};  // TIM2_CH3 (D6) - Input capture
+    static constexpr Channel esc1 = {PB6, 1, 125, 250};  // TIM4_CH1 (D10)
+    static constexpr Channel esc2 = {PB7, 2, 125, 250};  // TIM4_CH2 (CN7-21)
   };
 }
