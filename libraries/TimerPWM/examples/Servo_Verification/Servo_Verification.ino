@@ -1,33 +1,43 @@
 /**
- * PWM_Verification.ino - Input capture verification example
+ * Servo_Verification.ino - Servo PWM verification example
  *
- * Verifies motor PWM output using TIM2 Input Capture to measure TIM1 PWM output
- * with BoardConfig integration.
+ * Verifies servo PWM output using TIM2 Input Capture to measure TIM3 PWM output.
+ * Repurposes Motor4 pin from JHEF411 config for servo testing at 50 Hz.
  * No oscilloscope or logic analyzer needed - just a jumper wire!
  *
  * Hardware Setup:
  * - Board: NUCLEO_F411RE with JHEF411 config
- * - PWM Output: PA8 (Arduino D7, TIM1_CH1 - Motor1)
- * - Input Capture: PA0 (Arduino A0, TIM2_CH1)
- * - Connect jumper wire: D7 → A0
+ * - PWM Output: PB0 (Arduino A3, TIM3_CH3 - repurposed from Motor4)
+ * - Input Capture: PB10 (Arduino D6, TIM2_CH3)
+ * - Connect jumper wire: A3 → D6 (same as motor_pwm_verification Motor4 test)
  *
  * This example validates:
- * - PWM frequency (1000 Hz ± 2%)
- * - Pulse width (500 µs nominal)
+ * - PWM frequency (50 Hz ± 2%) via period measurement
+ * - Pulse width set to 1500 µs (center position, not measured)
  */
 
 #include <PWMOutputBank.h>
 #include <ci_log.h>
 #include "../../../../targets/NUCLEO_F411RE_JHEF411.h"
 
-// PWM Output on TIM1
+// Servo configuration (repurposed from Motor4)
+namespace ServoConfig {
+  static inline TIM_TypeDef* const timer = TIM3;
+  static constexpr uint32_t frequency_hz = 50;
+  static constexpr uint32_t pin = PB0_ALT1;  // TIM3_CH3
+  static constexpr uint32_t channel = 3;
+  static constexpr uint32_t min_us = 1000;
+  static constexpr uint32_t max_us = 2000;
+}
+
+// PWM Output on TIM3
 PWMOutputBank pwm;
 
 // Input Capture on TIM2
 // HOW THIS TEST WORKS:
-// 1. TIM1 generates PWM on D7 (1000 Hz, 500 µs pulse)
-// 2. Jumper wire connects D7 → A0
-// 3. TIM2 input capture on A0 measures time between rising edges
+// 1. TIM3 generates servo PWM on A3 (50 Hz, 1500 µs pulse)
+// 2. Jumper wire connects A3 → D6 (same as motor_pwm_verification Motor4 test)
+// 3. TIM2 input capture on D6 measures time between rising edges
 // 4. Callback fires on each rising edge, calculates period
 // 5. Period validates PWM frequency is within ±2% tolerance
 HardwareTimer tim2(TIM2);
@@ -39,14 +49,14 @@ void captureCallback() {
   // Callback fires immediately on rising edge
   // Static variable preserves last_capture between interrupts
   static uint32_t last_capture = 0;
-  uint32_t current_capture = tim2.getCaptureCompare(1);
+  uint32_t current_capture = tim2.getCaptureCompare(3);  // CH3
 
   // Calculate period in microseconds
   uint32_t period_us = current_capture - last_capture;
   last_capture = current_capture;
 
-  // Validate measurement range (500-2000 µs for 500-2000 Hz)
-  if (period_us > 500 && period_us < 2000) {
+  // Validate measurement range (10-30 ms for 33-100 Hz)
+  if (period_us > 10000 && period_us < 30000) {
     capture_period_us = period_us;
     measurement_ready = true;
   }
@@ -58,35 +68,33 @@ void setup() {
   while (!Serial && millis() < 3000);
 #endif
 
-  CI_LOG("=== Motor PWM Verification Test ===\n");
+  CI_LOG("=== Servo PWM Verification Test ===\n");
   CI_LOG("Board: NUCLEO_F411RE (JHEF411 config)\n");
   CI_BUILD_INFO();
   CI_LOG("\n");
 
-  // Configure PWM Output using BoardConfig motor
-  if (!pwm.Init(BoardConfig::Motor::TIM1_Bank::timer, BoardConfig::Motor::frequency_hz)) {
+  // Configure PWM Output using local servo config (repurposed Motor4)
+  if (!pwm.Init(ServoConfig::timer, ServoConfig::frequency_hz)) {
     CI_LOG("ERROR: Failed to initialize PWM timer\n");
     while (1);
   }
-  CI_LOGF("PWM Timer: TIM1 @ %lu Hz\n", BoardConfig::Motor::frequency_hz);
+  CI_LOGF("PWM Timer: TIM3 @ %lu Hz\n", ServoConfig::frequency_hz);
 
-  auto& motor_ch = BoardConfig::Motor::TIM1_Bank::motor1;
-  // Use 0-1000 µs range for verification (not DSHOT from config)
-  if (!pwm.AttachChannel(motor_ch.ch, motor_ch.pin, 0, 1000)) {
+  if (!pwm.AttachChannel(ServoConfig::channel, ServoConfig::pin, ServoConfig::min_us, ServoConfig::max_us)) {
     CI_LOG("ERROR: Failed to attach PWM channel\n");
     while (1);
   }
-  CI_LOG("PWM Output: PA8 (Arduino D7, Motor1)\n");
+  CI_LOG("PWM Output: PB0 (Arduino A3, repurposed Motor4)\n");
 
-  // Set 500 µs pulse width (50% duty cycle @ 1 kHz)
-  pwm.SetPulseWidth(motor_ch.ch, 500);
+  // Set 1500 µs pulse width (center position)
+  pwm.SetPulseWidth(ServoConfig::channel, 1500);
   pwm.Start();
-  CI_LOG("PWM Pulse: 500 µs\n\n");
+  CI_LOG("PWM Pulse: 1500 µs\n\n");
 
   // Configure Input Capture with local pin definition
   // Input capture pins are test infrastructure, not in target config
-  const uint32_t CAPTURE_PIN = PA0;  // TIM2_CH1 (Arduino A0)
-  const uint32_t CAPTURE_CH = 1;
+  const uint32_t CAPTURE_PIN = PB10;  // TIM2_CH3 (Arduino D6)
+  const uint32_t CAPTURE_CH = 3;
 
   tim2.setPrescaleFactor(99);  // 100 MHz / 100 = 1 MHz tick rate
   tim2.setOverflow(0xFFFFFFFF);  // Max period (32-bit timer)
@@ -94,8 +102,8 @@ void setup() {
   tim2.attachInterrupt(CAPTURE_CH, captureCallback);
   tim2.resume();
 
-  CI_LOG("Input Capture: PA0 (Arduino A0, TIM2_CH1)\n");
-  CI_LOG("Connect jumper: D7 → A0\n\n");
+  CI_LOG("Input Capture: PB10 (Arduino D6, TIM2_CH3)\n");
+  CI_LOG("Connect jumper: A3 → D6\n\n");
 
   CI_READY_TOKEN();
 }
@@ -108,7 +116,7 @@ void loop() {
   const uint32_t TIMEOUT_MS = 15000;
   if (millis() - start_time > TIMEOUT_MS && measurement_count == 0) {
     CI_LOG("\n✗ TIMEOUT: No measurements received after 15 seconds\n");
-    CI_LOG("Check jumper connection: D7 → A0\n");
+    CI_LOG("Check jumper connection: A3 → D6\n");
     CI_LOG("*STOP*\n");
     while(1); // Halt
   }
@@ -122,13 +130,13 @@ void loop() {
     CI_LOG_FLOAT("", measured_freq, 2);
     CI_LOG(" Hz\n");
 
-    // Validation with ±2% tolerance (1000 Hz ± 20 Hz = 980-1020 Hz)
-    bool freq_valid = (measured_freq >= 980.0 && measured_freq <= 1020.0);
+    // Validation with ±2% tolerance (50 Hz ± 1 Hz = 49-51 Hz)
+    bool freq_valid = (measured_freq >= 49.0 && measured_freq <= 51.0);
 
     if (freq_valid) {
-      CI_LOG("✓ PASS: Frequency within tolerance (980-1020 Hz)\n");
+      CI_LOG("✓ PASS: Frequency within tolerance (49-51 Hz)\n");
     } else {
-      CI_LOG("✗ FAIL: Frequency out of range (expected 980-1020 Hz)\n");
+      CI_LOG("✗ FAIL: Frequency out of range (expected 49-51 Hz)\n");
     }
 
     CI_LOG("\n");
