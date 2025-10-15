@@ -615,6 +615,12 @@ esc_pwm.Start();
   - Demonstrates timeout/fail behavior for missing jumpers
   - Deterministic HIL testing with exit wildcard
 
+- **Servo_Verification**: Servo PWM validation using JHEF411 config
+  - PWM: PB0/A3 (TIM3_CH3 - repurposed Motor4) @ 50 Hz → Capture: PB10/D6 (TIM2_CH3)
+  - Hardware measurement: 49.50 Hz ✅ PASS (±2% tolerance)
+  - Validates 1500 µs pulse width (center position)
+  - Uses same jumper setup as motor_pwm_verification Motor4 test
+
 - **DualTimerPWM**: Demo of simultaneous servo and ESC control
   - Servo: PB4/D5 (TIM3) @ 50 Hz (1000-2000 µs pulses)
   - ESC1: PB6/D10 (TIM4) @ 1 kHz (125-250 µs OneShot125 pulses)
