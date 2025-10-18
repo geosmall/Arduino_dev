@@ -47,9 +47,9 @@ uint32_t last_frame_time = 0;
 bool test_failed = false;
 
 // IBus frame generation
-void generateIBusFrame(uint16_t* channels, uint8_t num_channels);
-void setup();
-void loop();
+// void generateIBusFrame(uint16_t* channels, uint8_t num_channels);
+// void setup();
+// void loop();
 void generateIBusFrame(uint16_t* channels, uint8_t num_channels) {
   uint8_t frame[32];
   uint16_t checksum = 0xFFFF;
@@ -120,6 +120,13 @@ void setup() {
   delay(100);  // Allow RTT buffer to flush before test begins
 
   test_start_time = millis();
+
+  // Send first frame immediately to synchronize TX/RX timing
+  uint16_t channels[10];
+  for (uint8_t i = 0; i < 10; i++) {
+    channels[i] = 1000 + (i * 100);
+  }
+  generateIBusFrame(channels, 10);
   last_frame_time = test_start_time;
 }
 
@@ -174,6 +181,18 @@ void loop() {
 
   // Test completion
   if (elapsed >= TEST_DURATION_MS) {
+    // Drain remaining frames in receive buffer (give 100ms to process last frame)
+    uint32_t drain_start = millis();
+    while (millis() - drain_start < 100) {
+      rc.update();
+      if (rc.available()) {
+        RCMessage msg;
+        if (rc.getMessage(&msg)) {
+          frames_received++;
+        }
+      }
+    }
+
     CI_LOG("\n=== Test Complete ===\n");
     CI_LOGF("Frames Sent: %lu\n", frames_sent);
     CI_LOGF("Frames Received: %lu\n", frames_received);
@@ -207,7 +226,7 @@ void loop() {
       CI_LOG("\n*TEST_FAIL*\n");
     }
 
-    delay(100);  // Allow RTT buffer to flush before halt
+    CI_LOG("*STOP*\n");  // Exit wildcard for aflash.sh automation
     while (1);  // Halt
   }
 }

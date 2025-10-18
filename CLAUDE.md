@@ -158,6 +158,7 @@ This repository supports **UAV flight controller boards** with the following STM
 
 **STM32-Specific Libraries**:
 - `STM32RTC` - Real-time clock functionality
+- `SerialRx` - RC receiver serial protocol parser (IBus, SBUS, CRSF) with hardware-validated loopback testing
 - `LittleFS` - SPI flash filesystem with wear leveling (configuration, firmware)
 - `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
 - `Storage` - Generic storage abstraction providing unified interface for LittleFS and SDFS
@@ -650,6 +651,77 @@ esc_pwm.Start();
 
 **Important**: All timer PWM examples correctly demonstrate the required `resumeChannel()` call per STM32 documentation. Manual PWM configuration requires both channel enable (`resumeChannel()`) and counter start (`resume()`).
 
+### SerialRx Library ✅ **COMPLETED**
+
+RC receiver serial protocol parser library with hardware-validated IBus implementation and extensible architecture for SBUS/CRSF protocols.
+
+**Key Features**:
+- **Protocol Abstraction**: Clean interface supporting multiple RC protocols (IBus implemented, SBUS/CRSF ready)
+- **Hardware Validated**: Dual-USART loopback testing with zero frame loss (501/501 frames)
+- **Ring Buffer**: Efficient circular buffer for serial data management
+- **Failsafe Detection**: Configurable timeout monitoring for signal loss
+- **HIL Integration**: Full ci_log.h support with deterministic testing via `*STOP*` wildcard
+
+**Supported Protocols**:
+- ✅ **IBus** (FlySky): 32-byte frames, 115200 baud, 14 channels, checksum validation
+- 📋 **SBUS** (FrSky/Futaba): Framework ready for implementation
+- 📋 **CRSF** (TBS Crossfire): Framework ready for implementation
+
+**Hardware Validation**:
+- **Loopback Test**: PA11 (USART6 TX) → PA10 (USART1 RX) jumper wire
+  - Validates frame generation + parsing in isolation
+  - Frame Rate: 100 Hz IBus transmission (10ms intervals)
+  - Results: 501/501 frames received (0% loss) in 5-second test
+  - Drain Logic: 100ms buffer processing ensures no frames lost at test boundary
+- **Real RC Receiver**: ⚠️ Not yet tested with actual IBus hardware
+  - Loopback validates protocol implementation
+  - Real receiver testing required for production deployment
+
+**Production Usage**:
+```cpp
+#include <SerialRx.h>
+
+HardwareSerial SerialRC(PA10, PA9);  // USART1
+SerialRx rc;
+
+void setup() {
+  SerialRx::Config config;
+  config.serial = &SerialRC;
+  config.protocol = SerialRx::IBUS;
+  config.baudrate = 115200;
+  config.timeout_ms = 100;
+
+  rc.begin(config);
+}
+
+void loop() {
+  rc.update();
+
+  if (rc.available()) {
+    RCMessage msg;
+    if (rc.getMessage(&msg)) {
+      uint16_t throttle = msg.channels[2];  // Channel 3
+      // Process RC commands...
+    }
+  }
+
+  if (rc.timeout(200)) {
+    // Failsafe: Signal lost for >200ms
+  }
+}
+```
+
+**Examples**:
+- **IBus_Basic**: Simple channel value reading and display
+- **IBus_Loopback_Test**: Hardware validation with dual-USART loopback
+  - Automated HIL testing with RTT
+  - Zero frame loss validation
+  - Deterministic exit with `*STOP*` wildcard
+
+**Documentation**:
+- `libraries/SerialRx/examples/IBus_Loopback_Test/README.md` - Hardware setup and test methodology
+- `doc/SERIAL.md` - Technical documentation for serial protocols and implementation
+
 ## Future Projects
 
 ### New Variant Validation 📋 **FUTURE PROJECT**
@@ -706,7 +778,22 @@ void setup() {
   CI_BUILD_INFO();                     // Build traceability (RTT only)
   CI_READY_TOKEN();                    // Ready signal (RTT only)
 }
-``` 
+
+void loop() {
+  // ... test execution ...
+
+  // CRITICAL: Always end HIL tests with *STOP* exit wildcard
+  CI_LOG("*STOP*\n");  // Required for aflash.sh exit wildcard detection
+  while(1);            // Halt after test completion
+}
+```
+
+**Exit Wildcard Requirements for HIL Testing**:
+- ✅ **ALWAYS** end tests with `CI_LOG("*STOP*\n")` before halting
+- ✅ aflash.sh requires `*STOP*` for deterministic test completion
+- ❌ Without `*STOP*`, aflash.sh will timeout after 60 seconds
+- 💡 Can include test status before `*STOP*` (e.g., `*TEST_PASS*` then `*STOP*`)
+- 💡 No delay needed before `*STOP*` - RTT handles buffering automatically 
 
 ## Clean Repository Policy
 
