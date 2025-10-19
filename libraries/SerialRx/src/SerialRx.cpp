@@ -43,8 +43,8 @@ bool SerialRx::begin(const Config& config) {
         parser_ = new IBusParser();
         break;
     case SBUS:
-        // Future: parser_ = new SBusParser();
-        return false;
+        parser_ = new SBusParser();
+        break;
     case NONE:
     default:
         return false;

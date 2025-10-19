@@ -10,6 +10,7 @@
 #include "RCMessage.h"
 #include "ProtocolParser.h"
 #include "parsers/IBusParser.h"
+#include "parsers/SBusParser.h"
 
 /**
  * @brief Serial RC Receiver transport layer

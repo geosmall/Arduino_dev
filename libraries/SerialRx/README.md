@@ -9,7 +9,7 @@ Arduino library for parsing serial RC receiver protocols (IBus, SBUS, CRSF) comm
 | Protocol | Status | Baudrate | Frame Size | Channels | Validated |
 |----------|--------|----------|------------|----------|-----------|
 | **IBus** (FlySky) | ✅ Implemented | 115200 | 32 bytes | 14 | ✅ Yes |
-| **SBUS** (FrSky/Futaba) | 📋 Framework Ready | 100000 | 25 bytes | 16 | ⚠️ No |
+| **SBUS** (FrSky/Futaba) | ✅ Implemented | 100000 | 25 bytes | 16 | ⚠️ No |
 | **CRSF** (TBS Crossfire) | 📋 Framework Ready | 420000 | Variable | 16 | ⚠️ No |
 
 ## Quick Start
@@ -168,6 +168,21 @@ Dual-USART validation:
 
 **Jumper**: PA11 (CN10-14) → PA10 (CN10-33)
 
+### SBUS_Basic
+SBUS receiver testing (⚠️ not hardware validated yet):
+- **RTT mode**: 15-second timed test with `*STOP*` wildcard for CI/HIL
+- **Serial mode**: Continuous display for Arduino IDE
+- **IMPORTANT**: Requires inverted signal (hardware or software)
+
+**Usage**:
+```bash
+# CI/HIL testing
+./scripts/aflash.sh libraries/SerialRx/examples/SBUS_Basic --use-rtt --build-id
+
+# Arduino IDE
+# Upload via IDE, open Serial Monitor at 115200 baud
+```
+
 ## Channel Mapping
 
 Standard AETR (Aileron, Elevator, Throttle, Rudder):
@@ -201,16 +216,29 @@ SerialRx (Transport Layer)
 - **CPU**: ~10 µs per byte @ 100 MHz (STM32F411)
 - **Interrupt-free**: Non-blocking, compatible with time-critical tasks
 
-## Future Protocols
-
-### SBUS (Framework Ready)
+## SBUS Protocol (Implemented)
 
 **Specifications**:
 - Baudrate: 100000 (inverted signal - requires hardware inverter or GPIO config)
 - Frame: 25 bytes (0x0F header, 22 channel bytes, flags, 0x00 footer)
 - Channels: 16 × 11-bit (0-2047 range)
+- Typical range: 172-1811 (1000-2000 µs equivalent)
 
-**Implementation**: Same state machine architecture, add bit unpacking for 11-bit channels.
+**Signal Inversion**:
+SBUS uses inverted UART signal. Options:
+1. STM32: Enable USART RX inversion (RXINV bit in USART_CR2)
+2. External inverter (transistor, 74HC04, etc.)
+
+**Example** (SBUS_Basic):
+```cpp
+SerialRx::Config config;
+config.protocol = SerialRx::SBUS;
+config.baudrate = 100000;
+// Note: Requires signal inversion hardware/software
+rc.begin(config);
+```
+
+## Future Protocols
 
 ### CRSF (Future)
 
