@@ -54,7 +54,27 @@ void setup() {
 // Track signal state for failsafe reporting
 static bool signal_lost = false;
 
+// HIL testing mode: Run for 30 seconds then exit
+#ifdef USE_RTT
+static const uint32_t TEST_DURATION_MS = 30000;
+static uint32_t test_start_time = 0;
+#endif
+
 void loop() {
+#ifdef USE_RTT
+  // Initialize test timer on first loop iteration
+  if (test_start_time == 0) {
+    test_start_time = millis();
+  }
+
+  // Check if 30-second test duration elapsed
+  if (millis() - test_start_time >= TEST_DURATION_MS) {
+    CI_LOG("\n=== 30-Second Test Complete ===\n");
+    CI_LOG("*STOP*\n");
+    while (1);  // Halt for deterministic HIL testing
+  }
+#endif
+
   // Update RC receiver (polls Serial.available())
   rc.update();
 

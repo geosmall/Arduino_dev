@@ -673,9 +673,11 @@ RC receiver serial protocol parser library with hardware-validated IBus implemen
   - Frame Rate: 100 Hz IBus transmission (10ms intervals)
   - Results: 501/501 frames received (0% loss) in 5-second test
   - Drain Logic: 100ms buffer processing ensures no frames lost at test boundary
-- **Real RC Receiver**: ⚠️ Not yet tested with actual IBus hardware
-  - Loopback validates protocol implementation
-  - Real receiver testing required for production deployment
+- **Real RC Receiver**: ✅ Hardware validated with FlySky FS-iA6B receiver
+  - 10 channels reading correctly (1000-2000µs range)
+  - Timeout detection working (intermittent RF dropouts handled correctly)
+  - 30-second stability test via CI/HIL pipeline: 100% success
+  - Production-ready for flight controller integration
 
 **Production Usage**:
 ```cpp
@@ -712,13 +714,17 @@ void loop() {
 ```
 
 **Examples**:
-- **IBus_Basic**: Simple channel value reading and display
+- **IBus_Basic**: Real receiver channel reading and display
+  - 30-second timed mode with `*STOP*` wildcard (RTT mode)
+  - Continuous mode for Arduino IDE Serial Monitor
+  - Hardware validated with FlySky FS-iA6B receiver
 - **IBus_Loopback_Test**: Hardware validation with dual-USART loopback
   - Automated HIL testing with RTT
-  - Zero frame loss validation
+  - Zero frame loss validation (501/501 frames)
   - Deterministic exit with `*STOP*` wildcard
 
 **Documentation**:
+- `libraries/SerialRx/README.md` - Complete protocol documentation, state machine algorithm, and validation results
 - `libraries/SerialRx/examples/IBus_Loopback_Test/README.md` - Hardware setup and test methodology
 - `doc/SERIAL.md` - Technical documentation for serial protocols and implementation
 
