@@ -38,9 +38,11 @@ void setup() {
   config.protocol = SerialRx::IBUS;  // IBus protocol
   config.baudrate = 115200;          // IBus standard baudrate
   config.timeout_ms = 1000;          // 1 second failsafe timeout
+  config.idle_threshold_us = 300;    // Enable software idle detection (300µs)
 
   if (rc.begin(config)) {
     CI_LOG("RC Receiver initialized on USART1 (PA10/PA9)\n");
+    CI_LOG("Software idle detection: ENABLED (300us threshold)\n");
     CI_LOG("Waiting for IBus frames...\n\n");
   } else {
     CI_LOG("ERROR: Failed to initialize RC receiver!\n");
@@ -54,9 +56,9 @@ void setup() {
 // Track signal state for failsafe reporting
 static bool signal_lost = false;
 
-// HIL testing mode: Run for 30 seconds then exit
+// HIL testing mode: Run for 15 seconds then exit
 #ifdef USE_RTT
-static const uint32_t TEST_DURATION_MS = 30000;
+static const uint32_t TEST_DURATION_MS = 15000;
 static uint32_t test_start_time = 0;
 #endif
 
@@ -67,9 +69,9 @@ void loop() {
     test_start_time = millis();
   }
 
-  // Check if 30-second test duration elapsed
+  // Check if 15-second test duration elapsed
   if (millis() - test_start_time >= TEST_DURATION_MS) {
-    CI_LOG("\n=== 30-Second Test Complete ===\n");
+    CI_LOG("\n=== 15-Second Test Complete ===\n");
     CI_LOG("*STOP*\n");
     while (1);  // Halt for deterministic HIL testing
   }

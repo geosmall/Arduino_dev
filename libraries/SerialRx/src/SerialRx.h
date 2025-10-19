@@ -34,13 +34,15 @@ public:
         Protocol protocol;          // Protocol type
         uint32_t baudrate;         // Serial baudrate
         uint32_t timeout_ms;       // Message timeout in milliseconds
+        uint32_t idle_threshold_us; // Idle line detection threshold (0 = disabled)
 
         // Default constructor
         Config()
             : serial(nullptr)
             , protocol(NONE)
             , baudrate(115200)
-            , timeout_ms(1000) {}
+            , timeout_ms(1000)
+            , idle_threshold_us(0) {}  // Disabled by default
     };
 
     /**
@@ -107,4 +109,7 @@ private:
     Protocol protocol_;              // Current protocol
     uint32_t timeout_ms_;            // Configured timeout
     uint32_t last_message_time_;     // millis() of last valid message
+    uint32_t idle_threshold_us_;     // Idle detection threshold (0 = disabled)
+    uint32_t last_byte_time_us_;     // micros() of last received byte
+    bool expect_frame_start_;        // Next byte should be frame start after idle
 };
