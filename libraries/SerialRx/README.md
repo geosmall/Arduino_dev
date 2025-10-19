@@ -32,8 +32,8 @@ Total: 32 bytes per frame
 **Example Frame** (14 channels):
 ```
 20 40 DB 05 DC 05 54 05 DC 05 E8 03 D0 07 D2 05 E8 03 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DA F3
-│  │  └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘
-│  │    Ch1     Ch2     Ch3     Ch4     Ch5     Ch6     Ch7     Ch8     Ch9    Ch10    Ch11    Ch12    Ch13    Ch14  Checksum
+│  │  └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘ └──┬──┘
+│  │     Ch1     Ch2     Ch3     Ch4     Ch5     Ch6     Ch7     Ch8     Ch9    Ch10    Ch11    Ch12    Ch13    Ch14   Chksum
 │  └── Header byte 1 (0x40)
 └───── Header byte 0 (0x20)
 ```
@@ -119,6 +119,80 @@ The IBus parser uses a 5-state machine for robust frame detection and validation
            ├─ Valid   → ParserNotify() → WaitingForHeader0
            └─ Invalid → ResetParser()  → WaitingForHeader0
 ```
+
+#### Frame Start Detection
+
+The parser finds frame boundaries by **scanning the byte stream** for the 2-byte header pattern `0x20 0x40`:
+
+**How it works**:
+1. Parser starts in `WaitingForHeader0` state
+2. **Every incoming byte** is tested against 0x20
+3. When 0x20 found → advance to `ParserHasHeader0`
+4. Next byte tested against 0x40:
+   - If 0x40 → **Frame start confirmed!** Begin parsing
+   - If not 0x40 → **False positive**, return to `WaitingForHeader0`
+
+**Robustness**:
+- ✅ No timing requirements (works at any baud rate accuracy)
+- ✅ Automatic mid-stream synchronization (can start listening anytime)
+- ✅ Self-recovering (bad frames don't break sync)
+- ✅ No preamble needed (header pattern is unique enough)
+
+**Example byte stream** (showing synchronization):
+```
+Incoming bytes: ... 3A F2 20 40 DB 05 DC 05 ... (valid frame starts)
+                         ↑  ↑
+                         │  └─ Header byte 1 (0x40) → Frame confirmed!
+                         └──── Header byte 0 (0x20) → Potential frame start
+
+Incoming bytes: ... 3A 20 F2 40 DB 05 ... (false start)
+                         ↑  ↑
+                         │  └─ Not 0x40 → Reset, keep scanning
+                         └──── Header byte 0 (0x20) → Check next byte
+```
+
+**Can header pattern appear in channel data?**
+
+Yes! The pattern 0x20 0x40 CAN occur in valid frames:
+- Channel value 0x0520 = 1312 µs (valid) → high byte = 0x20
+- Channel value 0x??40 = ??40 µs (valid) → low byte = 0x40
+- If consecutive: `... 20 05 40 05 ...` contains the header pattern!
+
+**How does the parser handle false positives?**
+
+1. **Checksum validation prevents false frames**:
+   - Parser finds 0x20 0x40 in channel data (mid-frame)
+   - Accumulates next 28 bytes as "channel data"
+   - Reads next 2 bytes as "checksum"
+   - Checksum calculation FAILS (these aren't the right 30 bytes!)
+   - Frame rejected, parser resets to `WaitingForHeader0`
+
+2. **Frame loss risk**:
+   - False positive at byte position N
+   - Parser locks onto it and reads 32 bytes (N to N+31)
+   - Real frame start (actual 0x20 0x40) might be at position N+10
+   - If real header falls within N to N+31, that frame is lost!
+
+3. **Why this rarely happens in practice**:
+   - **Inter-frame gaps**: IBus receivers send frames at ~100 Hz (10ms intervals)
+   - Frame transmission: 2.78 ms (32 bytes @ 115200 baud)
+   - Gap between frames: ~7 ms (no bytes transmitted)
+   - Real header (0x20 0x40) appears after gap
+   - False header (0x20 0x40 in data) appears mid-transmission
+   - Parser typically finds real header first after each gap
+
+4. **Statistical probability**:
+   - Probability of 0x20 at any channel high byte position: ~1/256
+   - Probability of 0x40 at next channel low byte: ~1/256
+   - Combined: ~1/65536 per adjacent channel pair
+   - 14 channels = 13 adjacent pairs per frame
+   - Expected false positive: ~1 in 5000 frames
+   - With checksum protection: false frame never accepted, at most causes 1 frame skip
+
+**Real-world validation**:
+- Loopback test: 501/501 frames (0% loss)
+- Real receiver test: 30 seconds, no unexplained frame loss
+- The combination of inter-frame gaps + checksum validation provides robust synchronization
 
 #### Algorithm Flow
 
@@ -431,17 +505,143 @@ SerialRx (Transport Layer)
 
 ## Future Protocols
 
-### SBUS (Planned)
-- Baudrate: 100000 baud (inverted signal - requires hardware inverter)
-- Frame size: 25 bytes
-- Channels: 16 (11-bit resolution)
-- Checksum: None (relies on header/footer validation)
+### SBUS Extension Strategy
 
-### CRSF (Planned)
-- Baudrate: 420000 baud
-- Frame size: Variable (type-dependent)
-- Channels: 16 (10-bit resolution)
-- Checksum: CRC8-DVB-S2
+SBUS (FrSky/Futaba) implementation will follow the same state machine architecture as IBus.
+
+**Protocol Specifications**:
+- **Baudrate**: 100000 baud (inverted signal)
+- **Frame size**: 25 bytes fixed
+- **Channels**: 16 channels @ 11-bit resolution (0-2047 range)
+- **Frame rate**: ~7-14 ms (similar to IBus)
+- **Signal**: Inverted UART (requires hardware inverter or GPIO config)
+
+**Frame Structure**:
+```
+Byte 0:     Header (0x0F)
+Byte 1-22:  16 channels × 11 bits = 176 bits = 22 bytes (packed)
+Byte 23:    Flags (digital channels, frame lost, failsafe)
+Byte 24:    Footer (0x00)
+Total: 25 bytes per frame
+```
+
+**Channel Packing** (11-bit little-endian):
+```
+Byte 1:  [Ch1   LSB 8 bits]
+Byte 2:  [Ch2   LSB 5 bits] [Ch1   MSB 3 bits]
+Byte 3:  [Ch2   MSB 6 bits] [Ch3   LSB 2 bits]
+...
+Byte 22: [Ch16  MSB 3 bits] [reserved]
+```
+
+**State Machine** (6 states):
+```
+WaitingForHeader → Header (0x0F)
+                → AccumulateChannels (22 bytes)
+                → ReadFlags (1 byte)
+                → ValidateFooter (0x00)
+                → ParserNotify()
+```
+
+**Implementation Plan**:
+
+1. **Create SBusParser class** (`src/parsers/SBusParser.h/cpp`):
+```cpp
+class SBusParser : public ProtocolParser {
+public:
+    bool ParseByte(uint8_t byte) override;
+    void ResetParser() override;
+
+private:
+    enum ParserState {
+        WaitingForHeader,
+        AccumulateChannels,
+        ReadFlags,
+        ValidateFooter
+    };
+
+    ParserState pstate_;
+    uint8_t byte_count_;
+    uint8_t raw_data_[23];  // 22 channel bytes + 1 flag byte
+    uint8_t flags_;
+};
+```
+
+2. **Channel unpacking algorithm**:
+```cpp
+void SBusParser::UnpackChannels() {
+    // Extract 11-bit channels from packed byte array
+    msg_.channels[0]  = (raw_data_[0]    | raw_data_[1]<<8)                 & 0x07FF;
+    msg_.channels[1]  = (raw_data_[1]>>3 | raw_data_[2]<<5)                 & 0x07FF;
+    msg_.channels[2]  = (raw_data_[2]>>6 | raw_data_[3]<<2 | raw_data_[4]<<10) & 0x07FF;
+    msg_.channels[3]  = (raw_data_[4]>>1 | raw_data_[5]<<7)                 & 0x07FF;
+    // ... continue for all 16 channels
+}
+```
+
+3. **Hardware considerations**:
+   - **Signal inversion**: SBUS uses inverted UART signal
+   - **STM32 solutions**:
+     - GPIO RX inversion (USART_CR2 register RXINV bit)
+     - External inverter chip (74HC04, transistor circuit)
+     - Software inversion (XOR byte with 0xFF - not recommended)
+
+4. **Add to SerialRx.cpp**:
+```cpp
+case SBUS:
+    parser_ = new SBusParser();
+    // Configure USART for inverted RX if needed
+    break;
+```
+
+5. **Validation approach**:
+   - Dual-USART loopback (same as IBus)
+   - Real receiver: FrSky X8R or Futaba R3008SB
+   - Target: Zero frame loss in 5-second test
+
+**Key Differences from IBus**:
+- ✅ **No checksum**: Simpler validation (header + footer only)
+- ⚠️ **Signal inversion**: Requires hardware or USART config
+- ✅ **Packed channels**: Bit manipulation for 11-bit extraction
+- ✅ **More channels**: 16 channels vs 14 (IBus)
+- ✅ **Digital flags**: Ch17-18 as digital channels, frame lost, failsafe bits
+
+**Extensibility Benefits**:
+- Same `ProtocolParser` interface
+- Same `update()` polling loop
+- Same timeout/failsafe mechanism
+- Drop-in protocol switching at runtime
+
+### CRSF Extension Strategy (Future)
+
+CRSF (TBS Crossfire) is more complex due to variable-length frames.
+
+**Protocol Specifications**:
+- **Baudrate**: 420000 baud
+- **Frame size**: Variable (depends on frame type)
+- **Channels**: 16 channels @ 10-bit resolution (0-1023 range)
+- **Checksum**: CRC8-DVB-S2 polynomial
+
+**Frame Structure** (RC Channels packet):
+```
+Byte 0:    Device address (0xC8 for RC channels)
+Byte 1:    Frame length (excluding address and CRC)
+Byte 2:    Frame type (0x16 for RC channels)
+Byte 3-24: 16 channels × 11 bits packed
+Byte 25:   CRC8
+Total: 26 bytes for RC channels packet
+```
+
+**Implementation Complexity**:
+- Variable-length frames require length byte parsing
+- CRC8 calculation more complex than checksum
+- Multiple frame types (RC channels, telemetry, GPS, etc.)
+- Higher baudrate requires careful UART configuration
+
+**Recommended Approach**:
+- Implement SBUS first (simpler, more common)
+- Use SBUS experience to design CRSF parser
+- Consider separate CRSFMessage type for telemetry frames
 
 ## References
 
