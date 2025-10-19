@@ -194,6 +194,109 @@ Yes! The pattern 0x20 0x40 CAN occur in valid frames:
 - Real receiver test: 30 seconds, no unexplained frame loss
 - The combination of inter-frame gaps + checksum validation provides robust synchronization
 
+**Future Enhancement: Software Idle Line Detection**
+
+The current implementation could be enhanced with **timestamp-based idle detection** to eliminate false positives entirely:
+
+**Concept**:
+- Track `micros()` timestamp of last received byte
+- If time since last byte > idle threshold (e.g., 200-300 µs)
+- Flag "idle detected" → next byte MUST be frame start (0x20)
+- Reject byte if not 0x20 after idle (guaranteed false positive)
+
+**Benefits**:
+- ✅ **Eliminates false positives** - Idle period guarantees frame boundary
+- ✅ **Arduino-compatible** - Uses standard `micros()`, no HAL needed
+- ✅ **Portable** - Works with any Serial implementation (AVR, ESP32, STM32)
+- ✅ **Configurable** - Optional feature, can be disabled for compatibility
+
+**Idle threshold calculation** (IBus @ 115200 baud):
+```
+UART frame time = 10 bits ÷ 115200 = 86.8 µs
+Safe threshold = 2-3 frame times = 200-300 µs
+
+Inter-frame gap: ~7 ms (much larger than threshold)
+Frame transmission: 32 bytes × 86.8 µs = 2.78 ms (no gaps within frame)
+
+Threshold detection:
+  - Idle after frame: 7 ms > 300 µs ✓ Detected
+  - Bytes within frame: <1 µs gap < 300 µs ✓ Not idle
+```
+
+**Implementation approach**:
+```cpp
+class SerialRx {
+private:
+    uint32_t last_byte_time_us_;
+    uint32_t idle_threshold_us_;
+    bool expect_frame_start_;
+
+public:
+    void begin(const Config& config) {
+        idle_threshold_us_ = config.idle_threshold_us;  // 0 = disabled, 300 = enabled
+        last_byte_time_us_ = micros();
+        expect_frame_start_ = false;
+    }
+
+    void update() {
+        uint32_t now = micros();
+
+        // Check for idle period (optional feature)
+        if (idle_threshold_us_ > 0) {
+            if (now - last_byte_time_us_ > idle_threshold_us_) {
+                if (!expect_frame_start_) {
+                    // Idle detected → prepare for guaranteed frame start
+                    parser_->ResetParser();
+                    expect_frame_start_ = true;
+                }
+            }
+        }
+
+        // Process incoming bytes
+        while (serial_->available()) {
+            uint8_t byte = serial_->read();
+            last_byte_time_us_ = now;
+
+            // Validate frame start after idle
+            if (expect_frame_start_) {
+                expect_frame_start_ = false;
+                if (byte != 0x20) {
+                    continue;  // Discard: not valid frame start after idle!
+                }
+            }
+
+            if (parser_->ParseByte(byte)) {
+                last_message_time_ = millis();
+            }
+        }
+    }
+};
+```
+
+**Configuration**:
+```cpp
+SerialRx::Config config;
+config.serial = &SerialRC;
+config.protocol = SerialRx::IBUS;
+config.baudrate = 115200;
+config.idle_threshold_us = 300;  // Enable idle detection (0 = disabled)
+```
+
+**Trade-offs**:
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Current (checksum only)** | Simple, minimal code, proven reliable | Theoretical false positive risk (~1/5000 frames) |
+| **Software idle detection** | Eliminates false positives, portable | Requires `micros()` accuracy, slightly more complex |
+| **Hardware idle interrupt** | Most efficient, DMA-ready | STM32-specific, breaks Arduino portability |
+
+**Recommendation**:
+1. **Current approach** is production-ready (validated: 501/501 frames, 0% loss)
+2. **Software idle detection** is the best enhancement (portable + robust)
+3. **Hardware idle interrupt** is only needed for DMA-based implementations
+
+**Implementation priority**: Consider for next release after SBUS protocol support
+
 #### Algorithm Flow
 
 **1. Header Synchronization** (`WaitingForHeader0` → `ParserHasHeader0`):
