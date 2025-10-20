@@ -32,7 +32,7 @@ public:
      */
     struct Config {
         HardwareSerial* serial;    // Pointer to Serial1, Serial2, etc.
-        Protocol protocol;          // Protocol type
+        Protocol rx_protocol;       // RC receiver protocol type
         uint32_t baudrate;         // Serial baudrate
         uint32_t timeout_ms;       // Message timeout in milliseconds
         uint32_t idle_threshold_us; // Idle line detection threshold (0 = disabled)
@@ -40,7 +40,7 @@ public:
         // Default constructor
         Config()
             : serial(nullptr)
-            , protocol(NONE)
+            , rx_protocol(NONE)
             , baudrate(115200)
             , timeout_ms(1000)
             , idle_threshold_us(0) {}  // Disabled by default

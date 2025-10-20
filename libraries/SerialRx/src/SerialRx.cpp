@@ -30,7 +30,7 @@ bool SerialRx::begin(const Config& config) {
     }
 
     serial_ = config.serial;
-    protocol_ = config.protocol;
+    protocol_ = config.rx_protocol;
     timeout_ms_ = config.timeout_ms;
     idle_threshold_us_ = config.idle_threshold_us;
     last_message_time_ = millis();

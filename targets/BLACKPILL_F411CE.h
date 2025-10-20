@@ -16,6 +16,9 @@ namespace BoardConfig {
   // GPS: UART2
   static constexpr UARTConfig gps{PA2, PA3, 115200};
 
+  // RC Receiver: IBus on UART1 (RX=PB3, TX=PA15)
+  static constexpr RCReceiverConfig rc_receiver{PB3, PA15, 115200, 1000, 300};
+
   // I2C1: Magnetometer, barometer, rangefinder, pitot
   static constexpr I2CConfig sensors{PB7, PB6, 400000};
 

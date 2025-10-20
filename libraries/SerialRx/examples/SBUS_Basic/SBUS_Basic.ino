@@ -2,10 +2,10 @@
  * SBUS_Basic - Basic SBUS RC receiver example
  *
  * Demonstrates reading RC channels from an SBUS receiver (FrSky/Futaba)
- * using the SerialRx library.
+ * using the SerialRx library with BoardConfig integration.
  *
  * Hardware connections:
- *   RC Receiver SBUS → USART1 RX (PA10 on NUCLEO_F411RE)
+ *   RC Receiver SBUS → UART RX pin (see BoardConfig::rc_receiver)
  *   RC Receiver GND  → GND
  *   RC Receiver VCC  → 5V (if receiver needs 5V power)
  *
@@ -15,13 +15,20 @@
  *
  * Protocol: SBUS @ 100000 baud
  * Expected: 16 RC channels (0-2047 range, typical 172-1811)
+ *
+ * Board Configuration:
+ *   NUCLEO_F411RE: Uses USART1 (RX=PA10, TX=PA9)
+ *   BLACKPILL_F411CE: Uses UART1 (RX=PB3, TX=PA15)
+ *   JHEF411: Uses USART2 (RX=PA3, TX=PA2)
  */
 
 #include <SerialRx.h>
 #include <ci_log.h>
+#include "../../../../../targets/NUCLEO_F411RE_LITTLEFS.h"
 
-// Create HardwareSerial instance for USART1 (RX=PA10, TX=PA9)
-HardwareSerial SerialRC(PA10, PA9);
+// Create HardwareSerial instance using BoardConfig
+HardwareSerial SerialRC(BoardConfig::rc_receiver.rx_pin,
+                        BoardConfig::rc_receiver.tx_pin);
 
 // Create SerialRx instance (protocol configured in setup)
 SerialRx rc;
@@ -36,17 +43,23 @@ void setup() {
   CI_LOG("SBUS RC Receiver - Basic Example\n");
   CI_LOG("==================================\n");
 
-  // Configure RC receiver on USART1
+  // Configure RC receiver using BoardConfig
+  // Note: SBUS uses 100000 baud (not 115200)
   SerialRx::Config config;
   config.serial = &SerialRC;
-  config.protocol = SerialRx::SBUS;   // SBUS protocol
-  config.baudrate = 100000;           // SBUS standard baudrate
-  config.timeout_ms = 1000;           // 1 second failsafe timeout
-  config.idle_threshold_us = 300;     // Enable software idle detection (300µs)
+  config.rx_protocol = SerialRx::SBUS;
+  config.baudrate = 100000;  // SBUS protocol baudrate (override BoardConfig default)
+  config.timeout_ms = BoardConfig::rc_receiver.timeout_ms;
+  config.idle_threshold_us = BoardConfig::rc_receiver.idle_threshold_us;
 
   if (rc.begin(config)) {
-    CI_LOG("RC Receiver initialized on USART1 (PA10/PA9)\n");
-    CI_LOG("Software idle detection: ENABLED (300us threshold)\n");
+    CI_LOGF("RC Receiver initialized (RX=0x%02X, TX=0x%02X, %lu baud)\n",
+            BoardConfig::rc_receiver.rx_pin,
+            BoardConfig::rc_receiver.tx_pin,
+            config.baudrate);
+    CI_LOGF("Software idle detection: %s (%lu us threshold)\n",
+            config.idle_threshold_us > 0 ? "ENABLED" : "DISABLED",
+            config.idle_threshold_us);
 
     // Enable USART RX inversion for SBUS inverted signal
     // STM32 HAL function (requires access to UART handle)

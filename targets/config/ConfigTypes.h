@@ -108,4 +108,18 @@ namespace BoardConfig {
     const uint32_t led1_pin;  // Primary status LED
     const uint32_t led2_pin;  // Secondary status LED (0 = not present)
   };
+
+  struct RCReceiverConfig {
+    constexpr RCReceiverConfig(uint32_t rx, uint32_t tx, uint32_t baud,
+                               uint32_t timeout_ms = 1000,
+                               uint32_t idle_threshold_us = 300)
+      : rx_pin(rx), tx_pin(tx), baud_rate(baud),
+        timeout_ms(timeout_ms), idle_threshold_us(idle_threshold_us) {}
+
+    const uint32_t rx_pin;              // UART RX pin (receiver output)
+    const uint32_t tx_pin;              // UART TX pin (receiver input, usually unused)
+    const uint32_t baud_rate;           // Protocol baudrate (115200=IBus, 100000=SBUS)
+    const uint32_t timeout_ms;          // Failsafe timeout in milliseconds
+    const uint32_t idle_threshold_us;   // Software idle detection threshold (0=disabled)
+  };
 }

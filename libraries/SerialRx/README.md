@@ -23,7 +23,7 @@ SerialRx rc;
 void setup() {
   SerialRx::Config config;
   config.serial = &SerialRC;
-  config.protocol = SerialRx::IBUS;
+  config.rx_protocol = SerialRx::IBUS;
   config.baudrate = 115200;
   config.timeout_ms = 1000;
   config.idle_threshold_us = 300;  // Optional: software idle detection
@@ -232,7 +232,7 @@ SBUS uses inverted UART signal. Options:
 **Example** (SBUS_Basic):
 ```cpp
 SerialRx::Config config;
-config.protocol = SerialRx::SBUS;
+config.rx_protocol = SerialRx::SBUS;
 config.baudrate = 100000;
 // Note: Requires signal inversion hardware/software
 rc.begin(config);

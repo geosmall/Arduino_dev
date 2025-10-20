@@ -105,7 +105,7 @@ void setup() {
   // Initialize receiver (USART1 via SerialRx)
   SerialRx::Config config;
   config.serial = &SerialRC;
-  config.protocol = SerialRx::IBUS;
+  config.rx_protocol = SerialRx::IBUS;
   config.baudrate = 115200;
   config.timeout_ms = 100;  // 100ms failsafe
 
