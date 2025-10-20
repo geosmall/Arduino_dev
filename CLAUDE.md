@@ -158,15 +158,16 @@ This repository supports **UAV flight controller boards** with the following STM
 
 **STM32-Specific Libraries**:
 - `STM32RTC` - Real-time clock functionality
-- `LittleFS` - SPI flash filesystem with wear leveling (configuration, firmware)
-- `SDFS` - SD card filesystem via SPI with FatFs backend (data logging, bulk storage)
-- `Storage` - Generic storage abstraction providing unified interface for LittleFS and SDFS
+- `SerialRx` - RC receiver protocol parser (IBus ✅, SBUS ✅, CRSF 📋) with BoardConfig integration and software idle detection
+- `LittleFS` - SPI flash filesystem with wear leveling
+- `SDFS` - SD card filesystem via SPI with FatFs backend
+- `Storage` - Generic storage abstraction for LittleFS and SDFS
 - `minIniStorage` - INI configuration management with automatic storage backend selection
-- `ICM42688P` - Low-level 6-axis IMU library with TDK InvenSense drivers and manufacturer self-test
-- `IMU` - High-level C++ wrapper for InvenSense IMU sensors with chip detection and multi-instance support
-- `TimerPWM` - Hardware timer-based PWM library for servo/ESC control with 1µs resolution
-- `libPrintf` - Optional embedded printf library (eyalroz/printf v6.2.0) - eliminates nanofp confusion, 20% binary reduction
-- `AUnit` - Arduino unit testing framework (v1.7.1) - STM32-compatible testing with RTT integration
+- `ICM42688P` - 6-axis IMU library with TDK InvenSense drivers and self-test
+- `IMU` - High-level C++ IMU wrapper with chip detection and multi-instance support
+- `TimerPWM` - Hardware timer PWM for servo/ESC control with 1µs resolution
+- `libPrintf` - Embedded printf library (eyalroz/printf v6.2.0) - 20% binary reduction
+- `AUnit` - Unit testing framework (v1.7.1) with RTT integration
 
 ### Hardware Abstraction
 
@@ -372,75 +373,42 @@ AUnit v1.7.1 unit testing framework integrated with HIL CI/CD workflow for compr
 
 ### Board Configuration System ✅ **COMPLETED**
 
-Comprehensive compile-time board configuration system supporting multiple target platforms with automatic detection, flexible peripheral configuration, and hardware/software chip select control.
+Compile-time board configuration system with multi-board support, flexible peripheral config, and hardware/software chip select control.
 
 **Key Features**:
-- **Multi-Board Support**: NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3 with automatic selection via `ARDUINO_*` defines
-- **CS Mode Control**: Software vs hardware chip select modes via CS_Mode enum with get_ssel_pin() helper
-- **Composable Architecture**: SPIConfig building blocks for storage and IMU configurations
-- **Transport Abstraction**: Union-based pattern supporting SPI and I2C peripherals
-- **Optional Interrupts**: Configurable interrupt pins for event-driven sensor operation
-- **Frequency Optimization**: 1MHz for jumper connections, 8MHz for hardwired setups
-- **Complete Integration**: Storage (LittleFS/SDFS) and IMU (ICM42688P) fully validated
+- **Multi-Board Support**: NUCLEO_F411RE, BLACKPILL_F411CE, NOXE_V3 with automatic `ARDUINO_*` detection
+- **Config Types**: StorageConfig, IMUConfig, RCReceiverConfig, UARTConfig, I2CConfig, ADCConfig, LEDConfig
+- **CS Mode Control**: Software/hardware chip select via CS_Mode enum with get_ssel_pin() helper
+- **Composable Architecture**: SPIConfig building blocks for storage, IMU, and RC receiver
+- **Frequency Optimization**: 1MHz (jumper wire), 8MHz (hardwired)
 
 **Usage**:
 ```cpp
 #include "targets/NUCLEO_F411RE_LITTLEFS.h"
 SPIClass spi(BoardConfig::storage.mosi_pin, BoardConfig::storage.miso_pin,
              BoardConfig::storage.sclk_pin, BoardConfig::storage.get_ssel_pin());
-if (BoardConfig::imu.int_pin != 0) {
-  attachInterrupt(digitalPinToInterrupt(BoardConfig::imu.int_pin), handler, RISING);
-}
-// See targets/*.h for board configurations and examples for complete usage
+// See targets/*.h and targets/HW_CONFIG.md for complete usage
 ```
 
 ### Generic Storage Abstraction ✅ **COMPLETED**
 
-Unified storage interface abstracting SDFS and LittleFS with automatic backend selection via BoardConfig. Factory pattern provides runtime safety with single API for both storage backends.
+Unified storage interface for SDFS and LittleFS with automatic backend selection via BoardConfig.
 
-**Usage**:
-```cpp
-#include <Storage.h>
-#include <BoardStorage.h>
-BoardStorage::begin(BoardConfig::storage);
-Storage& fs = BOARD_STORAGE;
-File log = fs.open("/flight.log", FILE_WRITE);
-```
+**Usage**: `#include <Storage.h>` → `Storage& fs = BOARD_STORAGE;` → `fs.open("/file.txt", FILE_WRITE);`
 
-### minIni Configuration Management System ✅ **COMPLETED**
+### minIni Configuration Management ✅ **COMPLETED**
 
-INI file configuration management integrated with Generic Storage Abstraction for both LittleFS and SDFS backends.
+INI file configuration (v1.5) integrated with Storage abstraction for LittleFS/SDFS.
 
-**Key Features**:
-- **minIni v1.5**: Latest version with enhanced validation (hassection/haskey)
-- **Storage Integration**: Works with both LittleFS and SDFS via unified interface
-- **Data Types**: Strings, integers, floats, booleans with section/key enumeration
-- **HIL Testing**: Full deterministic validation with 6 test suites
+**Features**: String/int/float/bool support, section/key enumeration, HIL validated (6 test suites)
 
-**Usage**:
-```cpp
-#include <minIniStorage.h>
-minIniStorage config("config.ini");
-config.begin(BoardConfig::storage);
-config.put("network", "ip_address", "192.168.1.100");
-std::string ip = config.gets("network", "ip_address", "default");
-// See tests/minIniStorage_Unit_Tests for complete examples
-```
+**Usage**: `minIniStorage config("config.ini");` → `config.begin(BoardConfig::storage);` → `config.put("key", "val");`
 
-### libPrintf Embedded Printf Library ✅ **COMPLETED**
+### libPrintf ✅ **COMPLETED**
 
-Optional Arduino library (eyalroz/printf v6.2.0) that eliminates nanofp confusion and provides reliable float formatting with ~20% binary size reduction (8KB+ savings).
+Embedded printf library (eyalroz/printf v6.2.0) eliminating nanofp confusion with ~20% binary reduction (8KB+ savings).
 
-**Key Features**:
-- Eliminates complex FQBN rtlib configurations
-- Supports custom putchar_() for RTT/Serial routing
-- Thread-safe for embedded applications
-
-**Usage**:
-```cpp
-#include <libPrintf.h>
-printf("Pi = %.6f\n", 3.14159265);  // Float formatting works automatically
-```
+**Usage**: `#include <libPrintf.h>` → `printf("Pi = %.6f\n", 3.14159);  // Float formatting works`
 
 ### ICM-42688-P IMU Library Integration ✅ **COMPLETED**
 
@@ -650,6 +618,67 @@ esc_pwm.Start();
 
 **Important**: All timer PWM examples correctly demonstrate the required `resumeChannel()` call per STM32 documentation. Manual PWM configuration requires both channel enable (`resumeChannel()`) and counter start (`resume()`).
 
+### SerialRx Library ✅ **COMPLETED**
+
+RC receiver protocol parser with hardware-validated IBus implementation, SBUS support, and BoardConfig integration.
+
+**Key Features**:
+- **Dual Protocol Support**: IBus (hardware validated) and SBUS (implemented)
+- **BoardConfig Integration**: RCReceiverConfig for consistent pin/protocol configuration across target boards
+- **Software Idle Detection**: Optional timestamp-based frame synchronization (300µs threshold)
+- **Ring Buffer Management**: Efficient circular buffer for serial data
+- **Failsafe Detection**: Configurable timeout monitoring
+- **HIL Integration**: Full ci_log.h support with deterministic testing
+
+**Supported Protocols**:
+- ✅ **IBus** (FlySky): 32-byte frames, 115200 baud, 14 channels
+- ✅ **SBUS** (FrSky/Futaba): 25-byte frames, 100000 baud, 16 channels × 11-bit (requires inverted signal)
+- 📋 **CRSF** (TBS Crossfire): Framework ready
+
+**Hardware Validation**:
+- **IBus Loopback**: 501/501 frames (0% loss) with dual-USART testing
+- **IBus Real Receiver**: FlySky FS-iA6B validated (15s continuous, 10 channels, 1000-2000µs range)
+- **SBUS**: Implemented but not hardware validated
+
+**Production Usage with BoardConfig**:
+```cpp
+#include <SerialRx.h>
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+
+HardwareSerial SerialRC(BoardConfig::rc_receiver.rx_pin,
+                        BoardConfig::rc_receiver.tx_pin);
+SerialRx rc;
+
+void setup() {
+  SerialRx::Config config;
+  config.serial = &SerialRC;
+  config.rx_protocol = SerialRx::IBUS;  // or SerialRx::SBUS
+  config.baudrate = BoardConfig::rc_receiver.baud_rate;
+  config.timeout_ms = BoardConfig::rc_receiver.timeout_ms;
+  config.idle_threshold_us = BoardConfig::rc_receiver.idle_threshold_us;
+  rc.begin(config);
+}
+
+void loop() {
+  rc.update();
+  if (rc.available()) {
+    RCMessage msg;
+    if (rc.getMessage(&msg)) {
+      uint16_t throttle = msg.channels[2];  // Channel 3
+    }
+  }
+}
+```
+
+**Examples**:
+- **IBus_Basic**: Real receiver validation (FlySky FS-iA6B, 15s HIL test, BoardConfig integrated)
+- **IBus_Loopback_Test**: Dual-USART validation (501/501 frames, deterministic exit)
+- **SBUS_Basic**: SBUS testing (requires inverted signal, timeout detection verified)
+
+**Documentation**:
+- `libraries/SerialRx/README.md` - Protocol docs, state machine, validation results
+- `doc/SERIAL.md` - Technical implementation details
+
 ## Future Projects
 
 ### New Variant Validation 📋 **FUTURE PROJECT**
@@ -706,7 +735,22 @@ void setup() {
   CI_BUILD_INFO();                     // Build traceability (RTT only)
   CI_READY_TOKEN();                    // Ready signal (RTT only)
 }
-``` 
+
+void loop() {
+  // ... test execution ...
+
+  // CRITICAL: Always end HIL tests with *STOP* exit wildcard
+  CI_LOG("*STOP*\n");  // Required for aflash.sh exit wildcard detection
+  while(1);            // Halt after test completion
+}
+```
+
+**Exit Wildcard Requirements for HIL Testing**:
+- ✅ **ALWAYS** end tests with `CI_LOG("*STOP*\n")` before halting
+- ✅ aflash.sh requires `*STOP*` for deterministic test completion
+- ❌ Without `*STOP*`, aflash.sh will timeout after 60 seconds
+- 💡 Can include test status before `*STOP*` (e.g., `*TEST_PASS*` then `*STOP*`)
+- 💡 No delay needed before `*STOP*` - RTT handles buffering automatically 
 
 ## Clean Repository Policy
 

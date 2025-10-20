@@ -33,6 +33,9 @@ namespace BoardConfig {
   // USART2: Serial port
   static constexpr UARTConfig uart2{PA2, PA3, 115200};
 
+  // RC Receiver: IBus on USART2 (RX=PA3, TX=PA2)
+  static constexpr RCReceiverConfig rc_receiver{PA3, PA2, 115200, 1000, 300};
+
   // ADC: Battery voltage and current monitoring
   static constexpr ADCConfig battery{PA0, PA1, 110, 170};
 

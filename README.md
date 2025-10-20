@@ -91,6 +91,7 @@ make check          # Verify environment
 ### Sensors and Hardware
 - **IMU v1.0.0**: High-level C++ wrapper for InvenSense IMU sensors with chip detection and multi-instance support
 - **ICM42688P v1.0.0**: Low-level 6-axis IMU library with TDK InvenSense drivers, self-test, and data acquisition
+- **SerialRx v1.0.0**: RC receiver serial protocol parser (IBus, SBUS) with software idle detection and hardware validation
 - **STM32RTC**: Real-time clock functionality
 
 ### Development and Testing
@@ -109,6 +110,7 @@ make check          # Verify environment
 │   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
 │   ├── minIniStorage/     # Configuration management with unified storage backend
 │   ├── SDFS/              # SD filesystem v1.0.0 with LittleFS-compatible API
+│   ├── SerialRx/          # RC receiver protocol parser (IBus, SBUS) with idle detection
 │   ├── STM32RTC/          # Real-time clock library
 │   └── Storage/           # Generic storage abstraction for LittleFS/SDFS
 ├── extras/
@@ -181,8 +183,9 @@ void setup() {
 - **✅ Complete**: Storage systems (LittleFS, SDFS, Storage abstraction), configuration management (minIni), build/HIL framework, libPrintf integration
 - **✅ Complete**: IMU library (high-level wrapper with chip detection, context-based design, interrupt support)
 - **✅ Complete**: ICM42688P library (low-level TDK drivers with self-test and data acquisition)
+- **✅ Complete**: SerialRx library (IBus hardware validated, SBUS implemented, software idle detection)
 - **✅ Complete**: Betaflight Config Converter (Python tool with PeripheralPins.c validation, ALT variant handling, 53 passing tests)
-- **📋 Future**: Additional IMU sensor support (MPU-6000, MPU-9250)
+- **📋 Future**: Additional IMU sensor support (MPU-6000, MPU-9250), CRSF protocol support
 
 ## Documentation
 

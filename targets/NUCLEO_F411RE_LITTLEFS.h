@@ -17,6 +17,9 @@ namespace BoardConfig {
   // GPS: UART communication (if needed)
   static constexpr UARTConfig gps{PA9, PA10, 115200};
 
+  // RC Receiver: IBus on USART1 (RX=PA10, TX=PA9)
+  static constexpr RCReceiverConfig rc_receiver{PA10, PA9, 115200, 1000, 300};
+
   // I2C: Available for additional sensors (if needed)
   static constexpr I2CConfig sensors{PB9, PB8, 400000};
 

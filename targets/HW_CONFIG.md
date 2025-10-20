@@ -132,6 +132,20 @@ namespace BoardConfig {
     const uint32_t led1_pin;  // Primary status LED
     const uint32_t led2_pin;  // Secondary status LED (0 = not present)
   };
+
+  struct RCReceiverConfig {
+    constexpr RCReceiverConfig(uint32_t rx, uint32_t tx, uint32_t baud,
+                               uint32_t timeout_ms = 1000,
+                               uint32_t idle_threshold_us = 300)
+      : rx_pin(rx), tx_pin(tx), baud_rate(baud),
+        timeout_ms(timeout_ms), idle_threshold_us(idle_threshold_us) {}
+
+    const uint32_t rx_pin;              // UART RX pin (receiver output)
+    const uint32_t tx_pin;              // UART TX pin (receiver input, usually unused)
+    const uint32_t baud_rate;           // Protocol baudrate (115200=IBus, 100000=SBUS)
+    const uint32_t timeout_ms;          // Failsafe timeout in milliseconds
+    const uint32_t idle_threshold_us;   // Software idle detection threshold (0=disabled)
+  };
 }
 ```
 
@@ -157,6 +171,9 @@ namespace BoardConfig {
   // GPS: UART communication
   static constexpr UARTConfig gps{PA9, PA10, 115200};
 
+  // RC Receiver: IBus on USART1 (RX=PA10, TX=PA9)
+  static constexpr RCReceiverConfig rc_receiver{PA10, PA9, 115200, 1000, 300};
+
   // I2C: Magnetometer, barometer
   static constexpr I2CConfig sensors{PB9, PB8, 400000};
 }
@@ -177,6 +194,9 @@ namespace BoardConfig {
 
   // GPS: UART communication
   static constexpr UARTConfig gps{PA9, PA10, 115200};
+
+  // RC Receiver: IBus on USART1 (RX=PA10, TX=PA9)
+  static constexpr RCReceiverConfig rc_receiver{PA10, PA9, 115200, 1000, 300};
 
   // I2C: Magnetometer, barometer
   static constexpr I2CConfig sensors{PB9, PB8, 400000};
@@ -300,8 +320,52 @@ void setup() {
   CI_LOG("GPS UART Config: TX=%lu, RX=%lu, Baud=%lu\n",
          BoardConfig::gps.tx_pin, BoardConfig::gps.rx_pin, BoardConfig::gps.baud_rate);
 
+  CI_LOG("RC Receiver Config: RX=%lu, TX=%lu, Baud=%lu, Timeout=%lu ms\n",
+         BoardConfig::rc_receiver.rx_pin, BoardConfig::rc_receiver.tx_pin,
+         BoardConfig::rc_receiver.baud_rate, BoardConfig::rc_receiver.timeout_ms);
+
   CI_LOG("Board configuration test completed successfully\n");
   CI_LOG("*STOP*\n");
+}
+```
+
+**RC Receiver Tests** (`libraries/SerialRx/examples/IBus_Basic/IBus_Basic.ino`):
+```cpp
+#include <SerialRx.h>
+#include <ci_log.h>
+#include "targets/NUCLEO_F411RE_LITTLEFS.h"
+
+// Create HardwareSerial instance using BoardConfig
+HardwareSerial SerialRC(BoardConfig::rc_receiver.rx_pin,
+                        BoardConfig::rc_receiver.tx_pin);
+SerialRx rc;
+
+void setup() {
+  // Configure RC receiver using BoardConfig
+  SerialRx::Config config;
+  config.serial = &SerialRC;
+  config.protocol = SerialRx::IBUS;
+  config.baudrate = BoardConfig::rc_receiver.baud_rate;
+  config.timeout_ms = BoardConfig::rc_receiver.timeout_ms;
+  config.idle_threshold_us = BoardConfig::rc_receiver.idle_threshold_us;
+
+  if (rc.begin(config)) {
+    CI_LOGF("RC Receiver initialized (RX=0x%02X, TX=0x%02X, %lu baud)\n",
+            BoardConfig::rc_receiver.rx_pin,
+            BoardConfig::rc_receiver.tx_pin,
+            BoardConfig::rc_receiver.baud_rate);
+  }
+}
+
+void loop() {
+  rc.update();
+  if (rc.available()) {
+    RCMessage msg;
+    if (rc.getMessage(&msg)) {
+      // Process RC channels (1000-2000 µs typical range)
+      uint16_t throttle = msg.channels[2];  // Ch3
+    }
+  }
 }
 ```
 
