@@ -1,27 +1,30 @@
-# Test logs and build artifacts
-test_logs/
-
-# Arduino build artifacts (sketch compilation only)
-tests/*/build/
-libraries/*/build/
-*.bin
-*.hex
-*.elf
-
-# Auto-generated build identification files
-build_id.h
+# Workspace .gitignore
+# This is for the Claude development workspace only
+# Submodules have their own .gitignore files
 
 # IDE and editor files
 .vscode/
 *.swp
 *.tmp
 
-# Python cache and bytecode
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files and logs
+*.log
+temp/
+
+# Python cache (if using workspace-level Python scripts)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Build artifacts that might end up in workspace root
+*.bin
+*.hex
+*.elf
+*.tar.gz
+*.tar.bz2
+*.zip
