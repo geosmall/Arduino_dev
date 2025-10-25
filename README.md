@@ -4,6 +4,50 @@
 
 ---
 
+## Architecture Overview
+
+This workspace implements a **3-tier architecture** for STM32 Arduino development:
+
+**Workspace (Arduino)** - Orchestration Layer
+- Manages both repositories as git submodules
+- Provides release automation (`create_release.sh`)
+- Helper scripts for cross-repo coordination
+- Claude Code development environment
+
+**Development (Arduino_Core_STM32)** - Development Layer
+- Complete STM32 Arduino core (stm32duino fork)
+- 11 robotics libraries (SerialRx, IMU, Storage, etc.)
+- CI/CD infrastructure with HIL testing
+- All active development happens here
+
+**Distribution (BoardManagerFiles)** - Distribution Layer
+- Arduino IDE Board Manager package index
+- Release metadata and download URLs
+- End-user installation point
+
+This separation provides clean boundaries: workspace orchestrates, development implements, distribution delivers.
+
+---
+
+## Prerequisites
+
+**Required Tools:**
+- **Git** (2.13+) - Submodule support required
+- **Bash** - For helper scripts (Linux/macOS/WSL)
+
+**For Release Automation:**
+- **GitHub CLI (`gh`)** - Release creation and asset upload
+  ```bash
+  gh auth login  # Authenticate once
+  ```
+- **jq** - JSON manipulation for package index
+- **tar** - Archive creation (standard on Linux/macOS)
+
+**For Development in Arduino_Core_STM32:**
+- See [Arduino_Core_STM32/CLAUDE.md](Arduino_Core_STM32/CLAUDE.md) for complete build environment requirements
+
+---
+
 ## Quick Start
 
 ### Initial Clone
@@ -38,7 +82,10 @@ Arduino/
 ├── BoardManagerFiles/        # Submodule: Arduino Board Manager package
 ├── .claude/                  # Claude Code configuration
 ├── CLAUDE.md                 # Development guide for Claude Code
+├── DEPLOYMENT_PLAN.md        # Deployment plan and architecture
+├── DEPLOYMENT_STATUS.md      # Current deployment progress
 ├── README.md                 # This file
+├── create_release.sh         # Automated release creation
 ├── update-submodules.sh      # Update both submodules
 ├── sync-workspace.sh         # Sync workspace + submodules
 └── status-all.sh             # Show git status for all repos
@@ -159,6 +206,49 @@ This workspace is designed for collaborative development with **Claude Code** (h
 
 ---
 
+## Documentation
+
+### Workspace Documentation
+
+**[DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)** - Architecture evolution and key decisions
+- Complete history from consolidation through workspace transformation
+- Phases 1-5: Consolidation → BoardManagerFiles → v1.0.0 Release → Workspace → Automation
+- Key architectural decisions with rationale (why 3-tier, script placement, etc.)
+- Lessons learned from deployment process
+
+**[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md)** - Current deployment progress
+- Executive summary: Phases 1-5 complete ✅, Testing/Documentation pending 📋
+- Phase-by-phase accomplishments and validation results
+- Current workspace structure with submodule branches
+- Key accomplishments: Infrastructure, Libraries, Deployment, Testing
+- Next steps for Phases 6-7
+
+**[README.md](README.md)** (this file) - Workspace quick reference
+- Architecture overview and development workflows
+- Helper scripts and release automation
+- Quick start for new developers
+
+### Submodule Documentation
+
+**[Arduino_Core_STM32/CLAUDE.md](Arduino_Core_STM32/CLAUDE.md)** - Technical development guide
+- Complete build systems (Arduino CLI, CMake, bash scripts)
+- HIL testing framework with RTT debugging
+- Hardware validation standards (critical for embedded work)
+- Library architecture and completed/future projects
+- Development best practices and collaboration notes
+
+**[Arduino_Core_STM32/README.md](Arduino_Core_STM32/README.md)** - Core repository overview
+- Repository purpose and features
+- Installation instructions
+- Basic usage examples
+
+**[BoardManagerFiles/README.md](BoardManagerFiles/README.md)** - Installation guide
+- How to install via Arduino IDE Board Manager
+- Package index structure
+- End-user documentation
+
+---
+
 ## Helper Scripts
 
 ### `update-submodules.sh`
@@ -178,6 +268,70 @@ Shows git status for workspace and all submodules in one view.
 ```bash
 ./status-all.sh
 ```
+
+---
+
+## Release Workflow
+
+### Creating a New Release
+
+The workspace provides an automated release script that handles the complete release workflow:
+
+```bash
+# Test the release process (dry-run mode)
+./create_release.sh 1.1.0 --dry-run
+
+# Create actual release
+./create_release.sh 1.1.0
+```
+
+### What the Script Does
+
+1. **Validation**
+   - Checks version format (semantic versioning: X.Y.Z)
+   - Verifies both repositories are clean and on correct branches
+   - Checks if version tag already exists
+
+2. **Archive Creation**
+   - Cleans build artifacts from Arduino_Core_STM32
+   - Creates `STM32-Robotics-{version}.tar.bz2` archive
+   - Calculates SHA-256 checksum and file size
+
+3. **GitHub Release**
+   - Tags Arduino_Core_STM32 with `robo-{version}`
+   - Creates GitHub release with auto-generated notes
+   - Uploads archive as release asset
+
+4. **Package Index Update**
+   - Updates `package_stm32_robotics_index.json` with new version
+   - Adds download URL, checksum, and file size
+   - Maintains version history (newest first)
+
+5. **Publish**
+   - Commits package index changes to BoardManagerFiles
+   - Pushes tag to Arduino_Core_STM32
+   - Shows installation URLs and next steps
+
+### Prerequisites
+
+- Both repositories must be clean (no uncommitted changes)
+- Arduino_Core_STM32 must be on `ardu_ci` branch
+- BoardManagerFiles must be on `main` branch
+- GitHub CLI (`gh`) must be authenticated
+
+### Release Checklist
+
+Before creating a release:
+- [ ] All changes committed to Arduino_Core_STM32
+- [ ] All tests passing on hardware
+- [ ] CHANGELOG or release notes prepared
+- [ ] Version number decided (follow semantic versioning)
+
+After creating a release:
+- [ ] Test Board Manager installation in Arduino IDE
+- [ ] Verify example compilation from installed package
+- [ ] Update DEPLOYMENT_STATUS.md
+- [ ] Announce release (if applicable)
 
 ---
 

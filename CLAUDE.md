@@ -38,7 +38,10 @@ Arduino/ (Workspace Root)
 └── [Workspace Files]
     ├── .claude/              # Claude Code configuration
     ├── CLAUDE.md             # This file (workspace guide)
+    ├── DEPLOYMENT_PLAN.md    # Architecture evolution and decisions
+    ├── DEPLOYMENT_STATUS.md  # Current deployment progress
     ├── README.md             # Workspace documentation
+    ├── create_release.sh     # Automated release creation
     ├── .gitmodules           # Submodule configuration
     ├── update-submodules.sh  # Helper: Update submodules
     ├── sync-workspace.sh     # Helper: Sync workspace
@@ -139,12 +142,21 @@ cd ..
 5. Return: `cd ..`
 6. Update workspace pointer: `git add Arduino_Core_STM32 && git commit -m "Update submodule"`
 
-#### Release Management
+#### Release Management (Automated)
 1. Develop in Arduino_Core_STM32 (create libraries, fix bugs, etc.)
-2. Tag release: `cd Arduino_Core_STM32 && git tag v1.x.x`
-3. Create release archive (see BoardManagerFiles for release process)
-4. Update package index: `cd BoardManagerFiles && edit package_stm32_robotics_index.json`
-5. Commit and push both submodules
+2. Ensure all changes committed and tests passing
+3. Return to workspace root: `cd /home/geo/Arduino`
+4. Run automated release: `./create_release.sh 1.1.0 --dry-run` (test first)
+5. Create actual release: `./create_release.sh 1.1.0`
+
+**The script automates:**
+- Version validation and preflight checks
+- Archive creation with build artifact cleanup
+- GitHub release creation and asset upload
+- Package index update with checksums
+- Commits and pushes to both submodules
+
+See `DEPLOYMENT_PLAN.md` for complete release workflow documentation.
 
 ---
 
@@ -162,6 +174,8 @@ When asked to work on files, determine the correct location:
 - **Tests**: `Arduino_Core_STM32/tests/`
 - **Board configs**: `Arduino_Core_STM32/targets/`
 - **Package index**: `BoardManagerFiles/package_stm32_robotics_index.json`
+- **Deployment docs**: `DEPLOYMENT_PLAN.md`, `DEPLOYMENT_STATUS.md` (workspace root)
+- **Release automation**: `create_release.sh` (workspace root)
 
 ### Context Loading
 For detailed information about:
@@ -249,10 +263,23 @@ For comprehensive development information:
   - Completed projects
   - Future roadmap
 
-- **README.md** (this workspace) - Workspace usage guide
+- **DEPLOYMENT_PLAN.md** (this workspace) - Architecture evolution and decisions
+  - Complete history: consolidation → BoardManagerFiles → v1.0.0 → workspace → automation
+  - Key architectural decisions with rationale (3-tier, script placement, etc.)
+  - Lessons learned from deployment process
+  - Phases 1-5 complete
+
+- **DEPLOYMENT_STATUS.md** (this workspace) - Current deployment progress
+  - Executive summary: Phases 1-5 complete ✅, Testing/Documentation pending 📋
+  - Phase-by-phase accomplishments
+  - Current workspace structure and branches
+  - Next steps for Phases 6-7
+
+- **README.md** (this workspace) - Workspace quick reference
+  - Architecture overview (3-tier design)
   - Submodule management
-  - Helper scripts
-  - Claude Code collaboration workflows
+  - Helper scripts and release automation
+  - Prerequisites and documentation map
 
 ---
 
