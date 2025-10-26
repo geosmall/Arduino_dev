@@ -32,15 +32,10 @@ This separation provides clean boundaries: workspace orchestrates, development i
 ## Prerequisites
 
 **Required Tools:**
-- **Git** (2.13+) - Submodule support required
-- **Bash** - For helper scripts (Linux/macOS/WSL)
-
-**For Release Automation:**
-- **GitHub CLI (`gh`)** - Release creation and asset upload
-  ```bash
-  gh auth login  # Authenticate once
-  ```
-- **jq** - JSON manipulation for package index
+- **Git** (2.13+) - Submodule support
+- **Bash** - Shell scripting (standard on Linux/macOS/WSL)
+- **GitHub CLI (`gh`)** - Release creation (install from https://cli.github.com, then `gh auth login`)
+- **jq** - JSON manipulation (install via package manager: `apt install jq`)
 - **tar** - Archive creation (standard on Linux/macOS)
 
 **For Development in Arduino_Core_STM32:**
@@ -273,17 +268,39 @@ Shows git status for workspace and all submodules in one view.
 
 ## Release Workflow
 
-### Creating a New Release
+### Creating a New Release - Step by Step
 
-The workspace provides an automated release script that handles the complete release workflow:
-
+**Step 1: Verify Workspace State**
 ```bash
-# Test the release process (dry-run mode)
-./create_release.sh 1.1.0 --dry-run
-
-# Create actual release
-./create_release.sh 1.1.0
+./status-all.sh
+# Verify: Arduino_Core_STM32 (ardu_ci), BoardManagerFiles (main), all clean
 ```
+
+**Step 2: Test with Dry-Run**
+```bash
+./create_release.sh 1.1.0 --dry-run
+```
+
+**Step 3: Create Release**
+```bash
+./create_release.sh 1.1.0         # Interactive (asks confirmation)
+./create_release.sh 1.1.0 --yes   # Automated (no prompt)
+```
+
+**Step 4: Update Workspace**
+```bash
+git add BoardManagerFiles
+git commit -m "Update BoardManagerFiles submodule pointer for v1.1.0 release"
+git push origin dev
+```
+
+**Step 5: Verify Release**
+```bash
+gh release view robo-1.1.0 --repo geosmall/Arduino_Core_STM32
+```
+
+**Step 6: Test Installation**
+- Arduino IDE → Boards Manager → Search "STM32 Robotics" → Install v1.1.0
 
 ### What the Script Does
 
@@ -332,6 +349,26 @@ After creating a release:
 - [ ] Verify example compilation from installed package
 - [ ] Update DEPLOYMENT_STATUS.md
 - [ ] Announce release (if applicable)
+
+### Troubleshooting
+
+**Tag already exists:**
+```bash
+gh release delete robo-X.Y.Z --repo geosmall/Arduino_Core_STM32 --yes
+cd Arduino_Core_STM32 && git push origin --delete robo-X.Y.Z && git tag -d robo-X.Y.Z
+```
+
+**Uncommitted changes:**
+```bash
+./status-all.sh  # Identify which repo has changes
+cd <repo> && git status  # Review and commit changes
+```
+
+**Authentication required:**
+```bash
+gh auth status  # Check authentication
+gh auth login   # Re-authenticate if needed
+```
 
 ---
 
