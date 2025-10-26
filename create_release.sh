@@ -363,12 +363,17 @@ commit_and_push() {
   cd "$BOARD_MGR_REPO"
   git add "$PACKAGE_INDEX"
   git commit -m "Add STM32 Robotics Core v${VERSION} to package index"
-  git push origin main
+  git push origin $BOARD_MGR_BRANCH
   cd ..
 
-  # Push Arduino_Core_STM32 tag
+  # Push Arduino_Core_STM32 tag (only if not already pushed by gh release create)
   cd "$CORE_REPO"
-  git push origin "$TAG_PREFIX$VERSION"
+  if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_PREFIX$VERSION"; then
+    git push origin "$TAG_PREFIX$VERSION"
+    print_info "Pushed tag $TAG_PREFIX$VERSION to remote"
+  else
+    print_info "Tag $TAG_PREFIX$VERSION already on remote (pushed by gh release create)"
+  fi
   cd ..
 
   print_info "Changes committed and pushed"
