@@ -11,7 +11,9 @@ set -e  # Exit on error
 # Configuration
 TAG_PREFIX="robo-"
 CORE_REPO="Arduino_Core_STM32"
+CORE_BRANCH="ardu_ci"
 BOARD_MGR_REPO="BoardManagerFiles"
+BOARD_MGR_BRANCH="main"
 PACKAGE_INDEX="package_stm32_robotics_index.json"
 ARCHIVE_PREFIX="STM32-Robotics"
 
@@ -25,11 +27,16 @@ NC='\033[0m' # No Color
 # Parse arguments
 VERSION=""
 DRY_RUN=false
+SKIP_CONFIRMATION=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --dry-run)
       DRY_RUN=true
+      shift
+      ;;
+    --yes)
+      SKIP_CONFIRMATION=true
       shift
       ;;
     *)
@@ -131,14 +138,31 @@ check_tag() {
   local tag="$TAG_PREFIX$VERSION"
 
   cd "$CORE_REPO"
+
+  # Check local tag
   if git rev-parse "$tag" >/dev/null 2>&1; then
-    print_error "Tag '$tag' already exists in $CORE_REPO"
+    print_error "Tag '$tag' already exists locally in $CORE_REPO"
     cd ..
     exit 1
   fi
+
+  # Check remote tag
+  if git ls-remote --tags origin | grep -q "refs/tags/$tag"; then
+    print_error "Tag '$tag' already exists on remote"
+    cd ..
+    exit 1
+  fi
+
   cd ..
 
-  print_info "Tag '$tag' is available"
+  # Check if GitHub release exists (including drafts)
+  if gh release view "$tag" --repo geosmall/Arduino_Core_STM32 >/dev/null 2>&1; then
+    print_error "GitHub release '$tag' already exists (may be a draft)"
+    print_warning "Delete it with: gh release delete $tag --repo geosmall/Arduino_Core_STM32 --yes"
+    exit 1
+  fi
+
+  print_info "Tag '$tag' is available (local, remote, and GitHub)"
 }
 
 # Create archive
@@ -226,6 +250,7 @@ create_github_release() {
   gh release create "$tag" \
     --title "$title" \
     --generate-notes \
+    --target "$CORE_BRANCH" \
     --repo geosmall/Arduino_Core_STM32 \
     "../$archive_name"
 
@@ -387,23 +412,65 @@ show_summary() {
 
 # Cleanup on error
 cleanup_on_error() {
+  local tag="$TAG_PREFIX$VERSION"
+  local archive_name="${ARCHIVE_PREFIX}-${VERSION}.tar.bz2"
+
   print_error "Release creation failed!"
+  echo ""
 
   if [ "$DRY_RUN" = false ]; then
-    print_warning "Cleaning up..."
+    print_warning "Automatic cleanup..."
 
-    # Remove archive if it exists
-    local archive_name="${ARCHIVE_PREFIX}-${VERSION}.tar.bz2"
+    # Remove local archive if it exists
     if [ -f "$archive_name" ]; then
       rm "$archive_name"
-      print_info "Removed archive: $archive_name"
+      print_info "✓ Removed local archive: $archive_name"
     fi
 
-    # Note: GitHub release and tag cleanup must be done manually if needed
     echo ""
-    echo "Manual cleanup may be required:"
-    echo "  - Check GitHub release: https://github.com/geosmall/Arduino_Core_STM32/releases"
-    echo "  - Delete tag if created: git tag -d $TAG_PREFIX$VERSION && git push origin :refs/tags/$TAG_PREFIX$VERSION"
+    print_header "Manual Cleanup Required"
+    echo ""
+    echo "The release process failed partway through. Follow these steps to clean up:"
+    echo ""
+
+    echo -e "${YELLOW}1. Check and delete GitHub release (if created):${NC}"
+    echo "   gh release list --repo geosmall/Arduino_Core_STM32"
+    echo "   # If release exists:"
+    echo "   gh release delete $tag --repo geosmall/Arduino_Core_STM32 --yes"
+    echo ""
+
+    echo -e "${YELLOW}2. Delete remote tag (if pushed):${NC}"
+    echo "   cd $CORE_REPO"
+    echo "   git ls-remote --tags origin | grep $tag"
+    echo "   # If tag exists on remote:"
+    echo "   git push origin --delete $tag"
+    echo "   cd .."
+    echo ""
+
+    echo -e "${YELLOW}3. Delete local tag (if created):${NC}"
+    echo "   cd $CORE_REPO"
+    echo "   git tag | grep $tag"
+    echo "   # If tag exists locally:"
+    echo "   git tag -d $tag"
+    echo "   cd .."
+    echo ""
+
+    echo -e "${YELLOW}4. Revert BoardManagerFiles commit (if package index was updated):${NC}"
+    echo "   cd $BOARD_MGR_REPO"
+    echo "   git log --oneline -3"
+    echo "   # If v$VERSION commit exists:"
+    echo "   git reset --hard HEAD~1"
+    echo "   git push origin $BOARD_MGR_BRANCH --force"
+    echo "   cd .."
+    echo ""
+
+    echo -e "${YELLOW}5. Verify cleanup:${NC}"
+    echo "   ./status-all.sh"
+    echo "   gh release list --repo geosmall/Arduino_Core_STM32"
+    echo ""
+
+    echo -e "${GREEN}After cleanup, fix the issue and retry the release.${NC}"
+    echo ""
   fi
 
   exit 1
@@ -417,11 +484,17 @@ main() {
 
   # Show usage if no version provided
   if [ -z "$VERSION" ]; then
-    echo "Usage: $0 <version> [--dry-run]"
+    echo "Usage: $0 <version> [--dry-run] [--yes]"
+    echo ""
+    echo "Arguments:"
+    echo "  <version>      Semantic version number (X.Y.Z)"
+    echo "  --dry-run      Test release process without making changes"
+    echo "  --yes          Skip confirmation prompt (for automation)"
     echo ""
     echo "Examples:"
-    echo "  $0 1.1.0              # Create release v1.1.0"
-    echo "  $0 1.1.0 --dry-run    # Test release process without making changes"
+    echo "  $0 1.1.0              # Create release v1.1.0 (interactive)"
+    echo "  $0 1.1.0 --dry-run    # Test release process"
+    echo "  $0 1.1.0 --yes        # Create release without confirmation"
     echo ""
     exit 1
   fi
@@ -439,15 +512,15 @@ main() {
   check_command tar
   validate_version
   check_workspace
-  check_git_status "$CORE_REPO" "ardu_ci"
-  check_git_status "$BOARD_MGR_REPO" "main"
+  check_git_status "$CORE_REPO" "$CORE_BRANCH"
+  check_git_status "$BOARD_MGR_REPO" "$BOARD_MGR_BRANCH"
   check_tag
 
   echo ""
   print_info "Creating release for version: $VERSION"
 
   # Confirmation prompt
-  if [ "$DRY_RUN" = false ]; then
+  if [ "$DRY_RUN" = false ] && [ "$SKIP_CONFIRMATION" != true ]; then
     echo ""
     read -p "Continue with release creation? (y/N): " -n 1 -r
     echo ""
