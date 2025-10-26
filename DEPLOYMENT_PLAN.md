@@ -103,7 +103,7 @@ Arduino/ (formerly Arduino_dev)
 
 **Implemented:** `create_release.sh` (workspace root)
 
-**Features:**
+**Core Features:**
 - ✅ Full automation: version tag → GitHub release → package index update
 - ✅ Archive creation with build artifact cleanup
 - ✅ SHA-256 checksum and file size calculation
@@ -111,16 +111,30 @@ Arduino/ (formerly Arduino_dev)
 - ✅ Package index auto-update with version history
 - ✅ Cross-platform (Linux/macOS)
 - ✅ Dry-run mode for testing
-- ✅ Interactive confirmation
+- ✅ Interactive confirmation with `--yes` flag for automation
 - ✅ Comprehensive validation and error handling
+
+**Production Hardening (discovered during v1.0.0 release):**
+1. **Configurable branch variables** - Eliminates hardcoded branch names
+2. **Explicit branch targeting** - `--target` flag ensures releases point to correct branch
+3. **Comprehensive tag checking** - Validates local, remote, AND GitHub releases (catches drafts)
+4. **Smart tag push prevention** - Detects when `gh release create` already pushed tag
+5. **Detailed cleanup instructions** - 5-step error recovery guide with verification
+
+**Tool Bundling:**
+- ✅ 221 lines of tool definitions added to package index
+- ✅ 5 tools with cross-platform support (Windows, macOS, Linux variants)
+- ✅ Versions verified against platform.txt tested configuration
+- ✅ Eliminates external Board Manager dependencies
 
 **Usage:**
 ```bash
-./create_release.sh 1.1.0 --dry-run  # Test
-./create_release.sh 1.1.0             # Create release
+./create_release.sh 1.1.0 --dry-run  # Test without making changes
+./create_release.sh 1.1.0             # Interactive (asks confirmation)
+./create_release.sh 1.1.0 --yes       # Automated (no prompt)
 ```
 
-**Result:** One-command releases ready for v1.1.0+
+**Result:** Production-validated automation with standalone installation
 
 ---
 
@@ -235,8 +249,13 @@ https://github.com/geosmall/BoardManagerFiles/raw/main/package_stm32_robotics_in
 ### Phase 5: Release Automation ✅ COMPLETE
 - [x] Create create_release.sh script
 - [x] Test with dry-run mode
-- [x] Update workspace README with release workflow
-- [x] Update DEPLOYMENT_STATUS with completion
+- [x] Production test with v1.0.0 release
+- [x] Add 5 production hardening improvements (branch targeting, tag checking, etc.)
+- [x] Add tool bundling to package index (221 lines)
+- [x] Add --yes flag for automation
+- [x] Update workspace README with 6-step release workflow
+- [x] Update DEPLOYMENT_STATUS with completion and lessons learned
+- [x] Update DEPLOYMENT_PLAN with tool bundling
 - [x] Move deployment docs to workspace root
 
 ### Phase 6: Testing 📋 PENDING
@@ -300,10 +319,21 @@ https://github.com/geosmall/BoardManagerFiles/raw/main/package_stm32_robotics_in
 - Exclude build/ and build_id.h from version control
 
 ### Release Process
-- Manual releases are error-prone (v1.0.0 experience)
-- Automation essential for consistency (create_release.sh)
-- Dry-run mode critical for testing
-- GitHub CLI (`gh`) eliminates manual web UI steps
+- **Production testing revealed critical issues that dry-run couldn't catch**:
+  - Branch targeting: `gh release create` defaults to "main" instead of "ardu_ci"
+  - Draft releases: Old drafts can get re-published instead of creating new release
+  - Tag push redundancy: `gh release create` automatically pushes tags
+  - Must use `--target` flag and check GitHub releases (not just local/remote tags)
+- **Tool bundling is mandatory**:
+  - Package index must include complete tool definitions (221 lines)
+  - Tool versions must exactly match platform.txt tested configuration
+  - Eliminates external Board Manager dependencies
+  - Without bundling: "could not find referenced tool" error breaks installation
+- **Error recovery procedures are essential**:
+  - 5-step cleanup process (delete release, delete remote tag, delete local tag, revert commits, verify)
+  - Color-coded terminal output helps with manual recovery
+- **Automation flags**: `--yes` flag enables scripted releases without interactive prompts
+- Dry-run mode remains critical for validating logic before making changes
 
 ### HIL Testing
 - Library examples can use SEGGER_RTT API directly
