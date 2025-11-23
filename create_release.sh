@@ -11,7 +11,7 @@ set -e  # Exit on error
 # Configuration
 TAG_PREFIX="robo-"
 CORE_REPO="Arduino_Core_STM32"
-CORE_BRANCH="ardu_ci"
+CORE_BRANCH="dev"
 BOARD_MGR_REPO="BoardManagerFiles"
 BOARD_MGR_BRANCH="main"
 PACKAGE_INDEX="package_stm32_robotics_index.json"
