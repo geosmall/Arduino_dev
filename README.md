@@ -1,194 +1,414 @@
-# STM32 Arduino Core Development Environment
+# Arduino Development Workspace
 
-A focused STM32 Arduino development environment with CI/CD automation capabilities.
+> **Purpose**: Claude-assisted development workspace for managing [Arduino_Core_STM32](https://github.com/geosmall/Arduino_Core_STM32) and [BoardManagerFiles](https://github.com/geosmall/BoardManagerFiles) as submodules.
 
-## Overview
+---
 
-This repository contains a **fork of the STM32 Arduino Core** with simplified variant selection. It's designed for developing autonomous systems such as drone flight control systems with real-time data logging, sensor and configuration data management.
+## Architecture Overview
 
-## Target Hardware
+This workspace implements a **3-tier architecture** for STM32 Arduino development:
 
-- **Primary**: STM32F411 (Nucleo F411RE, BlackPill F411CE)
-- **Secondary**: STM32F405 (common in flight controllers)
-- **Future**: STM32H743 (high-performance flight controllers)
+**Workspace (Arduino)** - Orchestration Layer
+- Manages both repositories as git submodules
+- Provides release automation (`create_release.sh`)
+- Helper scripts for cross-repo coordination
+- Claude Code development environment
 
-## Key Features
+**Development (Arduino_Core_STM32)** - Development Layer
+- Complete STM32 Arduino core (stm32duino fork)
+- 11 robotics libraries (SerialRx, IMU, Storage, etc.)
+- CI/CD infrastructure with HIL testing
+- All active development happens here
 
-- **Unified Development Framework**: Single codebase supporting Arduino IDE and CI/HIL workflows with `ci_log.h` abstraction
-- **Production HIL Testing Framework**: Complete build-to-runtime traceability with J-Link + RTT integration
-- **Enhanced Build-ID Integration**: Git SHA + UTC timestamp tracking for firmware traceability
-- **Universal Device Detection**: Auto-detect any STM32 via J-Link for programming
-- **Sub-20ms Ready Token Detection**: Deterministic HIL test initialization (5.2ms achieved)
-- **Unified Storage Systems**: LittleFS (SPI flash), SDFS (SD card), and Generic Storage abstraction with minIni configuration management
-- **IMU Integration**: High-level C++ wrapper (IMU library) and low-level TDK drivers (ICM42688P) with chip detection and manufacturer self-test
-- **Betaflight Config Converter**: Python tool converting Betaflight unified targets to BoardConfig headers with PeripheralPins.c validation and ALT variant handling
-- **libPrintf Integration**: Embedded printf library eliminating nanofp complexity with 20KB+ binary savings
-- **AUnit Testing Framework**: Comprehensive unit testing with HIL integration (22 tests across storage systems)
-- **Real-time Debugging**: SEGGER RTT v8.62 integration for printf-style debugging
-- **Flight Controller Focus**: Optimized for UAV applications with deterministic testing
+**Distribution (BoardManagerFiles)** - Distribution Layer
+- Arduino IDE Board Manager package index
+- Release metadata and download URLs
+- End-user installation point
 
-## Dependencies
+This separation provides clean boundaries: workspace orchestrates, development implements, distribution delivers.
 
-### Required Tools
-- **Arduino CLI** v1.3.0 (locked version)
-- **STM32 Core** v2.7.1 (STMicroelectronics:stm32)
-- **J-Link** v8.62+ (for HIL testing and RTT debugging)
+---
 
-### Installation
-```bash
-# Install STM32 core
-arduino-cli core update-index
-arduino-cli core install STMicroelectronics:stm32
+## Prerequisites
 
-# Verify installation
-./scripts/env_check_quick.sh true
-```
+**Required Tools:**
+- **Git** (2.13+) - Submodule support
+- **Bash** - Shell scripting (standard on Linux/macOS/WSL)
+- **GitHub CLI (`gh`)** - Release creation (install from https://cli.github.com, then `gh auth login`)
+- **jq** - JSON manipulation (install via package manager: `apt install jq`)
+- **tar** - Archive creation (standard on Linux/macOS)
+
+**For Development in Arduino_Core_STM32:**
+- See [Arduino_Core_STM32/CLAUDE.md](Arduino_Core_STM32/CLAUDE.md) for complete build environment requirements
+
+---
 
 ## Quick Start
 
-### Build and Upload
+### Initial Clone
 ```bash
-# Compile sketch
-arduino-cli compile --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch_directory>
+# Clone workspace with submodules
+git clone --recurse-submodules https://github.com/geosmall/Arduino.git
+cd Arduino
 
-# Upload via ST-Link
-arduino-cli upload --fqbn STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F411RE <sketch_directory>
-
-# Upload via J-Link with auto-detection (when ST-Link reflashed)
-./scripts/flash_auto.sh --quick <path_to_binary.bin>
+# Or if already cloned without submodules
+git submodule update --init --recursive
 ```
 
-### HIL Testing (Recommended)
+### Daily Workflow
 ```bash
-# One-button build and test with environment validation
-./scripts/aflash.sh <sketch_directory> --env-check
+# Sync workspace and all submodules
+./sync-workspace.sh
 
-# Unified development workflow (Arduino IDE + CI/HIL support)
-./scripts/build.sh <sketch_directory>                    # Arduino IDE (Serial)
-./scripts/build.sh <sketch_directory> --use-rtt          # CI/HIL (RTT)
-./scripts/aflash.sh <sketch_directory> --use-rtt --build-id --env-check  # Complete workflow
+# Check status of workspace and all submodules
+./status-all.sh
 
-# Enhanced ready token detection with build-ID parsing (5.2ms latency)
-./scripts/await_ready.sh [log_file] [timeout] [pattern]
-# Output: READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
+# Update submodules to latest commits
+./update-submodules.sh
 ```
 
-### Using Makefile (HIL_RTT_Test/)
+---
+
+## Repository Structure
+
+```
+Arduino/
+├── Arduino_Core_STM32/       # Submodule: STM32 Arduino core + libraries
+├── BoardManagerFiles/        # Submodule: Arduino Board Manager package
+├── .claude/                  # Claude Code configuration
+├── CLAUDE.md                 # Development guide for Claude Code
+├── DEPLOYMENT_PLAN.md        # Deployment plan and architecture
+├── DEPLOYMENT_STATUS.md      # Current deployment progress
+├── README.md                 # This file
+├── create_release.sh         # Automated release creation
+├── update-submodules.sh      # Update both submodules
+├── sync-workspace.sh         # Sync workspace + submodules
+└── status-all.sh             # Show git status for all repos
+```
+
+---
+
+## Submodules
+
+### Arduino_Core_STM32
+**Repository**: https://github.com/geosmall/Arduino_Core_STM32
+**Branch**: `ardu_ci`
+**Purpose**: Custom STM32 Arduino core with robotics libraries and CI/CD infrastructure
+
+**Contents**:
+- STM32 Arduino core (fork of stm32duino)
+- Robotics libraries (SerialRx, IMU, ICM42688P, LittleFS, SDFS, Storage, TimerPWM, etc.)
+- CI/CD scripts and HIL testing framework
+- Unit tests and board configurations
+- Documentation and development tools
+
+### BoardManagerFiles
+**Repository**: https://github.com/geosmall/BoardManagerFiles
+**Branch**: `main`
+**Purpose**: Arduino IDE Board Manager package distribution
+
+**Contents**:
+- Package index JSON (`package_stm32_robotics_index.json`)
+- Installation documentation
+- Release management
+
+---
+
+## Development Workflow
+
+### Working in Arduino_Core_STM32
 ```bash
-make                # Compile
-make upload         # Compile and upload
-make check          # Verify environment
+cd Arduino_Core_STM32
+
+# Create feature branch
+git checkout -b feature/my-feature
+
+# Make changes, commit
+git add <files>
+git commit -m "Add feature"
+
+# Push to remote
+git push origin feature/my-feature
+
+# Return to workspace root
+cd ..
+
+# Update workspace submodule pointer (if needed)
+git add Arduino_Core_STM32
+git commit -m "Update Arduino_Core_STM32 submodule pointer"
 ```
 
-## Libraries
-
-### Storage and Configuration
-- **LittleFS**: SPI flash storage for configuration and firmware
-- **SDFS v1.0.0**: SD card filesystem via SPI with LittleFS-compatible configuration
-- **Storage**: Generic storage abstraction providing unified interface for LittleFS and SDFS
-- **minIniStorage v1.5.0**: INI file configuration management with automatic storage backend selection
-
-### Sensors and Hardware
-- **IMU v1.0.0**: High-level C++ wrapper for InvenSense IMU sensors with chip detection and multi-instance support
-- **ICM42688P v1.0.0**: Low-level 6-axis IMU library with TDK InvenSense drivers, self-test, and data acquisition
-- **SerialRx v1.0.0**: RC receiver serial protocol parser (IBus, SBUS) with software idle detection and hardware validation
-- **STM32RTC**: Real-time clock functionality
-
-### Development and Testing
-- **libPrintf v6.2.0**: Embedded printf library eliminating nanofp complexity (20KB+ binary savings)
-- **AUnit v1.7.1**: Arduino unit testing framework with HIL integration (22 comprehensive tests)
-
-## Project Structure
-
-```
-├── Arduino_Core_STM32/    # STM32 Arduino core (fork of stm32duino/Arduino_Core_STM32)
-├── libraries/             # Storage, sensor, and utility libraries
-│   ├── AUnit-1.7.1/       # Arduino unit testing framework with HIL integration
-│   ├── ICM42688P/         # Low-level 6-axis IMU library with TDK InvenSense drivers
-│   ├── imu/               # High-level C++ wrapper for InvenSense IMU sensors
-│   ├── libPrintf/         # Embedded printf library (eyalroz/printf v6.2.0 wrapper)
-│   ├── LittleFS/          # SPI flash filesystem (littlefs-project/littlefs)
-│   ├── minIniStorage/     # Configuration management with unified storage backend
-│   ├── SDFS/              # SD filesystem v1.0.0 with LittleFS-compatible API
-│   ├── SerialRx/          # RC receiver protocol parser (IBus, SBUS) with idle detection
-│   ├── STM32RTC/          # Real-time clock library
-│   └── Storage/           # Generic storage abstraction for LittleFS/SDFS
-├── extras/
-│   └── betaflight_converter/  # Betaflight → BoardConfig converter with validation
-├── scripts/               # Build and test automation
-├── HIL_RTT_Test/          # Hardware-in-loop test framework
-└── test_logs/             # Test execution logs and artifacts
-```
-
-### Submodule Sources
-- **Arduino_Core_STM32**: [geosmall/Arduino_Core_STM32](https://github.com/geosmall/Arduino_Core_STM32) *(stm32duino fork, simplified variants)*
-- **LittleFS**: [geosmall/LittleFS](https://github.com/geosmall/LittleFS) *(PaulStoffregen fork, minimal branch)*
-- **STM32RTC**: [stm32duino/STM32RTC](https://github.com/stm32duino/STM32RTC) *(upstream original)*
-
-## Production Development Workflow
-
-### Arduino IDE Development
-1. **Build for Serial**: `./scripts/build.sh libraries/ICM42688P/examples/example-selftest`
-2. **Upload via Arduino IDE**: Standard Arduino workflow with Serial monitoring
-
-### CI/HIL Testing
-1. **Environment Check**: `./scripts/env_check_quick.sh true` (~100ms validation)
-2. **Device Detection**: `./scripts/detect_device.sh` (auto-detect any STM32 via J-Link)
-3. **Unified Build**: `./scripts/build.sh <sketch> --use-rtt --build-id --env-check` (RTT mode with traceability)
-4. **HIL Testing**: `./scripts/aflash.sh <sketch> --use-rtt --build-id --env-check` (complete workflow)
-5. **Traceability Verification**: `./scripts/await_ready.sh` (enhanced parsing, 5.2ms latency achieved)
-6. **Real-time Debug**: SEGGER RTT v8.62 with `JLinkRTTClient` for printf output
-
-### Example Workflows
+### Working in BoardManagerFiles
 ```bash
-# IMU sensor testing with self-test validation
-./scripts/aflash.sh libraries/ICM42688P/examples/example-selftest --use-rtt --build-id
+cd BoardManagerFiles
 
-# Storage system unit testing
-./scripts/aflash.sh tests/LittleFS_Unit_Tests --use-rtt --build-id
-./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id
+# Update package index for new release
+vim package_stm32_robotics_index.json
 
-# Configuration management testing
-./scripts/aflash.sh tests/minIniStorage_Unit_Tests --use-rtt --build-id
+# Commit and push
+git add package_stm32_robotics_index.json
+git commit -m "Update package index for v1.1.0"
+git push origin main
+
+# Return to workspace
+cd ..
+
+# Update workspace submodule pointer
+git add BoardManagerFiles
+git commit -m "Update BoardManagerFiles submodule pointer"
 ```
 
-### Build Traceability Example
-```
-Git: 901dbd1-dirty (2025-09-09T10:07:44Z)
-READY NUCLEO_F411RE 901dbd1-dirty 2025-09-09T10:07:44Z
-```
+### Keeping Submodules Up to Date
+```bash
+# Pull latest changes from both submodules
+./update-submodules.sh
 
-## Unified Development Framework
-
-Single sketches work seamlessly in both Arduino IDE and CI/HIL environments:
-
-```cpp
-#include "../../../../ci_log.h"  // Single logging abstraction
-
-void setup() {
-  CI_LOG("Test starting\n");
-  CI_BUILD_INFO();    // RTT: shows build details, Serial: no-op
-  CI_READY_TOKEN();   // RTT: shows ready token, Serial: no-op
-}
+# Commit the updated submodule pointers in workspace
+git add Arduino_Core_STM32 BoardManagerFiles
+git commit -m "Update submodule pointers to latest"
+git push origin dev
 ```
 
-**Key Benefits:**
-- No duplicate test sketches
-- Automatic Serial ↔ RTT switching via `USE_RTT` compile flag
-- Build traceability integration for CI/CD workflows
-- Deterministic exit tokens for automated testing
+---
 
-## Current Development Status
+## Claude Code Collaboration
 
-- **✅ Complete**: Storage systems (LittleFS, SDFS, Storage abstraction), configuration management (minIni), build/HIL framework, libPrintf integration
-- **✅ Complete**: IMU library (high-level wrapper with chip detection, context-based design, interrupt support)
-- **✅ Complete**: ICM42688P library (low-level TDK drivers with self-test and data acquisition)
-- **✅ Complete**: SerialRx library (IBus hardware validated, SBUS implemented, software idle detection)
-- **✅ Complete**: Betaflight Config Converter (Python tool with PeripheralPins.c validation, ALT variant handling, 53 passing tests)
-- **📋 Future**: Additional IMU sensor support (MPU-6000, MPU-9250), CRSF protocol support
+This workspace is designed for collaborative development with **Claude Code** (https://claude.com/code).
+
+### Key Features
+- **Submodule-aware**: Claude can work across both repositories
+- **Helper scripts**: Simplified management of multiple repos
+- **Workspace CLAUDE.md**: Development guidelines for Claude-assisted coding
+- **Clean separation**: Core development vs. distribution management
+
+### Working with Claude Code
+1. **Start Claude Code session** in the workspace root (`/home/geo/Arduino`)
+2. **CLAUDE.md** provides context for:
+   - Project structure and architecture
+   - Build systems and workflows
+   - Testing and validation standards
+   - Development best practices
+3. **Navigate submodules** as needed:
+   ```bash
+   cd Arduino_Core_STM32  # Core development
+   cd BoardManagerFiles    # Package distribution
+   ```
+
+### Claude Code Tips
+- Reference submodule files: `Arduino_Core_STM32/libraries/SerialRx/...`
+- Use helper scripts: `./status-all.sh` shows complete repository state
+- Keep CLAUDE.md updated with new patterns and decisions
+
+---
 
 ## Documentation
 
-See `CLAUDE.md` for detailed build instructions, architecture overview, and development guidelines.
+### Workspace Documentation
 
-This repository is being collaboratively developed with [Claude Code](https://claude.ai/code) for enhanced STM32 Arduino development workflows.
+**[DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)** - Architecture evolution and key decisions
+- Complete history from consolidation through workspace transformation
+- Phases 1-5: Consolidation → BoardManagerFiles → v1.0.0 Release → Workspace → Automation
+- Key architectural decisions with rationale (why 3-tier, script placement, etc.)
+- Lessons learned from deployment process
+
+**[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md)** - Current deployment progress
+- Executive summary: Phases 1-5 complete ✅, Testing/Documentation pending 📋
+- Phase-by-phase accomplishments and validation results
+- Current workspace structure with submodule branches
+- Key accomplishments: Infrastructure, Libraries, Deployment, Testing
+- Next steps for Phases 6-7
+
+**[README.md](README.md)** (this file) - Workspace quick reference
+- Architecture overview and development workflows
+- Helper scripts and release automation
+- Quick start for new developers
+
+### Submodule Documentation
+
+**[Arduino_Core_STM32/CLAUDE.md](Arduino_Core_STM32/CLAUDE.md)** - Technical development guide
+- Complete build systems (Arduino CLI, CMake, bash scripts)
+- HIL testing framework with RTT debugging
+- Hardware validation standards (critical for embedded work)
+- Library architecture and completed/future projects
+- Development best practices and collaboration notes
+
+**[Arduino_Core_STM32/README.md](Arduino_Core_STM32/README.md)** - Core repository overview
+- Repository purpose and features
+- Installation instructions
+- Basic usage examples
+
+**[BoardManagerFiles/README.md](BoardManagerFiles/README.md)** - Installation guide
+- How to install via Arduino IDE Board Manager
+- Package index structure
+- End-user documentation
+
+---
+
+## Helper Scripts
+
+### `update-submodules.sh`
+Updates both submodules to latest commits on their tracked branches.
+```bash
+./update-submodules.sh
+```
+
+### `sync-workspace.sh`
+Complete workspace sync: pulls latest workspace changes and updates all submodules.
+```bash
+./sync-workspace.sh
+```
+
+### `status-all.sh`
+Shows git status for workspace and all submodules in one view.
+```bash
+./status-all.sh
+```
+
+---
+
+## Release Workflow
+
+### Creating a New Release - Step by Step
+
+**Step 1: Verify Workspace State**
+```bash
+./status-all.sh
+# Verify: Arduino_Core_STM32 (ardu_ci), BoardManagerFiles (main), all clean
+```
+
+**Step 2: Test with Dry-Run**
+```bash
+./create_release.sh 1.1.0 --dry-run
+```
+
+**Step 3: Create Release**
+```bash
+./create_release.sh 1.1.0         # Interactive (asks confirmation)
+./create_release.sh 1.1.0 --yes   # Automated (no prompt)
+```
+
+**Step 4: Update Workspace**
+```bash
+git add BoardManagerFiles
+git commit -m "Update BoardManagerFiles submodule pointer for v1.1.0 release"
+git push origin dev
+```
+
+**Step 5: Verify Release**
+```bash
+gh release view robo-1.1.0 --repo geosmall/Arduino_Core_STM32
+```
+
+**Step 6: Test Installation**
+- Arduino IDE → Boards Manager → Search "STM32 Robotics" → Install v1.1.0
+
+### What the Script Does
+
+1. **Validation**
+   - Checks version format (semantic versioning: X.Y.Z)
+   - Verifies both repositories are clean and on correct branches
+   - Checks if version tag already exists
+
+2. **Archive Creation**
+   - Cleans build artifacts from Arduino_Core_STM32
+   - Creates `STM32-Robotics-{version}.tar.bz2` archive
+   - Calculates SHA-256 checksum and file size
+
+3. **GitHub Release**
+   - Tags Arduino_Core_STM32 with `robo-{version}`
+   - Creates GitHub release with auto-generated notes
+   - Uploads archive as release asset
+
+4. **Package Index Update**
+   - Updates `package_stm32_robotics_index.json` with new version
+   - Adds download URL, checksum, and file size
+   - Maintains version history (newest first)
+
+5. **Publish**
+   - Commits package index changes to BoardManagerFiles
+   - Pushes tag to Arduino_Core_STM32
+   - Shows installation URLs and next steps
+
+### Prerequisites
+
+- Both repositories must be clean (no uncommitted changes)
+- Arduino_Core_STM32 must be on `ardu_ci` branch
+- BoardManagerFiles must be on `main` branch
+- GitHub CLI (`gh`) must be authenticated
+
+### Release Checklist
+
+Before creating a release:
+- [ ] All changes committed to Arduino_Core_STM32
+- [ ] All tests passing on hardware
+- [ ] CHANGELOG or release notes prepared
+- [ ] Version number decided (follow semantic versioning)
+
+After creating a release:
+- [ ] Test Board Manager installation in Arduino IDE
+- [ ] Verify example compilation from installed package
+- [ ] Update DEPLOYMENT_STATUS.md
+- [ ] Announce release (if applicable)
+
+### Troubleshooting
+
+**Tag already exists:**
+```bash
+gh release delete robo-X.Y.Z --repo geosmall/Arduino_Core_STM32 --yes
+cd Arduino_Core_STM32 && git push origin --delete robo-X.Y.Z && git tag -d robo-X.Y.Z
+```
+
+**Uncommitted changes:**
+```bash
+./status-all.sh  # Identify which repo has changes
+cd <repo> && git status  # Review and commit changes
+```
+
+**Authentication required:**
+```bash
+gh auth status  # Check authentication
+gh auth login   # Re-authenticate if needed
+```
+
+---
+
+## Installing the Arduino Core
+
+End users can install the STM32 Robotics Core via Arduino IDE Board Manager:
+
+1. Open **Arduino IDE**
+2. Go to **File → Preferences**
+3. Add Board Manager URL:
+   ```
+   https://github.com/geosmall/BoardManagerFiles/raw/main/package_stm32_robotics_index.json
+   ```
+4. Go to **Tools → Board → Boards Manager**
+5. Search for **"STM32 Robotics"**
+6. Click **Install**
+
+---
+
+## Development vs. Distribution
+
+| Aspect | Arduino_Core_STM32 | BoardManagerFiles |
+|--------|-------------------|-------------------|
+| Purpose | Development | Distribution |
+| Branch | `ardu_ci` | `main` |
+| Updates | Frequent | Release only |
+| Contents | Source code, tests, CI/CD | Package metadata |
+| Users | Developers | End users |
+
+---
+
+## Resources
+
+- **Arduino_Core_STM32**: https://github.com/geosmall/Arduino_Core_STM32
+- **BoardManagerFiles**: https://github.com/geosmall/BoardManagerFiles
+- **Claude Code**: https://claude.com/code
+- **Issues**: https://github.com/geosmall/Arduino_Core_STM32/issues
+
+---
+
+## License
+
+See individual submodule repositories for license information.

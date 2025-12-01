@@ -1,439 +1,384 @@
-# Repository Consolidation and Board Manager Deployment Plan
+# Arduino Workspace Deployment Plan
+
+> **Status**: ✅ COMPLETE - All 7 phases finished, v1.0.0 published and validated
+>
+> **Current Status**: See [DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md) for detailed progress tracking
+>
+> **Completion Date**: 2025-10-26
+
+---
 
 ## Overview
 
-Consolidate all development work into `Arduino_Core_STM32` repository and create separate `BoardManagerFiles` repository for Arduino IDE Board Manager distribution.
+Transform `Arduino_dev` repository into a **Claude development workspace** managing two submodules:
+- **Arduino_Core_STM32** - Development repository (STM32 core + robotics libraries)
+- **BoardManagerFiles** - Distribution repository (Board Manager package)
 
-## Current State
+This provides clean separation between development, distribution, and workspace orchestration.
 
-**Main Repository** (`geosmall/Arduino_dev`):
-- Robotics libraries (SerialRx, IMU, ICM42688P, LittleFS, SDFS, Storage, etc.)
-- CI/CD scripts and test infrastructure
-- Board configuration system (targets/)
-- Betaflight converter tool (extras/)
-- Documentation (CLAUDE.md, README.md)
+---
 
-**Core Submodule** (`geosmall/Arduino_Core_STM32`):
-- STM32 Arduino core (fork of stm32duino)
-- Custom features: ci_log.h, FS.h, SEGGER_RTT
-- Core libraries: SPI, Wire, SoftwareSerial
-- Minimal variants for F4/H7 families
+## Architecture Evolution
 
-## Target State
+### Original State (Pre-Consolidation)
 
-**Development Repository** (`geosmall/Arduino_Core_STM32`):
-- Complete Arduino core with all robotics libraries
-- CI/CD scripts and test infrastructure
-- Board configuration system
-- All development tools and documentation
-- Single repository for all development work
+**Arduino_dev Repository:**
+- Robotics libraries as separate directories
+- Arduino_Core_STM32 as submodule (core only)
+- CI/CD scripts at top level
+- Mixed development and orchestration
 
-**Distribution Repository** (`geosmall/BoardManagerFiles`):
-- Package index JSON for Board Manager
-- Release archives hosted via GitHub Releases
-- Installation documentation
-- Minimal repo - distribution only
+### Phase 1: Consolidation into Arduino_Core_STM32 ✅ COMPLETE
 
-**Deprecated** (`geosmall/Arduino_dev`):
-- Archive with pointer to Arduino_Core_STM32
-- Or delete after successful migration
+**Goal:** Create self-contained development repository
 
-## Pre-Consolidation Completed ✅
+**Moved to Arduino_Core_STM32:**
+- ✅ All libraries: SerialRx, IMU, ICM42688P, LittleFS, SDFS, Storage, minIniStorage, TimerPWM, libPrintf, AUnit, STM32RTC
+- ✅ CI/CD scripts → `system/ci/` (17 scripts)
+- ✅ Test suites → `tests/` (10 unit test suites)
+- ✅ Board configs → `targets/` (BoardConfig system)
+- ✅ Tools → `extras/` (Betaflight converter with 53 tests)
+- ✅ Documentation → `doc/` (technical specs)
+- ✅ CMake support → `cmake/` (build system examples)
+- ✅ Development guides → `CLAUDE.md`, `README.md`
 
-The following has already been completed:
-- ✅ HIL_Validation example created in `Arduino_Core_STM32/libraries/SEGGER_RTT/examples/HIL_Validation/`
-- ✅ HIL_RTT_Test/ directory deleted from parent repo
-- ✅ Makefile preserved as `doc/Makefile.example`
-- ✅ Submodule committed and pushed (commit: 4e1cfa517)
-- ✅ Parent repo updated with new submodule pointer (commit: 3c027c0)
+**Result:** Single development repository with complete robotics stack
 
-## Implementation Plan
+### Phase 2: Create BoardManagerFiles Repository ✅ COMPLETE
 
-### Phase 1: Consolidate into Arduino_Core_STM32
+**Goal:** Separate distribution from development
 
-#### Step 1.1: Move Robotics Libraries
-Move from `Arduino_dev/libraries/` to `Arduino_Core_STM32/libraries/`:
-- SerialRx
-- IMU
-- ICM42688P
-- LittleFS
-- SDFS
-- Storage
-- minIniStorage
-- TimerPWM
-- libPrintf
-- AUnit-1.7.1
-- STM32RTC (verify if already present)
+**Created:**
+- ✅ Repository: `geosmall/BoardManagerFiles`
+- ✅ Package index: `package_stm32_robotics_index.json`
+- ✅ Installation documentation: `README.md`
+- ✅ License: BSD-3-Clause
 
-#### Step 1.2: Move CI/CD Infrastructure
-Move from `Arduino_dev/` to `Arduino_Core_STM32/`:
-- `scripts/` → `Arduino_Core_STM32/scripts/`
-- `tests/` → `Arduino_Core_STM32/tests/`
-- `targets/` → `Arduino_Core_STM32/targets/`
-- `extras/` → `Arduino_Core_STM32/extras/`
-- `doc/` → `Arduino_Core_STM32/doc/`
-- `cmake/` → `Arduino_Core_STM32/cmake/` (if needed)
+**Result:** Clean distribution channel for end users
 
-**Note**: `HIL_RTT_Test/` is NOT moved - functionality replaced by `Arduino_Core_STM32/libraries/SEGGER_RTT/examples/HIL_Validation/`
+### Phase 3: Initial Release (v1.0.0) ✅ COMPLETE
 
-#### Step 1.3: Consolidate Documentation
-- Move `CLAUDE.md` to `Arduino_Core_STM32/CLAUDE.md`
-- Merge `Arduino_dev/README.md` content into `Arduino_Core_STM32/README.md`
-- Update all internal documentation references
+**Goal:** Publish first Board Manager release
 
-#### Step 1.4: Update Internal Paths
-- Update example sketches with correct include paths
-- Update script references to new directory structure
-- Update CLAUDE.md with new repository structure
-- Verify all relative paths in tests/examples
+**Accomplished:**
+- ✅ Tagged Arduino_Core_STM32 as `robo-1.0.0`
+- ✅ Created release archive: `STM32-Robotics-1.0.0.tar.bz2` (27 MB)
+- ✅ Published GitHub release with archive asset
+- ✅ Updated package index with checksum and download URL
+- ✅ Live at: `https://github.com/geosmall/BoardManagerFiles/raw/main/package_stm32_robotics_index.json`
 
-#### Step 1.5: Commit and Push
-- Commit all changes to `Arduino_Core_STM32/ardu_min` branch
-- Push to `origin/ardu_min`
-- Tag as preparation for v1.0.0 release
+**Result:** STM32 Robotics Core installable via Arduino IDE Board Manager
 
-### Phase 2: Create Board Manager Repository
+### Phase 4: Workspace Transformation ✅ COMPLETE
 
-#### Step 2.1: Create BoardManagerFiles Repository
-- Create new GitHub repo: `geosmall/BoardManagerFiles`
-- Initialize with README.md
-- Add `.gitignore` for temporary files
+**Goal:** Transform Arduino_dev into orchestration workspace
 
-#### Step 2.2: Create Package Index JSON
-Create `package_stm32_core_index.json`:
+**Architecture Decision:** Instead of deprecating Arduino_dev, repurpose it as a **Claude development workspace** that manages both repositories as submodules.
 
-```json
-{
-  "packages": [{
-    "name": "STM32_Robotics",
-    "maintainer": "geosmall",
-    "websiteURL": "https://github.com/geosmall/Arduino_Core_STM32",
-    "email": "",
-    "platforms": [{
-      "name": "STM32 Robotics Core",
-      "architecture": "stm32",
-      "version": "1.0.0",
-      "category": "Contributed",
-      "url": "https://github.com/geosmall/Arduino_Core_STM32/releases/download/v1.0.0/stm32-robotics-1.0.0.tar.gz",
-      "archiveFileName": "stm32-robotics-1.0.0.tar.gz",
-      "checksum": "SHA-256:xxxxx",
-      "size": "50000000",
-      "boards": [
-        {"name": "NUCLEO_F411RE"},
-        {"name": "BLACKPILL_F411CE"},
-        {"name": "JHEF411"}
-      ],
-      "toolsDependencies": []
-    }]
-  }]
-}
+**Created Workspace:**
+```
+Arduino/ (formerly Arduino_dev)
+├── Arduino_Core_STM32/    # Submodule (ardu_ci branch)
+├── BoardManagerFiles/     # Submodule (main branch)
+├── .claude/               # Claude Code configuration
+├── CLAUDE.md              # Workspace development guide
+├── DEPLOYMENT_PLAN.md     # This document
+├── DEPLOYMENT_STATUS.md   # Progress tracker
+├── README.md              # Workspace documentation
+├── create_release.sh      # Release automation
+├── update-submodules.sh   # Update helper
+├── sync-workspace.sh      # Sync helper
+└── status-all.sh          # Status helper
 ```
 
-#### Step 2.3: Create Installation Documentation
-Create `BoardManagerFiles/README.md`:
+**Workspace Responsibilities:**
+- Manage both submodules via git
+- Orchestrate releases (create_release.sh)
+- Provide development environment for Claude Code
+- Cross-repo coordination and helpers
 
-```markdown
-# STM32 Robotics Core - Board Manager Installation
+**Result:** Clean 3-tier architecture (workspace → development → distribution)
 
-## Quick Install
+### Phase 5: Release Automation ✅ COMPLETE
 
-1. Open Arduino IDE
-2. Go to **File → Preferences**
-3. Add this URL to "Additional Boards Manager URLs":
-   ```
-   https://raw.githubusercontent.com/geosmall/BoardManagerFiles/main/package_stm32_core_index.json
-   ```
-4. Go to **Tools → Board → Boards Manager**
-5. Search for "STM32 Robotics"
-6. Click **Install**
+**Goal:** Automate future release creation
 
-## Included Libraries
+**Implemented:** `create_release.sh` (workspace root)
 
-- **SerialRx** - RC receiver protocol parser (IBus, SBUS)
-- **IMU** - High-level InvenSense IMU wrapper
-- **ICM42688P** - Low-level 6-axis IMU driver
-- **LittleFS** - SPI flash filesystem
-- **SDFS** - SD card filesystem
-- **Storage** - Unified storage abstraction
-- **minIniStorage** - INI configuration management
-- **TimerPWM** - Hardware timer PWM library
-- **libPrintf** - Embedded printf library
-- **STM32RTC** - Real-time clock
+**Core Features:**
+- ✅ Full automation: version tag → GitHub release → package index update
+- ✅ Archive creation with build artifact cleanup
+- ✅ SHA-256 checksum and file size calculation
+- ✅ GitHub release creation via `gh` CLI
+- ✅ Package index auto-update with version history
+- ✅ Cross-platform (Linux/macOS)
+- ✅ Dry-run mode for testing
+- ✅ Interactive confirmation with `--yes` flag for automation
+- ✅ Comprehensive validation and error handling
 
-## Supported Boards
+**Production Hardening (discovered during v1.0.0 release):**
+1. **Configurable branch variables** - Eliminates hardcoded branch names
+2. **Explicit branch targeting** - `--target` flag ensures releases point to correct branch
+3. **Comprehensive tag checking** - Validates local, remote, AND GitHub releases (catches drafts)
+4. **Smart tag push prevention** - Detects when `gh release create` already pushed tag
+5. **Detailed cleanup instructions** - 5-step error recovery guide with verification
 
-- NUCLEO-F411RE
-- BlackPill F411CE
-- NOXE V3 (JHEF411)
+**Tool Bundling:**
+- ✅ 221 lines of tool definitions added to package index
+- ✅ 5 tools with cross-platform support (Windows, macOS, Linux variants)
+- ✅ Versions verified against platform.txt tested configuration
+- ✅ Eliminates external Board Manager dependencies
 
-## Development Repository
-
-https://github.com/geosmall/Arduino_Core_STM32
-```
-
-#### Step 2.4: Create Release Packaging Script
-Create `BoardManagerFiles/scripts/create_release.sh`:
-
+**Usage:**
 ```bash
-#!/bin/bash
-# Create Board Manager release archive from Arduino_Core_STM32
-
-VERSION=$1
-CORE_REPO="../Arduino_Core_STM32"
-ARCHIVE_NAME="stm32-robotics-${VERSION}.tar.gz"
-
-if [ -z "$VERSION" ]; then
-  echo "Usage: $0 <version>"
-  exit 1
-fi
-
-# Create archive from core repo
-tar -czf "${ARCHIVE_NAME}" -C "${CORE_REPO}/.." Arduino_Core_STM32/
-
-# Calculate checksum and size
-SHA256=$(shasum -a 256 "${ARCHIVE_NAME}" | awk '{print $1}')
-SIZE=$(stat -f%z "${ARCHIVE_NAME}" 2>/dev/null || stat -c%s "${ARCHIVE_NAME}")
-
-echo "Archive: ${ARCHIVE_NAME}"
-echo "SHA-256: ${SHA256}"
-echo "Size: ${SIZE} bytes"
-echo ""
-echo "Update package_stm32_core_index.json with these values"
+./create_release.sh 1.1.0 --dry-run  # Test without making changes
+./create_release.sh 1.1.0             # Interactive (asks confirmation)
+./create_release.sh 1.1.0 --yes       # Automated (no prompt)
 ```
 
-### Phase 3: Create Initial Release
+**Result:** Production-validated automation with standalone installation
 
-#### Step 3.1: Tag Arduino_Core_STM32
-```bash
-cd Arduino_Core_STM32
-git tag -a v1.0.0 -m "Initial Board Manager release"
-git push origin v1.0.0
-```
+---
 
-#### Step 3.2: Create Release Archive
-```bash
-cd BoardManagerFiles
-./scripts/create_release.sh 1.0.0
-```
-
-#### Step 3.3: Upload to GitHub Release
-- Create GitHub release v1.0.0 in `Arduino_Core_STM32` repo
-- Upload `stm32-robotics-1.0.0.tar.gz`
-- Copy release URL
-
-#### Step 3.4: Update Package Index
-- Update `package_stm32_core_index.json` with:
-  - Correct download URL from GitHub release
-  - SHA-256 checksum
-  - File size
-- Commit and push to `BoardManagerFiles` repo
-
-### Phase 4: Testing
-
-#### Step 4.1: Test Board Manager Installation
-1. Add URL to Arduino IDE preferences
-2. Open Board Manager
-3. Search for "STM32 Robotics"
-4. Install package
-5. Verify installation location: `~/Arduino15/packages/STM32_Robotics/`
-
-#### Step 4.2: Test Example Compilation
-1. Select board: **Tools → Board → STM32 Robotics Core → NUCLEO-F411RE**
-2. Open example: **File → Examples → SerialRx → IBus_Basic**
-3. Compile sketch
-4. Verify libraries are found
-5. Test with other examples (LittleFS, IMU, etc.)
-
-#### Step 4.3: Test CI/CD Scripts
-1. Clone `Arduino_Core_STM32` repo directly
-2. Run build scripts: `./scripts/build.sh tests/LittleFS_Unit_Tests --use-rtt`
-3. Run HIL tests: `./scripts/aflash.sh tests/SDFS_Unit_Tests --use-rtt --build-id`
-4. Verify all scripts work with new structure
-
-### Phase 5: Cleanup
-
-#### Step 5.1: Archive Arduino_dev Repository
-Option A - Add deprecation notice:
-- Update `Arduino_dev/README.md` with redirect to `Arduino_Core_STM32`
-- Add clear notice: "This repository is deprecated. All development moved to..."
-
-Option B - Delete repository:
-- Export any issues/discussions if needed
-- Delete `geosmall/Arduino_dev` repository
-
-#### Step 5.2: Update External References
-- Update any documentation pointing to old repo
-- Update links in GitHub profile/pinned repos
-- Update any external references (forum posts, etc.)
-
-## Final Repository Structure
+## Current Repository Structure
 
 ### Arduino_Core_STM32 (Development)
-```
-Arduino_Core_STM32/
-├── boards.txt                  # Board definitions
-├── platform.txt                # Platform configuration
-├── cores/arduino/              # Core Arduino implementation
-│   └── ci_log.h               # CI/HIL logging abstraction
-├── variants/                   # Board variants (F4, H7)
-├── libraries/                  # ALL libraries
-│   ├── SPI/                   # Core library
-│   ├── Wire/                  # Core library
-│   ├── SEGGER_RTT/            # RTT debugging
-│   │   └── examples/
-│   │       ├── BasicRTT/      # Simple RTT demo
-│   │       └── HIL_Validation/ # HIL test suite (replaces HIL_RTT_Test/)
-│   ├── SerialRx/              # RC receiver
-│   ├── IMU/                   # High-level IMU
-│   ├── ICM42688P/             # Low-level IMU
-│   ├── LittleFS/              # SPI flash FS
-│   ├── SDFS/                  # SD card FS
-│   ├── Storage/               # Storage abstraction
-│   ├── minIniStorage/         # INI config
-│   ├── TimerPWM/              # PWM library
-│   ├── libPrintf/             # Printf library
-│   └── STM32RTC/              # RTC library
-├── scripts/                    # CI/CD build scripts
-├── tests/                      # Unit tests
-├── targets/                    # Board configurations
-├── extras/                     # Betaflight converter
-├── doc/                        # Documentation
-├── cmake/                      # CMake support
-├── CLAUDE.md                   # Development guide
-└── README.md                   # Project documentation
-```
+
+**Repository:** https://github.com/geosmall/Arduino_Core_STM32
+**Branch:** `ardu_ci`
+**Purpose:** All development work
+
+**Contents:**
+- STM32 Arduino core (stm32duino fork)
+- 11 robotics libraries (complete UAV stack)
+- CI/CD framework (`system/ci/` with 17 scripts)
+- HIL testing with RTT + J-Link
+- 10 unit test suites (100% pass rate on hardware)
+- BoardConfig system (multi-board support)
+- Betaflight config converter (53 passing tests)
+- Comprehensive documentation
 
 ### BoardManagerFiles (Distribution)
-```
-BoardManagerFiles/
-├── package_stm32_core_index.json  # Board Manager JSON
-├── scripts/
-│   └── create_release.sh          # Release packaging script
-└── README.md                       # Installation instructions
-```
+
+**Repository:** https://github.com/geosmall/BoardManagerFiles
+**Branch:** `main`
+**Purpose:** Arduino IDE Board Manager distribution
+
+**Contents:**
+- Package index JSON (version history)
+- Installation documentation
+- Release metadata only
+
+### Arduino Workspace (Orchestration)
+
+**Repository:** https://github.com/geosmall/Arduino (formerly Arduino_dev)
+**Branch:** `dev` (workspace branch)
+**Purpose:** Claude development environment
+
+**Contents:**
+- Both repositories as submodules
+- Release automation (`create_release.sh`)
+- Workspace helpers (update, sync, status)
+- Deployment documentation
+- Claude Code integration
+
+---
 
 ## User Workflows
 
-### Beginner Workflow (Arduino IDE)
-1. Add Board Manager URL to Arduino IDE preferences
+### End Users (Arduino IDE)
+
+1. Add Board Manager URL in Arduino IDE preferences
 2. Install "STM32 Robotics Core" via Board Manager
 3. Select board from **Tools → Board** menu
-4. Open examples from **File → Examples** menu
+4. Use libraries from **File → Examples** menu
 5. Compile and upload sketches
 
-### Developer Workflow (CI/CD)
-1. Clone `Arduino_Core_STM32` repository
-2. Use build scripts: `./scripts/build.sh <sketch>`
-3. Use HIL testing: `./scripts/aflash.sh <sketch> --use-rtt --build-id`
+**Board Manager URL:**
+```
+https://github.com/geosmall/BoardManagerFiles/raw/main/package_stm32_robotics_index.json
+```
+
+### Developers (Direct Development)
+
+1. Clone Arduino_Core_STM32 repository
+2. Use build scripts: `./system/ci/build.sh <sketch>`
+3. Run HIL tests: `./system/ci/aflash.sh <sketch> --use-rtt --build-id`
 4. Develop libraries in `libraries/` directory
 5. Run unit tests in `tests/` directory
 
-### Release Workflow (Maintainers)
-1. Develop in `Arduino_Core_STM32` repository
-2. Tag release: `git tag v1.x.x`
-3. Run `create_release.sh` to build archive
-4. Create GitHub release with archive
-5. Update `package_stm32_core_index.json` with new version
-6. Users get update notification in Board Manager
+### Maintainers (Releases)
 
-## Board Manager URL
+1. Develop features in Arduino_Core_STM32 submodule
+2. Commit and push changes to `ardu_ci` branch
+3. From workspace root: `./create_release.sh <version>`
+4. Script automates: tag → release → package index update
+5. Test Board Manager installation
+6. Update DEPLOYMENT_STATUS.md
 
-**Installation URL:**
-```
-https://raw.githubusercontent.com/geosmall/BoardManagerFiles/main/package_stm32_core_index.json
-```
+---
 
-## Migration Checklist
+## Deployment Checklist
 
-- [ ] **Pre-Consolidation** (✅ COMPLETED)
-  - [x] Create HIL_Validation example in SEGGER_RTT library
-  - [x] Delete HIL_RTT_Test/ directory
-  - [x] Move Makefile to doc/Makefile.example
-  - [x] Commit and push submodule changes
-  - [x] Update parent repo with new submodule pointer
+### Phase 1: Consolidation ✅ COMPLETE
+- [x] Move all libraries to Arduino_Core_STM32
+- [x] Move CI/CD scripts to system/ci/
+- [x] Move tests, targets, extras, doc to Arduino_Core_STM32
+- [x] Update all internal paths and documentation
+- [x] Commit and push to ardu_ci branch
 
-- [ ] Phase 1: Consolidate into Arduino_Core_STM32
-  - [ ] Move libraries (SerialRx, IMU, ICM42688P, LittleFS, SDFS, Storage, minIniStorage, TimerPWM, libPrintf, AUnit, STM32RTC)
-  - [ ] Move scripts/tests/targets/extras/doc
-  - [ ] Consolidate documentation (CLAUDE.md, README.md)
-  - [ ] Update internal paths (example includes, script references)
-  - [ ] **Run cleanup_repo.sh in submodule** (manually clean build artifacts)
-  - [ ] Commit and push to ardu_min branch
+### Phase 2: BoardManagerFiles ✅ COMPLETE
+- [x] Create GitHub repository
+- [x] Create package index JSON
+- [x] Add installation documentation
+- [x] Publish to GitHub
 
-- [ ] Phase 2: Create BoardManagerFiles
-  - [ ] Create GitHub repository: geosmall/BoardManagerFiles
-  - [ ] Create package_stm32_core_index.json with minimal structure
-  - [ ] Create README.md with installation instructions
-  - [ ] Create scripts/create_release.sh packaging script
+### Phase 3: Initial Release ✅ COMPLETE
+- [x] Tag Arduino_Core_STM32 as robo-1.0.0
+- [x] Create release archive
+- [x] Upload to GitHub releases
+- [x] Update package index with checksum/size
+- [x] Publish to Board Manager
 
-- [ ] Phase 3: Create initial release
-  - [ ] Tag Arduino_Core_STM32 as v1.0.0
-  - [ ] Create release archive (.tar.gz)
-  - [ ] Upload to GitHub release in Arduino_Core_STM32 repo
-  - [ ] Update package_stm32_core_index.json with checksum/size
-  - [ ] Commit and push BoardManagerFiles
+### Phase 4: Workspace Transformation ✅ COMPLETE
+- [x] Add BoardManagerFiles as submodule
+- [x] Remove consolidated directories from workspace
+- [x] Create workspace helper scripts
+- [x] Update documentation for workspace purpose
+- [x] Clean .gitignore and .gitmodules
+- [x] Update Claude Code settings
 
-- [ ] Phase 4: Testing
-  - [ ] Test Board Manager installation (add URL, install package)
-  - [ ] Test example compilation (SerialRx, LittleFS, SEGGER_RTT examples)
-  - [ ] Test CI/CD scripts (aflash.sh with HIL_Validation, unit tests)
-  - [ ] Verify libraries auto-discovered in Arduino IDE
+### Phase 5: Release Automation ✅ COMPLETE
+- [x] Create create_release.sh script
+- [x] Test with dry-run mode
+- [x] Production test with v1.0.0 release
+- [x] Add 5 production hardening improvements (branch targeting, tag checking, etc.)
+- [x] Add tool bundling to package index (221 lines)
+- [x] Add --yes flag for automation
+- [x] Update workspace README with 6-step release workflow
+- [x] Update DEPLOYMENT_STATUS with completion and lessons learned
+- [x] Update DEPLOYMENT_PLAN with tool bundling
+- [x] Move deployment docs to workspace root
 
-- [ ] Phase 5: Cleanup
-  - [ ] Archive Arduino_dev with deprecation notice OR delete repository
-  - [ ] Update external references (GitHub profile, documentation links)
+### Phase 6: Testing ✅ COMPLETE
+- [x] Test Board Manager installation in Arduino IDE (v1.8.19 fresh install)
+- [x] Verify example compilation from installed package (multiple libraries tested)
+- [x] Validate library auto-discovery (11 libraries visible)
+- [x] Verify tool downloads (all 5 tools: gcc, openocd, STM32Tools, CMSIS, SVD)
+- [x] Confirm no dependency errors or missing tool issues
 
-## Notes
+### Phase 7: Documentation ✅ COMPLETE
+- [x] Final DEPLOYMENT_STATUS update (Phases 1-6 complete)
+- [x] Update DEPLOYMENT_PLAN with Phase 6 results
+- [x] Document production validation results and lessons learned
 
-- **No toolchain dependencies**: Uses existing STMicroelectronics:stm32 toolchain installed via official Board Manager
-- **Library auto-discovery**: Arduino IDE automatically finds libraries in `libraries/` folder
-- **Version management**: Semantic versioning (1.0.0, 1.1.0, etc.)
-- **Update notifications**: Board Manager shows updates when new versions published
-- **Backward compatibility**: CI/CD scripts continue working with consolidated repository
+---
+
+## Key Decisions & Rationale
+
+### Workspace Architecture
+
+**Decision:** Repurpose Arduino_dev as workspace instead of deprecating
+
+**Rationale:**
+- Provides natural orchestration layer for cross-repo operations
+- Claude Code development environment with both repos
+- Helper scripts manage submodules cleanly
+- Clean separation: workspace (orchestration) → submodules (content)
+
+### Release Script Location
+
+**Decision:** Place create_release.sh in workspace root
+
+**Rationale:**
+- Releases span both repositories (tag core, update package index)
+- Workspace is natural orchestration point
+- Consistent with other workspace helpers
+- Direct access to both submodules as siblings
+
+### Three-Tier Architecture
+
+**Decision:** Workspace → Development → Distribution
+
+**Rationale:**
+- **Workspace** - Orchestration, release management, Claude environment
+- **Development** - All development work (Arduino_Core_STM32)
+- **Distribution** - End user package delivery (BoardManagerFiles)
+- Clean separation of concerns
+- Scalable for future growth
+
+---
 
 ## Lessons Learned
 
-### Submodule Cleanup
-- Parent repo `cleanup_repo.sh` does NOT automatically clean submodule build artifacts
-- Must manually clean submodule before committing:
-  ```bash
-  cd Arduino_Core_STM32
-  rm -rf libraries/*/examples/*/build/
-  rm -f libraries/*/examples/*/build_id.h
-  ```
-- Or add cleanup script to submodule for consistency
+### Git Workflow
+- Always commit submodule first, then parent workspace
+- Workspace tracks specific submodule commits (pointers)
+- Use workspace helpers to keep both repos in sync
 
-### Git Workflow for Submodules
-1. **Always commit submodule first**, then parent repo
-2. Parent repo tracks specific submodule commit SHA
-3. Pushing parent before submodule creates broken reference
-4. Correct order:
-   ```bash
-   cd Arduino_Core_STM32
-   git add <files>
-   git commit -m "..."
-   git push origin ardu_min
-   cd ..
-   git add Arduino_Core_STM32  # Updates pointer
-   git commit -m "..."
-   git push origin master
-   ```
+### Build Artifacts
+- Workspace cleanup script doesn't automatically clean submodules
+- Run cleanup_repo.sh in submodules before commits
+- Exclude build/ and build_id.h from version control
 
-### Build Artifacts to Exclude
-When staging commits, exclude:
-- `build/` directories (contains .bin, .elf, .hex, .map files)
-- `build_id.h` (auto-generated by build scripts)
-- Any IDE-specific files (.vscode/, .idea/)
+### Release Process
+- **Production testing revealed critical issues that dry-run couldn't catch**:
+  - Branch targeting: `gh release create` defaults to "main" instead of "ardu_ci"
+  - Draft releases: Old drafts can get re-published instead of creating new release
+  - Tag push redundancy: `gh release create` automatically pushes tags
+  - Must use `--target` flag and check GitHub releases (not just local/remote tags)
+- **Tool bundling is mandatory**:
+  - Package index must include complete tool definitions (221 lines)
+  - Tool versions must exactly match platform.txt tested configuration
+  - Eliminates external Board Manager dependencies
+  - Without bundling: "could not find referenced tool" error breaks installation
+- **Error recovery procedures are essential**:
+  - 5-step cleanup process (delete release, delete remote tag, delete local tag, revert commits, verify)
+  - Color-coded terminal output helps with manual recovery
+- **Automation flags**: `--yes` flag enables scripted releases without interactive prompts
+- Dry-run mode remains critical for validating logic before making changes
 
 ### HIL Testing
-- Library examples can use direct SEGGER_RTT API (appropriate for RTT library)
-- Application sketches should use ci_log.h for dual-mode support (RTT/Serial)
-- Both patterns work with aflash.sh - no requirement to use ci_log.h
+- Library examples can use SEGGER_RTT API directly
+- Application sketches should use ci_log.h for dual-mode support
+- Both patterns work with aflash.sh exit wildcard detection
 
-## Future Enhancements
+---
 
-- GitHub Actions workflow to automate release creation
-- Automated testing of Board Manager installation
-- Multiple board package versions (stable, beta)
-- Library-specific versioning within core package
-- Add cleanup_repo.sh to Arduino_Core_STM32 submodule for consistency
+## Next Steps
+
+**All deployment phases complete!** ✅
+
+### Future Releases (Ongoing)
+1. Use `./create_release.sh <version>` for all releases
+2. Always test with `--dry-run` first
+3. Follow semantic versioning (X.Y.Z)
+4. Maintain workspace documentation
+5. Continue hardware validation on new boards/peripherals
+
+### Release Workflow
+```bash
+# Step 1: Verify clean state
+./status-all.sh
+
+# Step 2: Test with dry-run
+./create_release.sh 1.1.0 --dry-run
+
+# Step 3: Create release
+./create_release.sh 1.1.0
+
+# Step 4: Update workspace submodule pointer
+git add BoardManagerFiles
+git commit -m "Update BoardManagerFiles submodule pointer for v1.1.0"
+git push origin dev
+```
+
+---
+
+## Resources
+
+- **Development Repository:** https://github.com/geosmall/Arduino_Core_STM32
+- **Distribution Repository:** https://github.com/geosmall/BoardManagerFiles
+- **Workspace Repository:** https://github.com/geosmall/Arduino
+- **Board Manager URL:** https://github.com/geosmall/BoardManagerFiles/raw/main/package_stm32_robotics_index.json
+- **Issues:** https://github.com/geosmall/Arduino_Core_STM32/issues
