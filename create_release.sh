@@ -165,6 +165,34 @@ check_tag() {
   print_info "Tag '$tag' is available (local, remote, and GitHub)"
 }
 
+# Update package.json in Arduino_Core_STM32
+update_package_json() {
+  local package_file="$CORE_REPO/package.json"
+
+  print_info "Updating package.json with version $VERSION..."
+
+  if [ "$DRY_RUN" = true ]; then
+    print_warning "[DRY-RUN] Would update: $package_file"
+    return 0
+  fi
+
+  # Update package.json using jq
+  jq --arg version "$VERSION" \
+     --arg url "https://github.com/geosmall/Arduino_Core_STM32" \
+    '.version = $version | .url = $url' \
+    "$package_file" > "${package_file}.tmp"
+
+  mv "${package_file}.tmp" "$package_file"
+
+  # Commit the change
+  cd "$CORE_REPO"
+  git add package.json
+  git commit -m "Update package.json version to $VERSION"
+  cd ..
+
+  print_info "package.json updated and committed"
+}
+
 # Create archive
 create_archive() {
   local archive_name="${ARCHIVE_PREFIX}-${VERSION}.tar.bz2"
@@ -354,8 +382,9 @@ commit_and_push() {
 
   if [ "$DRY_RUN" = true ]; then
     print_warning "[DRY-RUN] Would commit and push:"
-    print_warning "  - $BOARD_MGR_REPO package index"
+    print_warning "  - $CORE_REPO package.json update"
     print_warning "  - $CORE_REPO tag $TAG_PREFIX$VERSION"
+    print_warning "  - $BOARD_MGR_REPO package index"
     return 0
   fi
 
@@ -366,8 +395,10 @@ commit_and_push() {
   git push origin $BOARD_MGR_BRANCH
   cd ..
 
-  # Push Arduino_Core_STM32 tag (only if not already pushed by gh release create)
+  # Push Arduino_Core_STM32 commits and tag
   cd "$CORE_REPO"
+  git push origin $CORE_BRANCH
+  print_info "Pushed $CORE_REPO commits to $CORE_BRANCH"
   if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG_PREFIX$VERSION"; then
     git push origin "$TAG_PREFIX$VERSION"
     print_info "Pushed tag $TAG_PREFIX$VERSION to remote"
@@ -538,6 +569,7 @@ main() {
   echo ""
 
   # Execute release workflow
+  update_package_json
   create_archive
   calculate_metadata
   create_github_release

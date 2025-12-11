@@ -75,10 +75,10 @@ git submodule update --init --recursive
 Arduino/
 ├── Arduino_Core_STM32/       # Submodule: STM32 Arduino core + libraries
 ├── BoardManagerFiles/        # Submodule: Arduino Board Manager package
+├── PrecompLib-dev/           # Precompiled library build tool (not distributed)
+├── doc/                      # Workspace documentation
 ├── .claude/                  # Claude Code configuration
 ├── CLAUDE.md                 # Development guide for Claude Code
-├── DEPLOYMENT_PLAN.md        # Deployment plan and architecture
-├── DEPLOYMENT_STATUS.md      # Current deployment progress
 ├── README.md                 # This file
 ├── create_release.sh         # Automated release creation
 ├── update-submodules.sh      # Update both submodules
@@ -203,28 +203,6 @@ This workspace is designed for collaborative development with **Claude Code** (h
 
 ## Documentation
 
-### Workspace Documentation
-
-**[DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)** - Architecture evolution and key decisions
-- Complete history from consolidation through workspace transformation
-- Phases 1-5: Consolidation → BoardManagerFiles → v1.0.0 Release → Workspace → Automation
-- Key architectural decisions with rationale (why 3-tier, script placement, etc.)
-- Lessons learned from deployment process
-
-**[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md)** - Current deployment progress
-- Executive summary: Phases 1-5 complete ✅, Testing/Documentation pending 📋
-- Phase-by-phase accomplishments and validation results
-- Current workspace structure with submodule branches
-- Key accomplishments: Infrastructure, Libraries, Deployment, Testing
-- Next steps for Phases 6-7
-
-**[README.md](README.md)** (this file) - Workspace quick reference
-- Architecture overview and development workflows
-- Helper scripts and release automation
-- Quick start for new developers
-
-### Submodule Documentation
-
 **[Arduino_Core_STM32/CLAUDE.md](Arduino_Core_STM32/CLAUDE.md)** - Technical development guide
 - Complete build systems (Arduino CLI, CMake, bash scripts)
 - HIL testing framework with RTT debugging
@@ -347,7 +325,6 @@ Before creating a release:
 After creating a release:
 - [ ] Test Board Manager installation in Arduino IDE
 - [ ] Verify example compilation from installed package
-- [ ] Update DEPLOYMENT_STATUS.md
 - [ ] Announce release (if applicable)
 
 ### Troubleshooting

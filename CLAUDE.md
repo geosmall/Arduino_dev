@@ -35,11 +35,16 @@ Arduino/ (Workspace Root)
 │   ├── package_stm32_robotics_index.json  # Board Manager index
 │   └── README.md             # Installation instructions
 │
+├── PrecompLib-dev/           # Precompiled library build tool (not distributed)
+│   ├── src/                  # Proprietary source code
+│   ├── scripts/              # Build scripts
+│   └── output/               # Build artifacts
+│
+├── doc/                      # Workspace documentation
+│
 └── [Workspace Files]
     ├── .claude/              # Claude Code configuration
     ├── CLAUDE.md             # This file (workspace guide)
-    ├── DEPLOYMENT_PLAN.md    # Architecture evolution and decisions
-    ├── DEPLOYMENT_STATUS.md  # Current deployment progress
     ├── README.md             # Workspace documentation
     ├── create_release.sh     # Automated release creation
     ├── .gitmodules           # Submodule configuration
@@ -132,6 +137,49 @@ cd ..
 # Displays: workspace status, Arduino_Core_STM32 status, BoardManagerFiles status
 ```
 
+---
+
+## PrecompLib-dev
+
+### Purpose
+
+PrecompLib-dev contains the **proprietary source code** for the PrecompLib library. It lives at the workspace level (not inside Arduino_Core_STM32) to ensure proprietary source is never accidentally distributed with the Arduino core.
+
+**Architecture:**
+- `PrecompLib-dev/` (workspace) → Build tool with proprietary `.cpp` source
+- `Arduino_Core_STM32/libraries/PrecompLib/` → Distributed library with headers + precompiled `.a` binaries
+
+### Building and Deploying
+
+To rebuild the precompiled library and deploy to Arduino_Core_STM32:
+
+```bash
+cd PrecompLib-dev
+./scripts/build_archive.sh --deploy
+```
+
+**Options:**
+- `--deploy` - Build and copy `.a` files to `Arduino_Core_STM32/libraries/PrecompLib/src/`
+- `--clean` - Clean output directory before building
+- (no flags) - Build only, don't deploy
+
+**Output:**
+- `cortex-m4/fpv4-sp-d16-hard/libPrecompLib.a` - For F4 + G4 families
+- `cortex-m7/fpv4-sp-d16-hard/libPrecompLib.a` - For F7 + H7 families
+
+### Verification
+
+After deploying, verify the library works:
+
+```bash
+cd Arduino_Core_STM32
+./system/ci/aflash.sh libraries/PrecompLib/examples/CRC16_Demo --use-rtt --build-id
+```
+
+Expected: 3/3 tests PASS (buffer CRC, streaming CRC, NULL handling)
+
+---
+
 ### Typical Workflows
 
 #### Feature Development in Arduino_Core_STM32
@@ -156,8 +204,6 @@ cd ..
 - Package index update with checksums
 - Commits and pushes to both submodules
 
-See `DEPLOYMENT_PLAN.md` for complete release workflow documentation.
-
 ---
 
 ## Important Notes for Claude
@@ -174,7 +220,6 @@ When asked to work on files, determine the correct location:
 - **Tests**: `Arduino_Core_STM32/tests/`
 - **Board configs**: `Arduino_Core_STM32/targets/`
 - **Package index**: `BoardManagerFiles/package_stm32_robotics_index.json`
-- **Deployment docs**: `DEPLOYMENT_PLAN.md`, `DEPLOYMENT_STATUS.md` (workspace root)
 - **Release automation**: `create_release.sh` (workspace root)
 
 ### Context Loading
@@ -262,18 +307,6 @@ For comprehensive development information:
   - Hardware validation standards
   - Completed projects
   - Future roadmap
-
-- **DEPLOYMENT_PLAN.md** (this workspace) - Architecture evolution and decisions
-  - Complete history: consolidation → BoardManagerFiles → v1.0.0 → workspace → automation → validation
-  - Key architectural decisions with rationale (3-tier, script placement, etc.)
-  - Lessons learned from deployment and production testing
-  - All 7 phases complete ✅
-
-- **DEPLOYMENT_STATUS.md** (this workspace) - Deployment completion status
-  - Executive summary: All phases complete ✅, deployment finished 🎉
-  - Phase-by-phase accomplishments and validation results
-  - Production validation: v1.0.0 release automation + Board Manager installation tested
-  - Future release workflow documented
 
 - **README.md** (this workspace) - Workspace quick reference
   - Architecture overview (3-tier design)
